@@ -1,0 +1,19 @@
+Island 2.1 — development preview
+
+Run Island.app on an Apple silicon Mac with macOS 15 or newer.
+If another Island or Boring Notch is running, quit it first to avoid overlapping overlays. This local build is not Apple-notarized, so macOS may block it after download to another Mac.
+
+YOUR TIMER
+Hover over Island, then choose Focus. Drag the ring to set a duration while paused. Use + to save a preset; type a minute value or use the arrows. Saved presets survive relaunch. Settings > Focus & Sounds manages presets, ring range, work/break cycles and ringtones.
+
+YOUR MODULES
+Settings > Modules lets you enable, disable and reorder modules, choose the default, or apply Minimal/Work/Everything. Additional modules appear under More. Pin keeps the expanded Island open. Settings > General controls displays; HUDs controls system-overlay replacement. Text fields now accept keyboard input.
+
+OPTIONAL CONNECTIONS
+Connect Calendar and Reminders only if you want those modules. Weather uses a manual city search. Code Hosting uses the chosen provider; private tokens are saved under Settings > Connections in your Mac's Keychain. Local translation needs Ollama and a model installed separately. Bluetooth and window layouts require appropriate macOS permission and device support.
+
+WHAT IS INCLUDED
+Island.app, the complete local Git repository in Source, license/attribution, build and release scripts, tests, verification report and beginner publishing guide. Nothing has been uploaded. Automatic updates stay off until you set your own public key and release feed.
+
+WHAT IS NOT FINISHED
+This is not full MacNotch parity. Read FEATURE-STATUS.md for the exact implementation and remaining work, including notification aggregation, agent approvals and advanced workflows. See VERIFICATION.md for what was actually tested.

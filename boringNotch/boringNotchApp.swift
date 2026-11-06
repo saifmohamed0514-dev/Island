@@ -221,6 +221,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func handleDragEntersNotchRegion(onScreen screen: NSScreen) {
+        guard IslandModuleStore.shared.enabled.contains(.shelf) else { return }
         guard let uuid = screen.displayUUID else { return }
         
         if Defaults[.showOnAllDisplays], let viewModel = viewModels[uuid] {
@@ -245,10 +246,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             window.disableSkyLight()
         }
 
-        window.contentView = NSHostingView(
-            rootView: ContentView()
-                .environmentObject(viewModel)
-        )
+        let hosting = NSHostingView(rootView: ContentView().environmentObject(viewModel))
+        hosting.safeAreaRegions = []
+        window.contentView = hosting
 
         window.orderFrontRegardless()
         NotchSpaceManager.shared.notchSpace.windows.insert(window)
@@ -285,6 +285,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             existing.activate(options: []); NSApp.terminate(nil); return
         }
         _ = IslandFocusTimer.shared
+        IslandUsageTracker.shared.setEnabled(IslandModuleStore.shared.enabled.contains(.usage))
 
 
         NotificationCenter.default.addObserver(

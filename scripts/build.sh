@@ -7,6 +7,7 @@ STAGE="$(mktemp -d /private/tmp/island-stage.XXXXXX)"
 trap 'rm -rf "$STAGE"' EXIT
 python3 -m unittest discover -s Tests -p 'test_*.py'
 scripts/test-timer.sh
+scripts/test-files.sh
 BUILD_ARGS=()
 if [[ -n "${ISLAND_PACKAGES_DIR:-}" ]]; then BUILD_ARGS+=(-clonedSourcePackagesDirPath "$ISLAND_PACKAGES_DIR"); fi
 xcodebuild -project boringNotch.xcodeproj -scheme boringNotch -configuration Release -derivedDataPath "$BUILD" "${BUILD_ARGS[@]}" -destination 'platform=macOS,arch=arm64' CODE_SIGNING_ALLOWED=NO build

@@ -11,6 +11,19 @@ import IOKit
 import CoreGraphics
 
 class BoringNotchXPCHelper: NSObject, BoringNotchXPCHelperProtocol {
+    @objc func tileWindow(_ pid: Int32, x: Double, y: Double, width: Double, height: Double, with reply: @escaping (Bool) -> Void) {
+        guard AXIsProcessTrusted(), pid > 0, [x,y,width,height].allSatisfy({ $0.isFinite && abs($0) < 100000 }), width > 100, height > 100 else { reply(false); return }
+        let app = AXUIElementCreateApplication(pid)
+        var focused: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(app, kAXFocusedWindowAttribute as CFString, &focused) == .success, let focused, CFGetTypeID(focused) == AXUIElementGetTypeID() else { reply(false); return }
+        let window = focused as! AXUIElement
+        var size = CGSize(width: width, height: height); var position = CGPoint(x: x, y: y)
+        guard let sizeValue = AXValueCreate(.cgSize, &size), let positionValue = AXValueCreate(.cgPoint, &position) else { reply(false); return }
+        let resized = AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, sizeValue)
+        let moved = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, positionValue)
+        reply(resized == .success && moved == .success)
+    }
+
     
     @objc func isAccessibilityAuthorized(with reply: @escaping (Bool) -> Void) {
         reply(AXIsProcessTrusted())

@@ -624,12 +624,18 @@ struct IslandTimerState: Codable {
     static let shared = IslandFocusTimer()
     @Published var state = IslandTimerState()
     @Published var ringing = false
+    @Published var phase = "Focus"
+    private var cycles = 0
+    @Published var presets: [Int] = [5, 15, 25] { didSet { defaults.set(presets, forKey: "island.timer.presets") } }
     @Published var soundError: String?
     private var clock: Timer?
     private var player: AVAudioPlayer?
     private let defaults: UserDefaults
     init(defaults: UserDefaults = .standard, startClock: Bool = true) {
         self.defaults = defaults
+        phase = defaults.string(forKey: "island.timer.phase") ?? "Focus"
+        cycles = max(0,min(1000000,defaults.integer(forKey: "island.timer.cycles")))
+        presets = IslandPresetRules.sanitize(defaults.array(forKey: "island.timer.presets") as? [Int] ?? [5,15,25])
         if let data = defaults.data(forKey: "island.timer.state"), let saved = try? JSONDecoder().decode(IslandTimerState.self, from: data), saved.remaining.isFinite, saved.duration.isFinite, (60...86400).contains(saved.duration), (0...86400).contains(saved.remaining) { state = saved }
         if startClock {
             clock = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in Task { @MainActor in self?.tick() } }
@@ -637,10 +643,23 @@ struct IslandTimerState: Codable {
         }
     }
     var label: String { let seconds = Int(ceil(state.remaining)); return String(format: "%02d:%02d", seconds / 60, seconds % 60) }
-    func save() { defaults.set(try? JSONEncoder().encode(state), forKey: "island.timer.state") }
-    func tick() { if state.tick(at: Date()) { save(); ring() } }
+    func save() { defaults.set(try? JSONEncoder().encode(state), forKey: "island.timer.state"); defaults.set(phase,forKey:"island.timer.phase"); defaults.set(cycles,forKey:"island.timer.cycles") }
+    func tick() {
+        if state.tick(at: Date()) {
+            ring()
+            if defaults.bool(forKey: "island.timer.pomodoro") {
+                let next = IslandCycleRules.next(phase: phase, completed: cycles, work: defaults.double(forKey:"island.timer.work"), short: defaults.double(forKey:"island.timer.break"), long: defaults.double(forKey:"island.timer.longBreak"))
+                phase = next.phase; cycles = next.completed
+                state.reset(seconds: next.minutes * 60); state.start(at: Date())
+            }
+            save()
+        }
+    }
     func toggle() { stopSound(); if state.deadline == nil { state.start(at: Date()) } else { state.pause(at: Date()) }; save() }
-    func reset(minutes: Double = 25) { stopSound(); state.reset(seconds: minutes * 60); save() }
+    func addPreset(_ minutes: Int) { presets = IslandPresetRules.sanitize(presets + [minutes]) }
+    func removePreset(_ minutes: Int) { presets = IslandPresetRules.sanitize(presets.filter { $0 != minutes }) }
+    func reset(minutes: Double = 25) { stopSound(); phase = "Focus"; state.reset(seconds: minutes * 60); save() }
+    func dismissCompletion() { stopSound(); state.finished = false; save() }
     func stopSound() { player?.stop(); player = nil; ringing = false }
     func ring(preview: Bool = false) {
         stopSound(); soundError = nil
@@ -677,26 +696,69 @@ struct IslandTimerState: Codable {
 }
 
 struct IslandFocusView: View {
+    @EnvironmentObject var vm: BoringViewModel
     @ObservedObject var timer = IslandFocusTimer.shared
+    @AppStorage("island.timer.dialMax") var dialMax = 120.0
+    @State private var showingPresets = false
+    @State private var dialDrag = IslandDialDrag()
+    var editable: Bool { timer.state.deadline == nil }
+    var progress: Double { editable && !timer.state.finished ? min(1, timer.state.duration / (dialMax * 60)) : timer.state.remaining / timer.state.duration }
     var body: some View {
-        HStack(spacing: 24) {
+        HStack(spacing: 22) {
             ZStack {
-                Circle().stroke(.white.opacity(0.1), lineWidth: 7)
-                Circle().trim(from: 0, to: max(0, min(1, timer.state.remaining / timer.state.duration))).stroke(.orange, style: StrokeStyle(lineWidth: 7, lineCap: .round)).rotationEffect(.degrees(-90))
-                Image(systemName: timer.state.finished ? "checkmark" : "timer").font(.system(size: 30)).foregroundStyle(.orange)
-            }.frame(width: 88, height: 88)
-            VStack(alignment: .leading, spacing: 6) {
-                Text(timer.state.finished ? "Time for a break" : "Focus Timer").foregroundStyle(.secondary)
-                Text(timer.label).font(.system(size: 38, weight: .medium, design: .rounded)).monospacedDigit()
-                HStack { ForEach([5,15,25], id: \.self) { minute in Button("\(minute) min") { timer.reset(minutes: Double(minute)) }.buttonStyle(.bordered) } }
+                Circle().stroke(.white.opacity(0.10), lineWidth: 7)
+                ForEach(0..<12, id: \.self) { tick in Capsule().fill(.white.opacity(0.3)).frame(width: 2, height: 4).offset(y: -43).rotationEffect(.degrees(Double(tick) * 30)) }
+                Circle().trim(from: 0, to: max(0, min(1, progress))).stroke(.orange, style: StrokeStyle(lineWidth: 7, lineCap: .round)).rotationEffect(.degrees(-90))
+                Image(systemName: timer.state.finished ? "checkmark" : "timer").font(.system(size: 28)).foregroundStyle(.orange)
+                if editable {
+                    Circle().fill(.white).frame(width: 14, height: 14).shadow(color: .black.opacity(0.4), radius: 3).offset(y: -51).rotationEffect(.degrees(progress * 360))
+                }
             }
-            Spacer()
-            VStack {
-                if timer.ringing { Button("Stop ringing", systemImage: "bell.slash") { timer.stopSound() }.tint(.orange) }
-                Button(action: timer.toggle) { Image(systemName: timer.state.deadline == nil ? "play.fill" : "pause.fill").font(.title2).padding(12) }.buttonStyle(.bordered).tint(.orange).accessibilityLabel(timer.state.deadline == nil ? "Start timer" : "Pause timer")
-                Button("Reset") { timer.reset(minutes: timer.state.duration / 60) }.buttonStyle(.plain)
+            .frame(width: 102, height: 102).padding(8).contentShape(Circle())
+            .gesture(DragGesture(minimumDistance: 0).onChanged { event in
+                guard editable else { return }
+                if let minutes = dialDrag.value(x: event.location.x - 59, y: event.location.y - 59, current: timer.state.duration / 60, maximum: dialMax) { timer.reset(minutes: Double(minutes)) }
+
+            }.onEnded { _ in dialDrag = IslandDialDrag() })
+            .accessibilityElement(children: .ignore).accessibilityLabel("Timer duration")
+            .accessibilityValue("\(Int(timer.state.duration / 60)) minutes")
+            .accessibilityHint(editable ? "Adjust to set a custom duration" : "Pause the timer to change its duration")
+            .accessibilityAdjustableAction { direction in
+                guard editable else { return }; timer.reset(minutes: min(1440, max(1, timer.state.duration / 60 + (direction == .increment ? 1 : -1))))
+            }
+            VStack(alignment: .leading, spacing: 5) {
+                Text(timer.state.finished ? "Time for a break" : timer.phase == "Focus" ? "Focus Timer" : timer.phase).foregroundStyle(.secondary)
+                Text(timer.label).font(.system(size: 36, weight: .medium, design: .rounded)).monospacedDigit()
+                Text(editable ? "Drag the ring to set time" : "One thing at a time.").font(.caption).foregroundStyle(.secondary)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 5) {
+                        ForEach(timer.presets, id: \.self) { minute in Button("\(minute)m") { timer.reset(minutes: Double(minute)) }.buttonStyle(.bordered).accessibilityLabel("\(minute) minute preset") }
+                        Button { showingPresets = true } label: { Image(systemName: "plus") }.buttonStyle(.bordered).help("Add a preset")
+                    }
+                }.frame(maxWidth: 280)
+            }
+            Spacer(minLength: 0)
+            VStack(spacing: 10) {
+                if timer.ringing { Button("Stop ringing", systemImage: "bell.slash") { timer.dismissCompletion() }.tint(.orange) }
+                Button(action: timer.toggle) { Image(systemName: editable ? "play.fill" : "pause.fill").font(.title2).frame(width: 44,height: 40) }.buttonStyle(.bordered).tint(.orange).accessibilityLabel(editable ? "Start timer" : "Pause timer")
+                Button("Reset") { timer.reset(minutes: timer.state.duration / 60) }.buttonStyle(.plain).foregroundStyle(.secondary)
             }
         }.padding(.horizontal, 12).frame(height: 134)
+        .popover(isPresented: $showingPresets) { IslandAddPresetView(timer: timer).padding(20).frame(width: 250) }
+        .onChange(of: showingPresets) { vm.isBatteryPopoverActive = showingPresets }
+        .onDisappear { vm.isBatteryPopoverActive = false }
+    }
+}
+struct IslandAddPresetView: View {
+    @ObservedObject var timer: IslandFocusTimer
+    @State var minutes = 45
+    @Environment(\.dismiss) var dismiss
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Save a preset").font(.headline)
+            HStack { TextField("Minutes",value:$minutes,format:.number).textFieldStyle(.roundedBorder).frame(width:80); Text("minutes"); Stepper("Minutes",value:$minutes,in:1...1440).labelsHidden() }
+            Button("Save preset") { timer.addPreset(minutes); dismiss() }.disabled(!(1...1440).contains(minutes) || timer.presets.contains(minutes) || timer.presets.count >= 12)
+        }
     }
 }
 
@@ -706,9 +768,30 @@ struct IslandFocusSettings: View {
     @AppStorage("island.timer.volume") var volume = 0.7
     @AppStorage("island.timer.repeat") var repeating = false
     @AppStorage("island.timer.work") var minutes = 25.0
+    @AppStorage("island.timer.dialMax") var dialMax = 120.0
+    @AppStorage("island.timer.pomodoro") var pomodoro = false
+    @AppStorage("island.timer.break") var breakMinutes = 5.0
+    @AppStorage("island.timer.longBreak") var longBreakMinutes = 15.0
+    @State private var presetMinutes = 45
+
     var body: some View {
         Form {
             Section("Focus") { Stepper("Duration: \(Int(minutes)) minutes", value: $minutes, in: 1...1440); Button("Apply duration and reset") { timer.reset(minutes: minutes) } }
+            Section("Work / break cycles") {
+                Toggle("Automatically alternate focus and breaks",isOn:$pomodoro)
+                Stepper("Short break: \(Int(breakMinutes)) minutes",value:$breakMinutes,in:1...120)
+                Stepper("Long break: \(Int(longBreakMinutes)) minutes",value:$longBreakMinutes,in:1...120)
+                Text("When enabled, a long break follows every four focus sessions. Completion sounds follow your ringtone settings. Pause stops the current countdown.").font(.caption).foregroundStyle(.secondary)
+            }
+            Section("Saved presets") {
+                ForEach(timer.presets, id: \.self) { preset in
+                    HStack { Text("\(preset) minutes"); Spacer(); Button("Remove", role: .destructive) { timer.removePreset(preset) }.disabled(timer.presets.count == 1) }
+                }
+                Stepper("New preset: \(presetMinutes) minutes", value: $presetMinutes, in: 1...1440)
+                Button("Add preset") { timer.addPreset(presetMinutes) }.disabled(timer.presets.contains(presetMinutes) || timer.presets.count >= 12)
+                Picker("Full ring duration", selection: $dialMax) { ForEach([30.0,60,90,120,180], id: \.self) { Text("\(Int($0)) minutes").tag($0) } }
+                Text("Drag the ring while paused to set a duration. Arrow keys and VoiceOver can adjust it one minute at a time.").foregroundStyle(.secondary)
+            }
             Section("Ringtone") {
                 Picker("Sound", selection: $tone) { ForEach(["Glass", "Hero", "Ping", "Submarine", "Sosumi", "Custom", "Silent"], id: \.self) { Text($0).tag($0) } }
                 Slider(value: $volume, in: 0...1) { Text("Alert volume") }
@@ -718,16 +801,6 @@ struct IslandFocusSettings: View {
             }
             Section { Text("The timer survives relaunch and sleep. Its sound plays once across all connected displays. Silent mode keeps the completion visible.").foregroundStyle(.secondary) }
         }.formStyle(.grouped).onDisappear { if !timer.ringing { timer.stopSound() } }
-    }
-}
-
-struct IslandNotesView: View {
-    @AppStorage("island.notes") var notes = ""
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack { Label("Quick Note", systemImage: "note.text"); Spacer(); Text("Saved on this Mac").font(.caption).foregroundStyle(.secondary) }
-            TextEditor(text: $notes).font(.body).scrollContentBackground(.hidden).padding(7).background(.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 12))
-        }.padding(.horizontal, 12).frame(height: 134)
     }
 }
 
@@ -760,7 +833,7 @@ struct IslandProjectSettings: View {
     var body: some View {
         Form {
             Section("Island • Open Source") {
-                Text("An independent GPL-3.0 fork of Island.")
+                Text("An independent GPL-3.0 fork of Boring Notch.")
                 Text("This is a development preview. See FEATURE-STATUS.md in the source for implemented features and remaining work.").foregroundStyle(.secondary)
             }
             Section("Updates") {

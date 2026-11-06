@@ -1,58 +1,20 @@
-//
-//  TabSelectionView.swift
-//  boringNotch
-//
-//  Created by Hugo Persson on 2024-08-25.
-//
-
+// Island module navigation; original Boring Notch tab design by Hugo Persson.
 import SwiftUI
-
-struct TabModel: Identifiable {
-    let id = UUID()
-    let label: String
-    let icon: String
-    let view: NotchViews
-}
-
-let tabs = [
-    TabModel(label: "Dashboard", icon: "square.grid.2x2", view: .dashboard),
-    TabModel(label: "Now Playing", icon: "play.circle", view: .home),
-    TabModel(label: "Shelf", icon: "tray.fill", view: .shelf),
-    TabModel(label: "Focus", icon: "timer", view: .focus),
-    TabModel(label: "Notes", icon: "note.text", view: .notes)
-]
-
 struct TabSelectionView: View {
     @ObservedObject var coordinator = BoringViewCoordinator.shared
-    @Namespace var animation
+    @ObservedObject var modules = IslandModuleStore.shared
     var body: some View {
-        HStack(spacing: 0) {
-            ForEach(tabs) { tab in
-                    TabButton(label: tab.label, icon: tab.icon, selected: coordinator.currentView == tab.view) {
-                        withAnimation(.smooth) {
-                            coordinator.currentView = tab.view
-                        }
-                    }
-                    .frame(height: 26)
-                    .foregroundStyle(tab.view == coordinator.currentView ? .white : .gray)
-                    .background {
-                        if tab.view == coordinator.currentView {
-                            Capsule()
-                                .fill(coordinator.currentView == tab.view ? Color(nsColor: .secondarySystemFill) : Color.clear)
-                                .matchedGeometryEffect(id: "capsule", in: animation)
-                        } else {
-                            Capsule()
-                                .fill(coordinator.currentView == tab.view ? Color(nsColor: .secondarySystemFill) : Color.clear)
-                                .matchedGeometryEffect(id: "capsule", in: animation)
-                                .hidden()
-                        }
-                    }
+        HStack(spacing: 3) {
+            ForEach(Array(modules.enabled.prefix(5))) { module in
+                Button { coordinator.currentView = module } label: {
+                    Image(systemName: module.icon).frame(width: 28, height: 26)
+                        .foregroundStyle(coordinator.currentView == module ? .white : .gray)
+                        .background(coordinator.currentView == module ? .white.opacity(0.10) : .clear, in: Capsule())
+                }.buttonStyle(.plain).help(module.title).accessibilityLabel(module.title)
+            }
+            if modules.enabled.count > 5 {
+                Menu { ForEach(Array(modules.enabled.dropFirst(5))) { module in Button(module.title, systemImage: module.icon) { coordinator.currentView = module } } } label: { Image(systemName: "ellipsis").frame(width: 24) }.menuStyle(.borderlessButton).help("More modules")
             }
         }
-        .clipShape(Capsule())
     }
-}
-
-#Preview {
-    BoringHeader().environmentObject(BoringViewModel())
 }

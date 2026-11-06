@@ -17,6 +17,7 @@ import Foundation
   s.reset(seconds: 300); s.start(at: now)
   s = try JSONDecoder().decode(IslandTimerState.self, from: JSONEncoder().encode(s))
   precondition(s.tick(at: now.addingTimeInterval(86400)) && s.remaining == 0)
+  try ModuleSmoke.run()
   print("PASS: 12 timer state, persistence, boundary and completion checks")
  }
 }

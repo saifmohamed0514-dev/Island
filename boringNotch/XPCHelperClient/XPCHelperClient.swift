@@ -17,6 +17,14 @@ final class XPCHelperClient: NSObject {
         stopMonitoringAccessibilityAuthorization()
     }
     
+    nonisolated func tileWindow(_ pid: Int32, x: Double, y: Double, width: Double, height: Double) async -> Bool {
+        do {
+            let service = await MainActor.run { ensureRemoteService() }
+            return try await service.withContinuation { service, continuation in
+                service.tileWindow(pid, x: x, y: y, width: width, height: height) { continuation.resume(returning: $0) }
+            }
+        } catch { return false }
+    }
     // MARK: - Connection Management (Main Actor Isolated)
     
     @MainActor

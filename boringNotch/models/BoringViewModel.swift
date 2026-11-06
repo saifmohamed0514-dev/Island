@@ -31,6 +31,7 @@ class BoringViewModel: NSObject, ObservableObject {
     @Published var edgeAutoOpenActive: Bool = false
     @Published var isHoveringCalendar: Bool = false
     @Published var isBatteryPopoverActive: Bool = false
+    @Published var isPinned: Bool = false
 
     @Published var screenUUID: String?
 
@@ -197,7 +198,14 @@ class BoringViewModel: NSObject, ObservableObject {
         MusicManager.shared.forceUpdate()
     }
 
+    var isEditingText: Bool {
+        guard let window = NSApp.keyWindow as? BoringNotchSkyLightWindow,
+              screenUUID == nil || window.screen?.displayUUID == screenUUID else { return false }
+        return window.firstResponder is NSTextView
+    }
     func close() {
+        if isEditingText || NSApp.modalWindow != nil { return }
+        if isPinned { return }
         if CommandLine.arguments.contains("--inspect-island") { return }
         // Do not close while a share picker or sharing service is active
         if SharingStateManager.shared.preventNotchClose {
@@ -212,10 +220,10 @@ class BoringViewModel: NSObject, ObservableObject {
 
         // Set the current view to shelf if it contains files and the user enables openShelfByDefault
         // Otherwise, if the user has not enabled openLastShelfByDefault, set the view to home
-    if !ShelfStateViewModel.shared.isEmpty && Defaults[.openShelfByDefault] {
+    if IslandModuleStore.shared.enabled.contains(.shelf) && !ShelfStateViewModel.shared.isEmpty && Defaults[.openShelfByDefault] {
             coordinator.currentView = .shelf
         } else if !coordinator.openLastTabByDefault {
-            coordinator.currentView = .home
+            coordinator.currentView = IslandModuleStore.shared.defaultModule
         }
     }
 

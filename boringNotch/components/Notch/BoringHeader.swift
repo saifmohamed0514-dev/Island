@@ -33,6 +33,7 @@ struct BoringHeader: View {
                         OpenNotchHUD(type: $coordinator.sneakPeek.type, value: $coordinator.sneakPeek.value, icon: $coordinator.sneakPeek.icon)
                             .transition(.scale(scale: 0.8).combined(with: .opacity))
                     } else {
+                        Button { vm.isPinned.toggle() } label: { Image(systemName: vm.isPinned ? "pin.fill" : "pin").frame(width: 28,height: 28).foregroundStyle(vm.isPinned ? .white : .gray) }.buttonStyle(.plain).help(vm.isPinned ? "Unpin Island" : "Keep Island open").accessibilityLabel(vm.isPinned ? "Unpin Island" : "Pin Island")
                         if Defaults[.showMirror] {
                             Button(action: {
                                 vm.toggleCameraPreview()

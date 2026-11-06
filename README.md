@@ -1,4 +1,4 @@
-# Island
+# Island 2.1
 
 An independent, open-source macOS notch utility, based on [Boring Notch](https://github.com/TheBoredTeam/boring.notch). GPL-3.0; original copyright notices and third-party licenses are retained.
 
@@ -9,8 +9,9 @@ An independent, open-source macOS notch utility, based on [Boring Notch](https:/
 - Top-center notch UI, including notchless/external displays, with display settings.
 - Now Playing transport, media artwork, file shelf, AirDrop, calendar and mirror inherited from upstream.
 - Optional system volume/brightness HUD replacement with macOS Accessibility permission.
-- Persistent focus timer with presets, pause/resume/reset, custom duration, selectable sounds, audio import, preview, volume and repeat-until-stopped.
-- Shared timer across displays; local scratchpad and a dashboard.
+- Persistent focus timer with a draggable ring, saved custom presets, work/break cycles, selectable sounds, audio import, volume and repeat-until-stopped.
+- Shared timer across displays; multiple local notes and a dashboard.
+- Module toggles, ordering and profiles. Optional weather, tasks, day progress, wellbeing, system/usage monitoring, launcher, code hosting, local translation, device readings, window layouts and file actions. See FEATURE-STATUS.md for exact scope.
 - Island-specific, signed Sparkle update configuration. Updates are off until configured.
 
 Apple silicon, macOS 15+. Build with Xcode 26 or later. The supplied preview is locally signed and **not notarized**. A physical external monitor and all optional integrations still require live testing.

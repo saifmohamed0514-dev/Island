@@ -1,17 +1,23 @@
-# Preview verification — November 6, 2026
+# Island 2.1 verification — November 6, 2026
 
-- PASS: Apple silicon Release build with Xcode 27.2, minimum deployment target macOS 15.
-- PASS: 12 timer state checks covering start/pause/reset, paused and running persistence, completion exactly once, long clock jumps and duration boundaries.
-- PASS: six Python tests, including real Sparkle archive signing with an ephemeral test key, CryptoKit verification, tampered-archive rejection and mismatched-public-key rejection. No production signing key was created or retained.
-- PASS: strict recursive ad-hoc code-signature verification before packaging and after extracting the delivered archive.
-- PASS: live onboarding with optional permissions skipped; Focus & Sounds settings, ringtone preview/stop with no error, single idle label, dashboard navigation, timer start/pause/reset, notes editor, battery percentage contrast and system-native glass pop-up.
-- PASS: fixed preview's music observer subprocess exits on normal quit. Earlier test-version orphans were removed.
-- PASS: installed previous Island preserved and relaunched; new preview was not installed over it.
-- PASS: update feed/public key absent in the supplied app; update startup and menu action disabled until configured.
-- PASS: final ZIP extraction, executable architecture and source repository integrity checks.
+## Passed
 
-## Unverified or incomplete
+- Release build for Apple silicon with Xcode 27.2, minimum macOS 15; version 2.1.0 build 210.
+- 12 deterministic timer state, persistence, duration-boundary and single-completion checks.
+- 22 dial/preset/cycle/module/display-geometry checks, including crossing the dial seam, limits, preset filtering, module fallback/order, four-session long breaks, and negative/above-screen coordinates.
+- 10 archive checks using the production extraction code, including actual successful extraction, traversal rejection and symlink rejection.
+- Six Python release/configuration tests, including actual Sparkle signing with an ephemeral test key, tamper rejection and mismatched-public-key rejection. No production update key was created or retained.
+- Strict recursive local code-signature verification before packaging and after extraction.
+- Live UI: no top gap on the built-in display; ring drag changed the duration to 60 minutes; a 45-minute preset was added, selected and restored after relaunch.
+- Live UI: module controls, reorder, enablement and overflow navigation. System Monitor displayed actual CPU/memory/storage readings.
+- Live UI: keyboard entry in the notch, weather retrieval, note creation/editing/switching, automatic save and recoverable trash. The temporary verification note was moved to recoverable trash.
+- Earlier live checks: timer start/pause/reset, ringtone preview/stop with no error, single idle label, percentage contrast and system-linked glass battery pop-up.
+- New preview installed as ~/Applications/Island Preview.app and relaunched normally. The original /Applications/Island.app is preserved. User preferences were not reset.
+- Update feed and public key remain absent; updater startup stays disabled until configured.
+- ZIP integrity, source repository integrity and extracted application checks.
 
-Only the built-in display is connected. External-screen placement is implemented through the inherited per-screen window code, but has not been physically verified. Accessibility permission was not granted to this new identity, so actual HUD suppression is not verified. Live provider playback, AirDrop, custom ringtone import and audible timer completion, real sleep/wake and an actual old-to-new app update still need checks. The GitHub workflows are prepared but have not run on GitHub. No public repository or production release exists yet.
+## Limits and remaining work
 
-This preview is locally signed, not Apple-notarized. Upstream Swift concurrency/deprecation warnings remain. See FEATURE-STATUS.md for the full outstanding MacNotch scope. This is not a claim that every bug is fixed or that every requested feature is implemented.
+Only the built-in display is connected; physical external-display behavior remains unverified. Geometry tests do not replace that check. New Bluetooth/window-control permissions were not granted during this audit. Actual window resizing, Bluetooth coverage, private GitHub/GitLab/Bitbucket/Jira access, Ollama with an installed model, live Reminders modifications, custom ringtone import and audible timer completion, real sleep/wake, file-picker workflows, AirDrop and real app updates require end-to-end checks. The file tests exercise the production command layer rather than claiming every UI action was tested.
+
+The GitHub workflows have not run remotely. Nothing was published. This preview is locally ad-hoc signed, not Apple-notarized. Upstream concurrency/deprecation warnings remain. FEATURE-STATUS.md lists the outstanding MacNotch scope; this is not a claim that full parity or zero bugs has been achieved.

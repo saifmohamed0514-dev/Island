@@ -5,7 +5,7 @@ Everything is local right now. You do not need to create a website or pay for ho
 1. Create a GitHub account if you do not have one.
 2. In GitHub, choose **New repository**, name it **Island**, and choose **Public**. Do not add a second README or license: this project already contains them.
 3. Use GitHub Desktop: **File → Add local repository**, choose this project folder (the `Source` folder if you extracted the complete ZIP), and publish it to the empty repository. If needed, use GitHub Desktop's existing-repository instructions. Keep the GPL license and third-party notices.
-4. Read `FEATURE-STATUS.md`. Describe the app as a development preview until the missing features and verification are finished.
+4. Read `App-Read-Me.txt` in the package and `FEATURE-STATUS.md`. Describe the app as a development preview until the missing features and verification are finished.
 5. To share a manual download, build with `scripts/build.sh`, create a GitHub Release and attach `dist/Island.zip`. Users can download the ZIP. The local preview is not Apple-notarized, so macOS may block it on another Mac; explain that clearly.
 6. Automatic in-app updates need a one-time signing-key and feed setup. Follow `docs/RELEASING.md` before your first auto-updating public build.
 

@@ -20,6 +20,7 @@ struct ContentView: View {
     @ObservedObject var webcamManager = WebcamManager.shared
 
     @ObservedObject var coordinator = BoringViewCoordinator.shared
+    @ObservedObject var focusTimer = IslandFocusTimer.shared
     @ObservedObject var musicManager = MusicManager.shared
     @ObservedObject var batteryModel = BatteryStatusViewModel.shared
     @ObservedObject var brightnessManager = BrightnessManager.shared
@@ -61,6 +62,7 @@ struct ContentView: View {
 
     private var computedChinWidth: CGFloat {
         var chinWidth: CGFloat = vm.closedNotchSize.width
+        if (focusTimer.state.deadline != nil || focusTimer.state.finished) && IslandModuleStore.shared.enabled.contains(.focus) { chinWidth += 100 }
 
         if coordinator.expandingView.type == .battery && coordinator.expandingView.show
             && vm.notchState == .closed && Defaults[.showPowerStatusNotifications]
@@ -120,7 +122,7 @@ struct ContentView: View {
                 
                 mainLayout
                     .environment(\.colorScheme, .dark)
-                    .frame(height: vm.notchState == .open ? vm.notchSize.height : nil)
+                    .frame(height: vm.notchState == .open ? vm.notchSize.height : nil, alignment: .top)
                     .conditionalModifier(true) { view in
                         let openAnimation = Animation.spring(response: 0.42, dampingFraction: 0.8, blendDuration: 0)
                         let closeAnimation = Animation.spring(response: 0.45, dampingFraction: 1.0, blendDuration: 0)
@@ -206,6 +208,7 @@ struct ContentView: View {
         }
         .padding(.bottom, 8)
         .frame(maxWidth: windowSize.width, maxHeight: windowSize.height, alignment: .top)
+        .ignoresSafeArea(.container, edges: .top)
         .compositingGroup()
         .scaleEffect(
             x: gestureScale,
@@ -216,10 +219,14 @@ struct ContentView: View {
         .background(dragDetector)
         .environment(\.islandSystemColorScheme, systemColorScheme)
         .environmentObject(vm)
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in
+            if !isHovering && !vm.isBatteryPopoverActive && !SharingStateManager.shared.preventNotchClose { vm.close() }
+        }
+        .onExitCommand { NSApp.keyWindow?.makeFirstResponder(nil); vm.close() }
         .onChange(of: vm.anyDropZoneTargeting) { _, isTargeted in
             anyDropDebounceTask?.cancel()
 
-            if isTargeted {
+            if isTargeted && IslandModuleStore.shared.enabled.contains(.shelf) {
                 if vm.notchState == .closed {
                     coordinator.currentView = .shelf
                     doOpen()
@@ -286,6 +293,9 @@ struct ContentView: View {
                             .frame(width: 76, alignment: .trailing)
                         }
                         .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
+                      } else if vm.notchState == .closed && (focusTimer.state.deadline != nil || focusTimer.state.finished) && IslandModuleStore.shared.enabled.contains(.focus) && !coordinator.sneakPeek.show {
+                          HStack { Image(systemName: "timer").foregroundStyle(.orange); Spacer().frame(width: max(10,vm.closedNotchSize.width - 70)); Text(focusTimer.state.finished ? "Timer finished" : focusTimer.label).monospacedDigit().foregroundStyle(.orange) }.padding(.horizontal,12).frame(height:vm.effectiveClosedNotchHeight)
+                              .onTapGesture { coordinator.currentView = .focus; doOpen() }
                       } else if coordinator.sneakPeek.show && Defaults[.inlineHUD] && (coordinator.sneakPeek.type != .music) && (coordinator.sneakPeek.type != .battery) && vm.notchState == .closed {
                           InlineHUD(type: $coordinator.sneakPeek.type, value: $coordinator.sneakPeek.value, icon: $coordinator.sneakPeek.icon, hoverAnimation: $isHovering, gestureProgress: $gestureProgress)
                               .transition(.opacity)
@@ -357,12 +367,14 @@ struct ContentView: View {
                         IslandNotesView()
                     case .dashboard:
                         IslandDashboardView()
+                    default:
+                        IslandModuleContent(module: coordinator.currentView)
                     }
                 }
                 .transition(
                     .scale(scale: 0.8, anchor: .top)
                     .combined(with: .opacity)
-                    .animation(.smooth(duration: 0.35))
+                    .animation(.easeOut(duration: 0.15))
                 )
                 .zIndex(1)
                 .allowsHitTesting(vm.notchState == .open)

@@ -24,12 +24,14 @@ public enum NotchState {
     case open
 }
 
-public enum NotchViews {
+public enum NotchViews: String, CaseIterable, Codable, Identifiable {
+    public var id: String { rawValue }
     case home
     case shelf
     case focus
     case notes
     case dashboard
+    case weather, health, system, usage, calendar, tasks, day, launcher, code, translation, devices, windows, files
 }
 
 enum SettingsEnum {

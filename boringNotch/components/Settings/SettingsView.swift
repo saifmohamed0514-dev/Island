@@ -27,6 +27,8 @@ struct SettingsView: View {
     var body: some View {
         NavigationSplitView {
             List(selection: $selectedTab) {
+                NavigationLink(value: "Connections") { Label("Connections", systemImage: "network") }
+                NavigationLink(value: "Modules") { Label("Modules", systemImage: "square.grid.2x2") }
                 NavigationLink(value: "Island") { Label("Island", systemImage: "capsule") }
                 NavigationLink(value: "Focus") { Label("Focus & Sounds", systemImage: "timer") }
                 NavigationLink(value: "General") {
@@ -73,6 +75,10 @@ struct SettingsView: View {
         } detail: {
             Group {
                 switch selectedTab {
+                case "Connections":
+                    IslandConnectionsSettings()
+                case "Modules":
+                    IslandModulesSettings()
                 case "Island":
                     IslandProjectSettings()
                 case "Focus":
