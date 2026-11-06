@@ -31,7 +31,7 @@ public enum NotchViews: String, CaseIterable, Codable, Identifiable {
     case focus
     case notes
     case dashboard
-    case weather, health, system, usage, calendar, tasks, day, launcher, code, translation, devices, windows, files
+    case weather, health, system, usage, calendar, tasks, day, launcher, code, translation, devices, windows, files, mirror
 }
 
 enum SettingsEnum {

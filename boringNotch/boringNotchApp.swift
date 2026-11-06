@@ -29,7 +29,7 @@ struct DynamicNotchApp: App {
     }
 
     var body: some Scene {
-        MenuBarExtra("Island", systemImage: "sparkle", isInserted: $showMenuBarIcon) {
+        MenuBarExtra("Island", systemImage: "capsule.fill", isInserted: $showMenuBarIcon) {
             Button("Settings") {
                 DispatchQueue.main.async {
                     SettingsWindowController.shared.showWindow()
@@ -433,7 +433,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.async {
                 self.showOnboardingWindow()
             }
-            playWelcomeSound()
+
         } else if MusicManager.shared.isNowPlayingDeprecated
             && Defaults[.mediaController] == .nowPlaying
         {
@@ -573,13 +573,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func showOnboardingWindow(step: OnboardingStep = .welcome) {
         if onboardingWindowController == nil {
             let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 400, height: 600),
+                contentRect: NSRect(x: 0, y: 0, width: 420, height: 540),
                 styleMask: [.titled, .fullSizeContentView],
                 backing: .buffered,
                 defer: false
             )
             window.center()
-            window.title = "Onboarding"
+            window.title = "Welcome to Island"
             window.titlebarAppearsTransparent = true
             window.titleVisibility = .hidden
             window.contentView = NSHostingView(

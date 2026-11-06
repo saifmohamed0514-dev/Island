@@ -16,7 +16,7 @@ class SettingsWindowController: NSWindowController {
     
     private init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 700, height: 600),
+            contentRect: NSRect(x: 0, y: 0, width: 760, height: 610),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -55,10 +55,10 @@ class SettingsWindowController: NSWindowController {
         
         // Configure window to be a standard document-style window
         window.isRestorable = true
-        window.identifier = NSUserInterfaceItemIdentifier("BoringNotchSettingsWindow")
+        window.identifier = NSUserInterfaceItemIdentifier("IslandSettingsWindow")
         
         // Create the SwiftUI content
-        let settingsView = SettingsView(updaterController: updaterController)
+        let settingsView = IslandSettingsView(updaterController: updaterController)
         let hostingView = NSHostingView(rootView: settingsView)
         window.contentView = hostingView
         

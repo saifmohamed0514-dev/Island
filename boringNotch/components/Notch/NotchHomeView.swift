@@ -623,6 +623,8 @@ struct IslandTimerState: Codable {
 @MainActor final class IslandFocusTimer: ObservableObject {
     static let shared = IslandFocusTimer()
     @Published var state = IslandTimerState()
+    @Published var showCompletion = false
+    private var completionTask: Task<Void,Never>?
     @Published var ringing = false
     @Published var phase = "Focus"
     private var cycles = 0
@@ -646,6 +648,12 @@ struct IslandTimerState: Codable {
     func save() { defaults.set(try? JSONEncoder().encode(state), forKey: "island.timer.state"); defaults.set(phase,forKey:"island.timer.phase"); defaults.set(cycles,forKey:"island.timer.cycles") }
     func tick() {
         if state.tick(at: Date()) {
+            showCompletion = true
+            completionTask?.cancel()
+            completionTask = Task { [weak self] in
+                try? await Task.sleep(for:.seconds(4))
+                guard !Task.isCancelled else { return }; self?.showCompletion = false
+            }
             ring()
             if defaults.bool(forKey: "island.timer.pomodoro") {
                 let next = IslandCycleRules.next(phase: phase, completed: cycles, work: defaults.double(forKey:"island.timer.work"), short: defaults.double(forKey:"island.timer.break"), long: defaults.double(forKey:"island.timer.longBreak"))
@@ -658,8 +666,8 @@ struct IslandTimerState: Codable {
     func toggle() { stopSound(); if state.deadline == nil { state.start(at: Date()) } else { state.pause(at: Date()) }; save() }
     func addPreset(_ minutes: Int) { presets = IslandPresetRules.sanitize(presets + [minutes]) }
     func removePreset(_ minutes: Int) { presets = IslandPresetRules.sanitize(presets.filter { $0 != minutes }) }
-    func reset(minutes: Double = 25) { stopSound(); phase = "Focus"; state.reset(seconds: minutes * 60); save() }
-    func dismissCompletion() { stopSound(); state.finished = false; save() }
+    func reset(minutes: Double = 25) { showCompletion = false; completionTask?.cancel(); stopSound(); phase = "Focus"; state.reset(seconds: minutes * 60); save() }
+    func dismissCompletion() { showCompletion = false; stopSound(); state.finished = false; save() }
     func stopSound() { player?.stop(); player = nil; ringing = false }
     func ring(preview: Bool = false) {
         stopSound(); soundError = nil

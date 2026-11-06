@@ -74,6 +74,7 @@ extension NotchViews {
         case .devices: return "Bluetooth"
         case .windows: return "Window Layouts"
         case .files: return "File Actions"
+        case .mirror: return "Mirror"
         }
     }
     var icon: String {
@@ -96,6 +97,7 @@ extension NotchViews {
         case .devices: return "headphones"
         case .windows: return "rectangle.split.2x1"
         case .files: return "folder.badge.gearshape"
+        case .mirror: return "video"
         }
     }
 }
@@ -195,6 +197,7 @@ struct IslandModuleContent: View {
                 case .devices: IslandDevicesView()
                 case .windows: IslandWindowSnapView()
                 case .files: IslandFileActionsView()
+                case .mirror: IslandMirrorView()
                 default: EmptyView()
                 }
             }.padding(.horizontal, 12).padding(.vertical, 5)
