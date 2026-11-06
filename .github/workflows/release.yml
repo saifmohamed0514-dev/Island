@@ -1,0 +1,28 @@
+name: Prepare signed release
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  prepare:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and test
+        run: scripts/build.sh
+      - name: Validate and sign update archive
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p .release-check
+          ditto -x -k dist/Island.zip .release-check
+          SIGN_TOOL=$(find .build/SourcePackages/artifacts -type f -name sign_update -print -quit)
+          test -n "$SIGN_TOOL"
+          python3 scripts/prepare-release.py --app .release-check/Island.app --archive dist/Island.zip --output dist/appcast.xml --sign-tool "$SIGN_TOOL"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Island-release-files
+          path: |
+            dist/Island.zip
+            dist/appcast.xml

@@ -1,0 +1,19 @@
+name: Build and test Island
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and test
+        run: scripts/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Island-development-preview
+          path: dist/Island.zip

@@ -1,0 +1,15 @@
+.DS_Store
+.build/
+dist/
+.release-check/
+__pycache__/
+*.xcuserstate
+xcuserdata/
+.env
+.env.*
+*.p12
+*.p8
+*.key
+*.pem
+sparkle-private*
+*.log
