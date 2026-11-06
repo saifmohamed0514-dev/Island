@@ -2,10 +2,10 @@ import SwiftUI
 import Defaults
 
 // Island's own bounded surface and physical-camera-safe activity layout.
-enum IslandCompactKind { case idle, music, timer, hud, battery }
+enum IslandCompactKind { case idle, music, timer, hud, battery, agent }
 struct IslandCompactLayout {
     static func wing(for kind:IslandCompactKind) -> CGFloat {
-        switch kind { case .idle: return 0; case .music: return 34; case .timer,.hud,.battery: return 64 }
+        switch kind { case .idle: return 0; case .music: return 34; case .timer,.hud,.battery,.agent: return 64 }
     }
     static func width(camera:CGFloat,kind:IslandCompactKind) -> CGFloat { max(0,camera) + 2 * wing(for:kind) }
 }
@@ -28,7 +28,7 @@ struct IslandMark:View {
     }
 }
 struct IslandHeader:View {
-    @EnvironmentObject var vm:BoringViewModel
+    @EnvironmentObject var vm:IslandViewModel
     @ObservedObject var battery = BatteryStatusViewModel.shared
     var body:some View {
         HStack(spacing:0) {
@@ -36,9 +36,9 @@ struct IslandHeader:View {
             Color.clear.frame(width:min(130,vm.closedNotchSize.width * 0.65)).allowsHitTesting(false)
             HStack(spacing:8) {
                 Button { vm.isPinned.toggle() } label: { Image(systemName:vm.isPinned ? "pin.fill" : "pin").foregroundStyle(vm.isPinned ? .cyan : .secondary) }.help(vm.isPinned ? "Unpin Island" : "Keep Island open").accessibilityLabel(vm.isPinned ? "Unpin Island" : "Pin Island")
-                Button { SettingsWindowController.shared.showWindow() } label: { Image(systemName:"slider.horizontal.3") }.help("Customize Island").accessibilityLabel("Island settings")
+                Button { IslandSettingsController.shared.showWindow() } label: { Image(systemName:"slider.horizontal.3") }.help("Customize Island").accessibilityLabel("Island settings")
                 if Defaults[.showBatteryIndicator] {
-                    BoringBatteryView(batteryWidth:29,isCharging:battery.isCharging,isInLowPowerMode:battery.isInLowPowerMode,isPluggedIn:battery.isPluggedIn,levelBattery:battery.levelBattery,maxCapacity:battery.maxCapacity,timeToFullCharge:battery.timeToFullCharge,isForNotification:false)
+                    IslandBatteryButton(batteryWidth:29,isCharging:battery.isCharging,isInLowPowerMode:battery.isInLowPowerMode,isPluggedIn:battery.isPluggedIn,levelBattery:battery.levelBattery,maxCapacity:battery.maxCapacity,timeToFullCharge:battery.timeToFullCharge,isForNotification:false)
                 }
             }.font(.system(size:13,weight:.medium)).buttonStyle(.plain).foregroundStyle(.secondary).frame(maxWidth:.infinity,alignment:.trailing)
         }.frame(height:34)
@@ -46,11 +46,12 @@ struct IslandHeader:View {
 }
 struct IslandCompactActivity:View {
     let kind:IslandCompactKind
-    @EnvironmentObject var vm:BoringViewModel
+    @EnvironmentObject var vm:IslandViewModel
     @ObservedObject var focus = IslandFocusTimer.shared
     @ObservedObject var music = MusicManager.shared
-    @ObservedObject var coordinator = BoringViewCoordinator.shared
+    @ObservedObject var coordinator = IslandCoordinator.shared
     @ObservedObject var battery = BatteryStatusViewModel.shared
+    @ObservedObject var bridge = IslandAgentBridge.shared
     var body:some View {
         let wing = IslandCompactLayout.wing(for:kind)
         HStack(spacing:0) {
@@ -63,6 +64,7 @@ struct IslandCompactActivity:View {
         .contentShape(Rectangle())
         .onTapGesture {
             if kind == .timer { coordinator.currentView = .focus }
+            else if kind == .agent { coordinator.currentView = .agents }
             else if kind == .music { coordinator.currentView = .home }
             vm.open()
         }
@@ -70,6 +72,7 @@ struct IslandCompactActivity:View {
     @ViewBuilder var leading:some View {
         switch kind {
         case .idle: Color.clear
+        case .agent: Image(systemName:"hand.raised.fill").foregroundStyle(.cyan)
         case .timer: Image(systemName:focus.showCompletion ? "checkmark.circle.fill" : "timer").foregroundStyle(.orange)
         case .music: Image(nsImage:music.albumArt).resizable().scaledToFill().frame(width:18,height:18).clipShape(RoundedRectangle(cornerRadius:5))
         case .hud: Image(systemName:coordinator.sneakPeek.icon.isEmpty ? "speaker.wave.2.fill" : coordinator.sneakPeek.icon).foregroundStyle(.white)
@@ -79,6 +82,7 @@ struct IslandCompactActivity:View {
     @ViewBuilder var trailing:some View {
         switch kind {
         case .idle: Color.clear
+        case .agent: Text("\(bridge.pending.count) waiting").foregroundStyle(.cyan)
         case .timer: Text(focus.showCompletion ? "Done" : focus.label).monospacedDigit().foregroundStyle(.orange)
         case .music: Image(systemName:music.isPlaying ? "waveform" : "pause.fill").foregroundStyle(.cyan)
         case .hud: ProgressView(value:min(1,max(0,Double(coordinator.sneakPeek.value)))).progressViewStyle(.linear).tint(.white).padding(.horizontal,10)

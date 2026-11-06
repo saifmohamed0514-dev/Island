@@ -35,6 +35,16 @@ struct ModuleSmoke {
   let aboveScreen = CGRect(x:0,y:1080,width:1920,height:1080)
   precondition(IslandWindowLayout.top.accessibilityRectangle(in:aboveScreen,primaryTop:1080) == CGRect(x:0,y:-1080,width:1920,height:540))
   precondition(IslandWindowLayout.maximize.rectangle(in:leftScreen) == leftScreen)
-  print("PASS: 22 dial, preset, cycle, module and display geometry checks")
+  precondition(IslandCompactLayout.width(camera:185,kind:.timer) < 400)
+  precondition(IslandCompactLayout.width(camera:185,kind:.idle) == 185)
+  precondition(IslandCompactLayout.width(camera:185,kind:.hud) == IslandCompactLayout.width(camera:185,kind:.timer))
+  precondition(IslandWidget.slots("bad").count == 4)
+  precondition(IslandWidget.slots("battery,day").prefix(2) == [.battery,.day])
+  precondition(IslandScheduleRules.profile(minute:540,start:540,end:1020) == "Work")
+  precondition(IslandScheduleRules.profile(minute:1020,start:540,end:1020) == "Minimal")
+  precondition(IslandScheduleRules.profile(minute:60,start:1320,end:360) == "Work")
+  precondition(IslandScheduleRules.profile(minute:700,start:1320,end:360) == "Minimal")
+  precondition(IslandScheduleRules.profile(minute:400,start:400,end:400) == "Minimal")
+  print("PASS: 32 dial, preset, cycle, module and compact display geometry checks")
  }
 }

@@ -1,4 +1,4 @@
-# Island 2.1
+# Island 2.2
 
 An independent, open-source macOS notch utility, based on [Boring Notch](https://github.com/TheBoredTeam/boring.notch). GPL-3.0; original copyright notices and third-party licenses are retained.
 
@@ -7,11 +7,11 @@ An independent, open-source macOS notch utility, based on [Boring Notch](https:/
 ## In this preview
 
 - Top-center notch UI, including notchless/external displays, with display settings.
-- Now Playing transport, media artwork, file shelf, AirDrop, calendar and mirror inherited from upstream.
+- Own player, tray, dashboard, settings and onboarding with licensed media/file backends. Camera-safe compact activities and transient timer completion.
 - Optional system volume/brightness HUD replacement with macOS Accessibility permission.
 - Persistent focus timer with a draggable ring, saved custom presets, work/break cycles, selectable sounds, audio import, volume and repeat-until-stopped.
-- Shared timer across displays; multiple local notes and a dashboard.
-- Module toggles, ordering and profiles. Optional weather, tasks, day progress, wellbeing, system/usage monitoring, launcher, code hosting, local translation, device readings, window layouts and file actions. See FEATURE-STATUS.md for exact scope.
+- Shared timer across displays; multiple local notes and four configurable dashboard widgets.
+- Module toggles, ordering, daily scheduled layouts and keyboard shortcut settings. Optional weather, tasks, day progress, wellbeing, system/usage monitoring, launcher, code hosting, local/optional cloud translation, device readings, window layouts, file actions and a local agent hook bridge/inbox. See FEATURE-STATUS.md for exact scope.
 - Island-specific, signed Sparkle update configuration. Updates are off until configured.
 
 Apple silicon, macOS 15+. Build with Xcode 26 or later. The supplied preview is locally signed and **not notarized**. A physical external monitor and all optional integrations still require live testing.
@@ -21,6 +21,8 @@ Apple silicon, macOS 15+. Build with Xcode 26 or later. The supplied preview is 
 ```sh
 scripts/build.sh
 ```
+
+After committing the corresponding source, `scripts/package-source.sh` creates a complete app + source ZIP.
 
 The app ZIP is created at `dist/Island.zip`. Dependencies are pinned in the Xcode project's `Package.resolved`. First build needs internet. No paid Apple account is required for a local preview. For public distribution, review Developer ID signing and notarization.
 

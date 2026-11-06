@@ -2,11 +2,12 @@ import SwiftUI
 import Defaults
 import LaunchAtLogin
 import Sparkle
+import KeyboardShortcuts
 
 struct IslandSettingsView:View {
     @State var selected = "Overview"
     let updaterController:SPUStandardUpdaterController?
-    let pages:[(String,String)] = [("Overview","capsule"),("Modules","square.grid.2x2"),("Focus & Sounds","timer"),("Displays","display.2"),("Media","music.note"),("Behavior","cursorarrow.rays"),("System Controls","switch.2"),("Connections","network"),("About Island","info.circle")]
+    let pages:[(String,String)] = [("Overview","capsule"),("Modules","square.grid.2x2"),("Dashboard","rectangle.grid.2x2"),("Focus & Sounds","timer"),("Displays","display.2"),("Media","music.note"),("Behavior","cursorarrow.rays"),("System Controls","switch.2"),("Connections","network"),("Agents & Inbox","terminal"),("About Island","info.circle")]
     var body:some View {
         NavigationSplitView {
             VStack(alignment:.leading,spacing:18) {
@@ -17,12 +18,14 @@ struct IslandSettingsView:View {
             Group {
                 switch selected {
                 case "Modules": IslandModulesSettings()
+                case "Dashboard": IslandDashboardSettings()
                 case "Focus & Sounds": IslandFocusSettings()
                 case "Displays": IslandDisplaySettings()
                 case "Media": IslandMediaSettings()
                 case "Behavior": IslandBehaviorSettings()
                 case "System Controls": IslandSystemSettings()
                 case "Connections": IslandConnectionsSettings()
+                case "Agents & Inbox": IslandBridgeSettings()
                 case "About Island": IslandAboutSettings(updater:updaterController)
                 default: IslandOverviewSettings { selected = $0 }
                 }
@@ -49,7 +52,7 @@ struct IslandOverviewSettings:View {
     }
 }
 struct IslandDisplaySettings:View {
-    @ObservedObject var coordinator = BoringViewCoordinator.shared
+    @ObservedObject var coordinator = IslandCoordinator.shared
     @Default(.showOnAllDisplays) var allDisplays
     @Default(.automaticallySwitchDisplay) var followPointer
     @Default(.nonNotchHeightMode) var heightMode
@@ -72,7 +75,7 @@ struct IslandDisplaySettings:View {
 }
 struct IslandMediaSettings:View {
     @Default(.mediaController) var source
-    @ObservedObject var coordinator = BoringViewCoordinator.shared
+    @ObservedObject var coordinator = IslandCoordinator.shared
     var body:some View {
         Form {
             Section("Your player") {
@@ -90,7 +93,8 @@ struct IslandBehaviorSettings:View {
     @Default(.minimumHoverDuration) var delay
     @Default(.enableHaptics) var haptics
     @Default(.hideFromScreenRecording) var privacy
-    @ObservedObject var coordinator = BoringViewCoordinator.shared
+    @Default(.hideNotchOption) var hideInFullscreen
+    @ObservedObject var coordinator = IslandCoordinator.shared
     var body:some View {
         Form {
             Section("Everyday") {
@@ -100,6 +104,12 @@ struct IslandBehaviorSettings:View {
                 Slider(value:$delay,in:0.05...1,step:0.05) { Text("Hover delay") }; Text(String(format:"%.2f seconds",delay)).foregroundStyle(.secondary)
                 Toggle("Haptic feedback",isOn:$haptics)
                 Toggle("Remember the last module",isOn:$coordinator.openLastTabByDefault)
+                Picker("Hide in full screen",selection:$hideInFullscreen) { Text("Never").tag(HideNotchOption.never); Text("Media apps").tag(HideNotchOption.nowPlayingOnly); Text("Always").tag(HideNotchOption.always) }
+            }
+            Section("Keyboard shortcuts") {
+                KeyboardShortcuts.Recorder("Open Island",name:.toggleNotchOpen)
+                KeyboardShortcuts.Recorder("Quick peek",name:.toggleSneakPeek)
+                KeyboardShortcuts.Recorder("Microphone",name:.toggleMicrophone)
             }
             Section("Privacy") {
                 Toggle("Ask macOS to hide Island from captures",isOn:$privacy)
@@ -148,7 +158,7 @@ struct IslandAboutSettings:View {
 }
 struct IslandMirrorView:View {
     @ObservedObject var camera = WebcamManager.shared
-    @EnvironmentObject var vm:BoringViewModel
+    @EnvironmentObject var vm:IslandViewModel
     var body:some View {
         VStack(spacing:8) {
             if camera.isSessionRunning { CameraPreviewView(webcamManager:camera).scaledToFill().frame(height:105).clipped().clipShape(RoundedRectangle(cornerRadius:18)); Button("Turn camera off") { camera.stopSession() } }

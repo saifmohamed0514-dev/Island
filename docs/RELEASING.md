@@ -21,7 +21,7 @@ Official reference: https://sparkle-project.org/documentation/ and https://spark
 
 ## Prepare an update locally
 
-1. Increase `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in both main-target build configurations in `boringNotch.xcodeproj/project.pbxproj`. Example: version `2.0.1`, build `201`. Keep increasing the build number.
+1. Increase `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in both main-target build configurations in `Island.xcodeproj/project.pbxproj`. Example: version `2.0.1`, build `201`. Keep increasing the build number.
 2. Run `scripts/build.sh` and extract `dist/Island.zip` to a temporary folder. Verify the extracted app with `codesign --verify --deep --strict`.
 3. Export your Sparkle key to a protected file using `generate_keys --account IslandUpdates -x PRIVATE-PATH`. Keep it outside the repository. Set `SPARKLE_PRIVATE_KEY` from that file in your own shell; do not paste the value into chats, source or logs. The release script passes it to Sparkle using an owner-only temporary file, not a command-line argument.
 4. Run:

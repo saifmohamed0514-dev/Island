@@ -16,7 +16,7 @@ import AppKit
     nonisolated func sharingService(_ sharingService:NSSharingService,didFailToShareItems items:[Any],error:Error) { Task { @MainActor in self.finish() } }
 }
 struct IslandTrayView:View {
-    @EnvironmentObject var vm:BoringViewModel
+    @EnvironmentObject var vm:IslandViewModel
     @StateObject var tray = ShelfStateViewModel.shared
     @StateObject var preview = QuickLookService()
     @StateObject var airDrop = IslandAirDropSession()
@@ -50,7 +50,7 @@ struct IslandTrayView:View {
 struct IslandTrayTile:View {
     let item:ShelfItem
     let preview:QuickLookService
-    @EnvironmentObject var vm:BoringViewModel
+    @EnvironmentObject var vm:IslandViewModel
     @StateObject private var model:ShelfItemViewModel
     init(item:ShelfItem,preview:QuickLookService) { self.item = item; self.preview = preview; _model = StateObject(wrappedValue:ShelfItemViewModel(item:item)) }
     var body:some View {

@@ -12,7 +12,7 @@ def configure(repository, public_key, root):
     try: key = base64.b64decode(public_key, validate=True)
     except Exception as exc: raise ValueError('Public key must be base64.') from exc
     if len(key) != 32: raise ValueError('Sparkle public key must decode to 32 bytes.')
-    path = root / 'boringNotch/Info.plist'
+    path = root / 'IslandCore/Info.plist'
     data = plistlib.loads(path.read_bytes())
     data['SUFeedURL'] = f'https://github.com/{repository}/releases/latest/download/appcast.xml'
     data['SUPublicEDKey'] = public_key

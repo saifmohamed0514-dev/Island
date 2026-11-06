@@ -2,6 +2,7 @@ import SwiftUI
 import Combine
 
 @MainActor final class IslandWeather: ObservableObject {
+    static let shared = IslandWeather()
     struct Place: Codable { var name: String; var latitude: Double; var longitude: Double; var country: String? }
     struct Search: Codable { var results: [Place]? }
     struct Forecast: Codable {
@@ -23,7 +24,7 @@ import Combine
             let result: Search = try await fetch(components.url!)
             guard let found = result.results?.first else { error = "No matching city found."; return }
             var request = URLComponents(string: "https://api.open-meteo.com/v1/forecast")!
-            request.queryItems = ["latitude": String(found.latitude), "longitude": String(found.longitude), "current": "temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m", "daily": "temperature_2m_max,temperature_2m_min", "temperature_unit": fahrenheit ? "fahrenheit" : "celsius", "timezone": "auto"].map { URLQueryItem(name: $0.key, value: $0.value) }
+            request.queryItems = ["latitude": String(found.latitude), "longitude": String(found.longitude), "current": "temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m", "daily": "temperature_2m_max,temperature_2m_min", "temperature_unit": "celsius", "timezone": "auto"].map { URLQueryItem(name: $0.key, value: $0.value) }
             let data: Forecast = try await fetch(request.url!)
             forecast = data; place = found; updated = Date()
         } catch { self.error = "Weather unavailable. Check your connection and try again." }
@@ -39,22 +40,23 @@ import Combine
     }
 }
 struct IslandWeatherView: View {
-    @StateObject var weather = IslandWeather()
+    @ObservedObject var weather = IslandWeather.shared
     @AppStorage("island.weather.city") var city = ""
     @AppStorage("island.weather.fahrenheit") var fahrenheit = false
+    func temperature(_ celsius:Double)->Int { Int((fahrenheit ? celsius*9/5+32 : celsius).rounded()) }
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
             HStack { TextField("City", text: $city).textFieldStyle(.roundedBorder); Toggle("°F", isOn: $fahrenheit).toggleStyle(.checkbox); Button(weather.loading ? "Loading…" : "Get forecast") { Task { await weather.search(city: city, fahrenheit: fahrenheit) } }.disabled(weather.loading) }
             if let current = weather.forecast?.current {
                 HStack(spacing: 20) {
-                    Text("\(Int(current.temperature_2m.rounded()))°").font(.system(size: 35,weight: .medium,design: .rounded))
+                    Text("\(temperature(current.temperature_2m))°").font(.system(size: 35,weight: .medium,design: .rounded))
                     VStack(alignment: .leading) { Text(weather.place?.name ?? city).font(.headline); Text(IslandWeather.condition(current.weather_code)).foregroundStyle(.secondary) }
                     Spacer()
-                    VStack(alignment: .trailing) { Text("Feels \(Int(current.apparent_temperature.rounded()))°"); Text("Humidity \(Int(current.relative_humidity_2m))% · Wind \(Int(current.wind_speed_10m)) km/h").font(.caption).foregroundStyle(.secondary) }
+                    VStack(alignment: .trailing) { Text("Feels \(temperature(current.apparent_temperature))°"); Text("Humidity \(Int(current.relative_humidity_2m))% · Wind \(Int(current.wind_speed_10m)) km/h").font(.caption).foregroundStyle(.secondary) }
                 }
                 if let daily = weather.forecast?.daily {
                     HStack { ForEach(Array(daily.time.prefix(7).enumerated()), id: \.offset) { index, day in
-                        if index < daily.temperature_2m_max.count && index < daily.temperature_2m_min.count { VStack { Text(String(day.suffix(5))); Text("\(Int(daily.temperature_2m_max[index]))° / \(Int(daily.temperature_2m_min[index]))°") }.font(.caption).frame(maxWidth: .infinity) }
+                        if index < daily.temperature_2m_max.count && index < daily.temperature_2m_min.count { VStack { Text(String(day.suffix(5))); Text("\(temperature(daily.temperature_2m_max[index]))° / \(temperature(daily.temperature_2m_min[index]))°") }.font(.caption).frame(maxWidth: .infinity) }
                     } }
                 }
             }

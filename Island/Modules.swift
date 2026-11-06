@@ -75,6 +75,8 @@ extension NotchViews {
         case .windows: return "Window Layouts"
         case .files: return "File Actions"
         case .mirror: return "Mirror"
+        case .agents: return "AI Coding"
+        case .inbox: return "Inbox"
         }
     }
     var icon: String {
@@ -98,6 +100,8 @@ extension NotchViews {
         case .windows: return "rectangle.split.2x1"
         case .files: return "folder.badge.gearshape"
         case .mirror: return "video"
+        case .agents: return "terminal"
+        case .inbox: return "bell"
         }
     }
 }
@@ -144,8 +148,9 @@ struct IslandModulePreferences: Codable {
     private func persist() {
         preferences.normalize()
         defaults.set(try? JSONEncoder().encode(preferences), forKey: "island.modules")
-        if !enabled.contains(BoringViewCoordinator.shared.currentView) { BoringViewCoordinator.shared.currentView = defaultModule }
+        if !enabled.contains(IslandCoordinator.shared.currentView) { IslandCoordinator.shared.currentView = defaultModule }
         IslandUsageTracker.shared.setEnabled(enabled.contains(.usage))
+        IslandAgentBridge.shared.start(enabled.contains(.agents) || enabled.contains(.inbox))
     }
 }
 struct IslandModulesSettings: View {
@@ -198,6 +203,8 @@ struct IslandModuleContent: View {
                 case .windows: IslandWindowSnapView()
                 case .files: IslandFileActionsView()
                 case .mirror: IslandMirrorView()
+                case .agents: IslandAgentView()
+                case .inbox: IslandInboxView()
                 default: EmptyView()
                 }
             }.padding(.horizontal, 12).padding(.vertical, 5)

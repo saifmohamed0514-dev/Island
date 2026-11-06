@@ -65,7 +65,7 @@ enum IslandWindowLayout:String,CaseIterable,Identifiable {
     func rectangle(in frame:CGRect) -> CGRect { let r = fraction; return CGRect(x:frame.minX+r.minX*frame.width,y:frame.minY+r.minY*frame.height,width:r.width*frame.width,height:r.height*frame.height) }
 }
 struct IslandWindowSnapView: View {
-    @EnvironmentObject var vm:BoringViewModel
+    @EnvironmentObject var vm:IslandViewModel
     @State var target:Int32 = 0
     @State var apps:[NSRunningApplication] = []
     @State var status = "Choose an app, then a layout."

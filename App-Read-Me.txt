@@ -1,19 +1,21 @@
-Island 2.1 — development preview
+Island 2.2 — development preview
 
-Run Island.app on an Apple silicon Mac with macOS 15 or newer.
-If another Island or Boring Notch is running, quit it first to avoid overlapping overlays. This local build is not Apple-notarized, so macOS may block it after download to another Mac.
+Run Island.app on an Apple silicon Mac with macOS 15 or newer. Quit other notch utilities first to avoid overlapping overlays. This build is locally signed, not Apple-notarized; macOS may block it after downloading to another Mac.
+
+YOUR ISLAND
+The player, tray, dashboard, settings, welcome flow, icon and compact activities now use Island’s own design. A completed timer clears its compact Done indicator after four seconds. It does not leave a strip under the camera.
 
 YOUR TIMER
-Hover over Island, then choose Focus. Drag the ring to set a duration while paused. Use + to save a preset; type a minute value or use the arrows. Saved presets survive relaunch. Settings > Focus & Sounds manages presets, ring range, work/break cycles and ringtones.
+Choose Focus. Drag the ring while paused. Use + to enter a duration and save a preset. Settings → Focus & Sounds manages presets, work/break cycles and ringtones. Timer state persists across relaunch.
 
 YOUR MODULES
-Settings > Modules lets you enable, disable and reorder modules, choose the default, or apply Minimal/Work/Everything. Additional modules appear under More. Pin keeps the expanded Island open. Settings > General controls displays; HUDs controls system-overlay replacement. Text fields now accept keyboard input.
+Settings → Modules enables, reorders and chooses your starting module. Settings → Dashboard chooses four widget slots and an optional daily Work/Minimal schedule. More contains overflow modules. Pin keeps Island open. Displays chooses screens; Behavior configures keyboard shortcuts; System Controls has HUD replacement and permission connections.
 
 OPTIONAL CONNECTIONS
-Connect Calendar and Reminders only if you want those modules. Weather uses a manual city search. Code Hosting uses the chosen provider; private tokens are saved under Settings > Connections in your Mac's Keychain. Local translation needs Ollama and a model installed separately. Bluetooth and window layouts require appropriate macOS permission and device support.
+Calendar, Reminders and Mirror ask for their permissions when selected. Weather uses your city search. Code Hosting uses explicit refresh and Keychain tokens. Translation defaults to local Ollama; OpenAI is optional, needs a separate API key/model, sends the entered text only on Translate and may incur API charges. Agents & Inbox prepares local hook examples without changing your Claude/Cursor settings. Bluetooth and window layouts depend on macOS permissions and device support.
 
 WHAT IS INCLUDED
-Island.app, the complete local Git repository in Source, license/attribution, build and release scripts, tests, verification report and beginner publishing guide. Nothing has been uploaded. Automatic updates stay off until you set your own public key and release feed.
+Island.app, corresponding source and local Git history in Source, licenses, build/release scripts, tests, verification report and beginner publishing guide. No user preferences, passwords, private signing keys or account tokens are included. Automatic updates remain off until your own release feed and public key are configured. Nothing has been uploaded.
 
-WHAT IS NOT FINISHED
-This is not full MacNotch parity. Read FEATURE-STATUS.md for the exact implementation and remaining work, including notification aggregation, agent approvals and advanced workflows. See VERIFICATION.md for what was actually tested.
+STATUS
+This remains a development preview, not verified full MacNotch parity. FEATURE-STATUS.md lists remaining scope and VERIFICATION.md records actual checks. The previous privileged Low Power Mode toggle is not reconstructed in this source; Battery Settings opens the macOS control.
