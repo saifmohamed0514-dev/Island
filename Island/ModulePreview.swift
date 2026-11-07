@@ -26,10 +26,21 @@ struct IslandModulePreview:View {
             let scale=min(1,geometry.size.width/680)
             VStack(spacing:0) {
                 HStack(spacing:0) {
-                    HStack(spacing:7) { ForEach(Array(modules.prefix(5))) { module in Image(systemName:module.icon).frame(width:24,height:26).foregroundStyle(.gray) };if modules.count>5 { Image(systemName:"ellipsis") } }.frame(maxWidth:.infinity,alignment:.leading)
+                    HStack(spacing:7) {
+                        ForEach(Array(modules.prefix(5))) { module in
+                            Button { onSelect(module) } label: {
+                                Image(systemName:module.icon).frame(width:24,height:26).foregroundStyle(module == selected ? .white : .gray)
+                                    .background(module == selected ? .white.opacity(0.10) : .clear,in:Capsule())
+                            }.buttonStyle(.plain).help("Open "+module.title+" settings").accessibilityLabel(module.title+" settings")
+                        }
+                        if modules.count>5 {
+                            Menu { ForEach(Array(modules.dropFirst(5))) { module in Button(module.title,systemImage:module.icon) { onSelect(module) } } } label: { Image(systemName:"ellipsis").frame(width:24) }
+                                .menuStyle(.borderlessButton).help("More module settings").accessibilityLabel("More module settings")
+                        }
+                    }.frame(maxWidth:.infinity,alignment:.leading)
                     Color.clear.frame(width:130)
-                    HStack(spacing:12) { Image(systemName:"pin");Image(systemName:"slider.horizontal.3");Image(systemName:"battery.100").font(.system(size:22)).overlay { Text("84").font(.system(size:8,weight:.bold)).foregroundStyle(.black).offset(x:-1) } }.foregroundStyle(.gray).frame(maxWidth:.infinity,alignment:.trailing)
-                }.frame(height:34).accessibilityHidden(true)
+                    HStack(spacing:12) { Image(systemName:"pin");Image(systemName:"slider.horizontal.3");Image(systemName:"battery.100").font(.system(size:22)).overlay { Text("84").font(.system(size:8,weight:.bold)).foregroundStyle(.black).offset(x:-1) } }.foregroundStyle(.gray).frame(maxWidth:.infinity,alignment:.trailing).accessibilityHidden(true)
+                }.frame(height:34)
                 Rectangle().fill(.white.opacity(0.07)).frame(height:1).padding(.top,3)
                 LazyVGrid(columns:[GridItem(.flexible()),GridItem(.flexible())],spacing:8) {
                     ForEach(0..<4,id:\.self) { index in
@@ -37,6 +48,7 @@ struct IslandModulePreview:View {
                             if slots.indices.contains(index),let module=slots[index] {
                                 Button { onSelect(module) } label: { block(module,index:index) }.buttonStyle(.plain)
                                     .draggable(IslandModuleTransfer(module:module)) { Label(module.title,systemImage:module.icon).padding(12).background(.regularMaterial,in:RoundedRectangle(cornerRadius:12)) }
+                                    .simultaneousGesture(TapGesture().onEnded { onSelect(module) })
                                     .help(IslandCanvasPreferences.title(index)+" · drag this block to another position, or click for settings")
                                     .accessibilityLabel(module.title+" in "+IslandCanvasPreferences.title(index)+". Click for settings or drag to move.")
                             } else {
@@ -61,7 +73,7 @@ struct IslandModulePreview:View {
     private func block(_ module:NotchViews,index:Int)->some View {
         HStack(spacing:12) {
             Image(systemName:module.icon).font(.system(size:21)).foregroundStyle(.cyan).frame(width:28)
-            VStack(alignment:.leading,spacing:4) { Text(module.title).font(.caption).foregroundStyle(.secondary);Text(modules.contains(module) ? sampleValue(module) : "Off · enable below").font(.system(size:14,weight:.medium,design:.rounded)).lineLimit(1).monospacedDigit() }
+            VStack(alignment:.leading,spacing:4) { Text(module.title).font(.caption).foregroundStyle(.secondary);Text(modules.contains(module) ? sampleValue(module) : "Off · click for settings").font(.system(size:14,weight:.medium,design:.rounded)).lineLimit(1).monospacedDigit() }
             Spacer(minLength:0);Image(systemName:"line.3.horizontal").font(.caption).foregroundStyle(.secondary)
         }.padding(.horizontal,14).frame(maxWidth:.infinity).frame(height:62)
         .background(module == selected ? .blue.opacity(0.15) : .white.opacity(0.055),in:RoundedRectangle(cornerRadius:16))

@@ -42,9 +42,14 @@ struct IslandModuleDesigner:View {
                     .help("Remove a block from this layout. The module and its data are kept.")
             }
             Text(feedback+" Preview content is illustrative.").font(.caption).foregroundStyle(.secondary).lineLimit(2).frame(minHeight:16,alignment:.leading)
+            HStack(spacing:10) {
+                Picker("Module settings",selection:Binding(get:{ selected },set:inspect)) { ForEach(NotchViews.allCases) { module in Text(module.title).tag(module) } }.pickerStyle(.menu)
+                Button("Open settings") { inspect(selected) }
+            }.help("Choose any module, including File Tray, then open its settings below.")
             Divider()
-            if inspecting { inspector } else { moduleLibrary }
+            moduleLibrary
         }.padding(16)
+        .sheet(isPresented:$inspecting) { inspector.padding(18).frame(width:560,height:540) }
     }
     private var moduleLibrary:some View {
         VStack(alignment:.leading,spacing:9) {
@@ -80,7 +85,11 @@ struct IslandModuleDesigner:View {
     }
     private var inspector:some View {
         VStack(alignment:.leading,spacing:8) {
-            HStack { Button { inspecting=false } label: { Label("All modules",systemImage:"chevron.left") }.buttonStyle(.plain).foregroundStyle(.blue);Spacer();Label(selected.title,systemImage:selected.icon).font(.headline) }
+            HStack {
+                Image(systemName:selected.icon).foregroundStyle(.blue)
+                Picker("Module",selection:Binding(get:{ selected },set:{ selectedID=$0.rawValue })) { ForEach(NotchViews.allCases) { module in Text(module.title).tag(module) } }.font(.headline)
+                Spacer();Button("Done") { inspecting=false }.keyboardShortcut(.cancelAction)
+            }
             HStack {
                 Toggle("Show in layout",isOn:Binding(get:{ inLayout },set:{ wanted in if wanted { _=drop(selected,canvas.preferences.slots.firstIndex(of:nil) ?? 0) } else { _=remove(selected) } })).toggleStyle(.switch)
                 Spacer()

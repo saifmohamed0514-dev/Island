@@ -45,7 +45,8 @@ class IslandSettingsController: NSWindowController {
         window.titlebarAppearsTransparent = false
         window.titleVisibility = .visible
         window.toolbarStyle = .unified
-        window.isMovableByWindowBackground = true
+        // Keep mouse input available to the canvas and controls; drag the title bar to move Settings.
+        window.isMovableByWindowBackground = false
         
         // Make it behave like a regular app window with proper Spaces support
         window.collectionBehavior = [.managed, .participatesInCycle, .fullScreenAuxiliary]
