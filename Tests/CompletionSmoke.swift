@@ -17,7 +17,10 @@ final class CompletionDefaults:UserDefaults,@unchecked Sendable {
         timer.state.deadline = Date().addingTimeInterval(-1)
         timer.tick()
         precondition(timer.state.finished && timer.showCompletion)
-        try await Task.sleep(for:.seconds(4.2))
+        let expiryLimit=ContinuousClock.now.advanced(by:.seconds(6))
+        while timer.showCompletion && ContinuousClock.now < expiryLimit {
+            try await Task.sleep(for:.milliseconds(50))
+        }
         precondition(!timer.showCompletion && timer.state.finished)
         timer.tick(); precondition(!timer.showCompletion)
         timer.addPreset(90)

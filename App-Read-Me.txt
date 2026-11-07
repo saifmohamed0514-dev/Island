@@ -1,10 +1,10 @@
-Island 2.3.2 (233) — development preview
+Island 2.3.3 (234) — development preview
 
 INSTALL
 Run Island.app on an Apple silicon Mac with macOS 15 or newer. Keep one copy in Applications and quit other notch utilities to avoid overlapping overlays. This build is locally signed, not Apple-notarized; macOS may block it after downloading to another Mac.
 
 YOUR ISLAND
-The player, tray, dashboard, settings, welcome flow, icon and compact activities use Island’s own design. A completed timer clears its compact Done indicator after four seconds. Battery percentage is inside the icon; its pop-up uses system-linked native glass on supported macOS versions.
+The player, tray, dashboard, settings, welcome flow, icon and compact activities use Island’s own design. Opening and closing keep the content layout stable while the outer surface resizes and fades. A completed timer clears its compact Done indicator after four seconds. Battery percentage is inside the icon; its pop-up uses system-linked native glass on supported macOS versions.
 
 YOUR TIMER
 Choose Focus. Drag the ring while paused. Use + to enter a duration and save a preset. Settings → Focus & Sounds manages presets, work/break cycles and ringtones. Timer state persists across relaunch.

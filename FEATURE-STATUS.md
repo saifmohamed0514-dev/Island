@@ -6,7 +6,7 @@ Updated November 7, 2026. This is an implementation inventory, not a claim of fu
 
 Island now has its own black surface, camera-safe compact activities, navigation, player, tray, dashboard, settings, welcome flow and custom icon. Inherited face/hello animations, promotional screens, team logos, branded artwork and welcome audio have been removed. Project, main target, executable and helper product use Island names. GPL copyright notices, attribution and a few internal compatibility identifiers remain intentionally preserved.
 
-A running timer appears in two bounded wings beside the physical camera. Completion says **Done** for four seconds, then clears. A finished saved timer cannot restore a persistent completion banner on launch. Compact width is independent of the expanded panel's width.
+A running timer appears in two bounded wings beside the physical camera. Completion says **Done** for four seconds, then clears. A finished saved timer cannot restore a persistent completion banner on launch. Compact width is independent of the expanded panel's width. Opening/closing clips a fixed expanded canvas inside a single animated surface; outgoing content fades before a cancellable default-tab reset.
 
 ## Available features
 

@@ -25,6 +25,7 @@ class IslandViewModel: NSObject, ObservableObject {
     @Published var dropEvent: Bool = false
     @Published var anyDropZoneTargeting: Bool = false
     var cancellables: Set<AnyCancellable> = []
+    private var closedContentTask: Task<Void,Never>?
     
     @Published var hideOnClosed: Bool = true
 
@@ -47,6 +48,8 @@ class IslandViewModel: NSObject, ObservableObject {
     }
 
     func destroy() {
+        closedContentTask?.cancel()
+        closedContentTask = nil
         cancellables.forEach { $0.cancel() }
         cancellables.removeAll()
     }
@@ -191,6 +194,9 @@ class IslandViewModel: NSObject, ObservableObject {
     }
 
     func open() {
+        closedContentTask?.cancel()
+        closedContentTask = nil
+        guard notchState != .open else { return }
         self.notchSize = openNotchSize
         self.notchState = .open
         
@@ -211,6 +217,7 @@ class IslandViewModel: NSObject, ObservableObject {
         if SharingStateManager.shared.preventNotchClose {
             return
         }
+        let wasOpen = notchState == .open
         self.notchSize = getClosedNotchSize(screenUUID: self.screenUUID)
         self.closedNotchSize = self.notchSize
         self.notchState = .closed
@@ -218,12 +225,20 @@ class IslandViewModel: NSObject, ObservableObject {
         self.coordinator.sneakPeek.show = false
         self.edgeAutoOpenActive = false
 
-        // Set the current view to shelf if it contains files and the user enables openShelfByDefault
-        // Otherwise, if the user has not enabled openLastShelfByDefault, set the view to home
-    if IslandModuleStore.shared.enabled.contains(.shelf) && !ShelfStateViewModel.shared.isEmpty && Defaults[.openShelfByDefault] {
-            coordinator.currentView = .shelf
-        } else if !coordinator.openLastTabByDefault {
-            coordinator.currentView = IslandModuleStore.shared.defaultModule
+        // Let the outgoing content fade before choosing the next opening tab.
+        // Reopening cancels this reset, including compact timer/music navigation.
+        if wasOpen {
+            closedContentTask?.cancel()
+            closedContentTask = Task { @MainActor [weak self] in
+                do { try await Task.sleep(for:.milliseconds(400)) } catch { return }
+                guard let self,self.notchState == .closed else { return }
+                if IslandModuleStore.shared.enabled.contains(.shelf) && !ShelfStateViewModel.shared.isEmpty && Defaults[.openShelfByDefault] {
+                    self.coordinator.currentView = .shelf
+                } else if !self.coordinator.openLastTabByDefault {
+                    self.coordinator.currentView = IslandModuleStore.shared.defaultModule
+                }
+                self.closedContentTask = nil
+            }
         }
     }
 

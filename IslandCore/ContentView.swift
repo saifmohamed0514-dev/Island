@@ -16,6 +16,7 @@ import SwiftUIIntrospect
 @MainActor
 struct ContentView: View {
     @Environment(\.colorScheme) private var systemColorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject var vm: IslandViewModel
     @ObservedObject var webcamManager = WebcamManager.shared
 
@@ -43,8 +44,9 @@ struct ContentView: View {
     // Shared interactive spring for movement/resizing to avoid conflicting animations
     private let animationSpring = Animation.interactiveSpring(response: 0.38, dampingFraction: 0.8, blendDuration: 0)
 
-    private let extendedHoverPadding: CGFloat = 30
-    private let zeroHeightHoverPadding: CGFloat = 10
+    private var surfaceAnimation: Animation {
+        reduceMotion ? .easeOut(duration:0.12) : .spring(response:0.36,dampingFraction:1,blendDuration:0)
+    }
 
     private var compactKind: IslandCompactKind {
         if coordinator.sneakPeek.show && [.volume,.brightness,.backlight,.mic].contains(coordinator.sneakPeek.type) { return .hud }
@@ -68,9 +70,19 @@ struct ContentView: View {
         
         ZStack(alignment: .top) {
             VStack(spacing: 0) {
-                let mainLayout = NotchLayout()
-                    .padding(.horizontal,vm.notchState == .open ? 20 : 0)
-                    .padding(.bottom,vm.notchState == .open ? 12 : 0)
+                let mainLayout = ZStack(alignment:.top) {
+                    if vm.notchState == .open {
+                        // Clip a fixed canvas instead of relaying out controls as the surface shrinks.
+                        expandedContent
+                            .padding(.horizontal,20)
+                            .padding(.bottom,12)
+                            .frame(width:openNotchSize.width,height:openNotchSize.height,alignment:.top)
+                            .transition(.asymmetric(insertion:.opacity.animation(.easeOut(duration:0.16)),removal:.opacity.animation(.easeOut(duration:0.10))))
+                    } else {
+                        IslandCompactActivity(kind:compactKind)
+                            .transition(.opacity.animation(.easeOut(duration:0.12)))
+                    }
+                }
                     .frame(width:vm.notchState == .open ? openNotchSize.width : computedChinWidth,
                            height:vm.notchState == .open ? openNotchSize.height : vm.effectiveClosedNotchHeight,alignment:.top)
                     .background(.black)
@@ -79,15 +91,8 @@ struct ContentView: View {
 
                 mainLayout
                     .environment(\.colorScheme, .dark)
-                    .frame(height: vm.notchState == .open ? vm.notchSize.height : nil, alignment: .top)
-                    .conditionalModifier(true) { view in
-                        let openAnimation = Animation.spring(response: 0.42, dampingFraction: 0.8, blendDuration: 0)
-                        let closeAnimation = Animation.spring(response: 0.45, dampingFraction: 1.0, blendDuration: 0)
-                        
-                        return view
-                            .animation(vm.notchState == .open ? openAnimation : closeAnimation, value: vm.notchState)
-                            .animation(.smooth, value: gestureProgress)
-                    }
+                    .animation(surfaceAnimation,value:vm.notchState)
+                    .animation(surfaceAnimation,value:computedChinWidth)
                     .contentShape(Rectangle())
                     .onHover { hovering in
                         handleHover(hovering)
@@ -123,9 +128,7 @@ struct ContentView: View {
                     }
                     .onChange(of: vm.notchState) { _, newState in
                         if newState == .closed && isHovering {
-                            withAnimation {
-                                isHovering = false
-                            }
+                            isHovering = false
                         }
                     }
                     .onChange(of: vm.isBatteryPopoverActive) {
@@ -164,7 +167,7 @@ struct ContentView: View {
             }
         }
         .padding(.bottom, 8)
-        .frame(maxWidth: windowSize.width, maxHeight: windowSize.height, alignment: .top)
+        .frame(width: windowSize.width, height: windowSize.height, alignment: .top)
         .ignoresSafeArea(.container, edges: .top)
         .compositingGroup()
         .scaleEffect(
@@ -172,7 +175,7 @@ struct ContentView: View {
             y: gestureScale,
             anchor: .top
         )
-        .animation(.smooth, value: gestureProgress)
+        .animation(animationSpring, value: gestureProgress)
         .background(dragDetector)
         .environment(\.islandSystemColorScheme, systemColorScheme)
         .environmentObject(vm)
@@ -208,9 +211,7 @@ struct ContentView: View {
         }
     }
 
-    @ViewBuilder
-    func NotchLayout() -> some View {
-        if vm.notchState == .open {
+    private var expandedContent: some View {
             VStack(spacing:0) {
                 IslandHeader().frame(height:34)
                 Rectangle().fill(.white.opacity(0.07)).frame(height:1).padding(.top,3)
@@ -225,7 +226,6 @@ struct ContentView: View {
                     }
                 }.frame(height:150,alignment:.top).padding(.top,12)
             }
-        } else { IslandCompactActivity(kind:compactKind) }
     }
 
     @ViewBuilder
@@ -245,9 +245,7 @@ struct ContentView: View {
     }
 
     private func doOpen() {
-        withAnimation(animationSpring) {
-            vm.open()
-        }
+        vm.open()
     }
 
     // MARK: - Hover Management
@@ -257,9 +255,7 @@ struct ContentView: View {
         hoverTask?.cancel()
         
         if hovering {
-            withAnimation(animationSpring) {
-                isHovering = true
-            }
+            isHovering = true
             
             if vm.notchState == .closed && Defaults[.enableHaptics] {
                 haptics.toggle()
@@ -287,9 +283,7 @@ struct ContentView: View {
                 guard !Task.isCancelled else { return }
                 
                 await MainActor.run {
-                    withAnimation(animationSpring) {
-                        self.isHovering = false
-                    }
+                    self.isHovering = false
                     
                     if self.vm.notchState == .open && !self.vm.isBatteryPopoverActive && !SharingStateManager.shared.preventNotchClose {
                         self.vm.close()
@@ -338,9 +332,7 @@ struct ContentView: View {
         }
 
         if translation > Defaults[.gestureSensitivity] {
-            withAnimation(animationSpring) {
-                isHovering = false
-            }
+            isHovering = false
             if !SharingStateManager.shared.preventNotchClose { 
                 gestureProgress = .zero
                 vm.close()
