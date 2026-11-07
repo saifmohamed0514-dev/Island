@@ -12,7 +12,8 @@ s=Path('Island/WindowSnapping.swift').read_text();s=s[s.index('enum IslandSnapRu
 w=Path('Island/DevicesAndWindows.swift').read_text();w=w[w.index('enum IslandWindowLayout:'):w.index('struct IslandWindowSnapView:')]
 n=Path('Island/Notices.swift').read_text();n=n[n.index('enum IslandDeviceAlertRules'):]
 r=Path('Island/ReviewRules.swift').read_text()
-Path(sys.argv[1]).write_text('import Foundation\nimport CoreGraphics\n'+p+c+w+s+n+r)
+h=Path('Island/AgentBridge.swift').read_text();h=h[h.index('enum IslandAgentHookRules'):h.index('@MainActor final class IslandAgentBridge')]
+Path(sys.argv[1]).write_text('import Foundation\nimport CoreGraphics\n'+p+c+w+s+n+r+h)
 PY
 xcrun swiftc -module-cache-path "$STAGE/cache" "$STAGE/Rules.swift" Tests/AdvancedSmoke.swift -o "$STAGE/rules"
 "$STAGE/rules"

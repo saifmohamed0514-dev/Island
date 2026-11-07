@@ -2,6 +2,18 @@ import SwiftUI
 import Combine
 import AppKit
 
+enum IslandAgentHookRules {
+    static func openAI(baseCommand:String)->[String:Any] {
+        var hooks:[String:Any] = [:]
+        for event in ["SessionStart","UserPromptSubmit","PermissionRequest","Stop","Interrupt","SessionEnd"] {
+            // The client caps shutdown/interrupt hooks at three seconds.
+            let timeout = ["Interrupt","SessionEnd"].contains(event) ? 3 : 60
+            hooks[event] = [["hooks":[["type":"command","command":baseCommand+" --provider chatgpt --event "+event,"timeout":timeout]]]]
+        }
+        return ["description":"Island session activity and one-request approvals for ChatGPT Work and Codex.","hooks":hooks]
+    }
+}
+
 @MainActor final class IslandAgentBridge:ObservableObject {
     static let shared = IslandAgentBridge()
     struct Event:Codable,Identifiable {
@@ -61,17 +73,13 @@ import AppKit
         var hooks:[String:Any] = [:]
         for event in ["SessionStart","UserPromptSubmit","PermissionRequest","Notification","Stop","SessionEnd"] { hooks[event] = [["hooks":[["type":"command","command":base+" --provider claude --event "+event,"timeout":60]]]] }
         let claude = try JSONSerialization.data(withJSONObject:["hooks":hooks],options:[.prettyPrinted,.sortedKeys]); try claude.write(to:folder.appendingPathComponent("claude-hooks.example.json"),options:.atomic)
-        var openAIHooks:[String:Any] = [:]
-        for event in ["SessionStart","UserPromptSubmit","PermissionRequest","Stop","Interrupt","SessionEnd"] {
-            openAIHooks[event] = [["hooks":[["type":"command","command":base+" --provider chatgpt --event "+event,"timeout":60]]]]
-        }
-        let openAI = try JSONSerialization.data(withJSONObject:["description":"Island session activity and one-request approvals for ChatGPT Work and Codex.","hooks":openAIHooks],options:[.prettyPrinted,.sortedKeys])
+        let openAI = try JSONSerialization.data(withJSONObject:IslandAgentHookRules.openAI(baseCommand:base),options:[.prettyPrinted,.sortedKeys])
         try openAI.write(to:folder.appendingPathComponent("chatgpt-codex-hooks.example.json"),options:.atomic)
         let plugin = folder.appendingPathComponent("island-chatgpt-plugin",isDirectory:true)
         let hookFolder = plugin.appendingPathComponent("hooks",isDirectory:true)
         try FileManager.default.createDirectory(at:hookFolder,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
         try openAI.write(to:hookFolder.appendingPathComponent("hooks.json"),options:.atomic)
-        let manifest:[String:Any] = ["name":"island","version":"2.3.0","description":"Local Island activity and explicit one-request approvals.","extensions":["com.openai":["hooks":"./hooks/hooks.json"]]]
+        let manifest:[String:Any] = ["name":"island","version":Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.3.2","description":"Local Island activity and explicit one-request approvals.","extensions":["com.openai":["hooks":"./hooks/hooks.json"]]]
         try JSONSerialization.data(withJSONObject:manifest,options:[.prettyPrinted,.sortedKeys]).write(to:plugin.appendingPathComponent("plugin.json"),options:.atomic)
         var cursor:[String:Any] = [:]
         for event in ["sessionStart","beforeShellExecution","beforeMCPExecution","afterShellExecution","stop","sessionEnd"] { cursor[event] = [["command":base+" --provider cursor --event "+event]] }

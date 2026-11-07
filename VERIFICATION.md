@@ -1,9 +1,9 @@
-# Island 2.3.1 verification — November 7, 2026
+# Island 2.3.2 verification — November 7, 2026
 
-## Passed for build 232
+## Passed for build 233
 
-- Release build for Apple silicon with Xcode 27.2, minimum macOS 15; version 2.3.1 build 232.
-- 105 deterministic Swift checks: 12 timer state/persistence/boundary checks; 32 dial/preset/cycle/module/widget/schedule/display-geometry checks; seven tests of actual production timer completion/relaunch/presets; 10 production archive extraction/path/symlink checks; six typed translation fixtures; 27 power-argument/ChatGPT-link/snap-geometry/device-alert/provider rules; 11 production service fixtures for pagination/review filtering/Jira transitions and context guards/hourly forecast. Fixtures do not use private accounts, Keychain or paid APIs.
+- Release build for Apple silicon with Xcode 27.2, minimum macOS 15; version 2.3.2 build 233.
+- 112 deterministic Swift checks: 12 timer state/persistence/boundary checks; 32 dial/preset/cycle/module/widget/schedule/display-geometry checks; seven tests of actual production timer completion/relaunch/presets; 10 production archive extraction/path/symlink checks; six typed translation fixtures; 34 power-argument/ChatGPT-link/hook-timeout/snap-geometry/device-alert/provider rules; 11 production service fixtures for pagination/review filtering/Jira transitions and context guards/hourly forecast. Fixtures do not use private accounts, Keychain or paid APIs.
 - 11 Python protocol tests of the real compiled bridge: ChatGPT/Codex/Claude/Cursor allow/deny/expiry and malformed-input boundaries. No agent command was executed or approved by these fixtures.
 - Six Python release/configuration checks, including real Sparkle signing with an ephemeral test key, tamper rejection and mismatched-public-key rejection. No production update key was created or retained.
 - Actual power installer script builder validated against the signed staged app and payload; shell parsing and AppleScript compilation passed. This did not execute administrator operations.
@@ -11,6 +11,8 @@
 - One current installed app at /Applications/Island.app. Earlier installed, archived and generated app copies were moved to recoverable Trash. Preferences, notes and private bridge files were preserved. The running process reports org.islandapp.Island.
 - AI Coding and Inbox were enabled in the live interface. A private bridge folder was chosen and six local hooks installed with the user’s explicit approval, preserving client configuration. The client’s separate trust review remains pending; no real hook event has yet been observed. No trust database was modified.
 - Update feed and public key remain absent; updater startup stays disabled until configured. Nothing published.
+
+The reported Interrupt/SessionEnd timeout warnings were traced to generated 60-second limits. Both now generate three-second limits, with regression checks against the actual JSON generator. The installed local hooks and both private generated examples were corrected with backups, preserving other configuration. ChatGPT trust records were not edited; changed definitions require user review again. The hook-review page has not been inspected after reload.
 
 ## Earlier live interface checks retained
 
@@ -20,7 +22,7 @@ The 2.2 interface showed the own player/tray/settings/dashboard, four widgets, a
 
 ## Live checks still pending
 
-The interface tool currently resolves the replaced canonical app to its old bundle identity, preventing a fresh visual inspection of build 232. The actual installed metadata and running process identity were independently verified. The new GUI administrator setup, real Low Power Mode on/off and its switch animation must still be confirmed. Both macOS power profiles remained at Low Power Mode off at the last check. The previous legacy power service was not changed.
+The interface tool currently resolves the replaced canonical app to its old bundle identity, preventing a fresh visual inspection of build 233. The actual installed metadata and running process identity were independently verified. The new GUI administrator setup, real Low Power Mode on/off and its switch animation must still be confirmed. Both macOS power profiles remained at Low Power Mode off at the last check. The previous legacy power service was not changed.
 
 Only the built-in display is connected; physical external-display placement remains unverified. Geometry tests do not replace that check. New Bluetooth/window-control permissions were not granted during this audit. Actual drag snapping, accessory coverage, removable-volume ejection, private GitHub/GitLab/Bitbucket/Jira access, real client hooks, OpenAI translation, Ollama with a model, live Reminders writes, custom ringtone import and audible completion, sleep/wake, AirDrop and genuine Sparkle upgrades still need end-to-end checks. UI language coverage beyond core Arabic labels is partial; restart behavior needs a live check.
 

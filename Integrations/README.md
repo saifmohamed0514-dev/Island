@@ -9,7 +9,7 @@ Island supports local ChatGPT Work/Codex, Claude Code and Cursor hook sessions. 
 3. Use either the hook example in your local `~/.codex/hooks.json` / project hook configuration, or the generated plugin. Preserve existing handlers. Do not install both forms, which would duplicate requests.
 4. In the desktop app select **Review hooks** above the composer or **Settings → Hooks**. In the CLI use `/hooks`. Review and trust the six Island definitions. Island does not alter the trust database or bypass this step.
 
-The six events are SessionStart, UserPromptSubmit, PermissionRequest, Stop, Interrupt and SessionEnd. The bridge receives only the fields present in those local events. It records metadata, the last assistant message when supplied, and tool arguments for permission review, so keep the folder private. It ignores transcript paths. No separate API key is needed for this local connection.
+The six events are SessionStart, UserPromptSubmit, PermissionRequest, Stop, Interrupt and SessionEnd. Interrupt and SessionEnd use the client’s three-second maximum; the other hooks retain a 60-second limit so permission review can finish. The bridge receives only the fields present in those local events. It records metadata, the last assistant message when supplied, and tool arguments for permission review, so keep the folder private. It ignores transcript paths. No separate API key is needed for this local connection.
 
 This applies to local Work/Codex sessions on this Mac. Plain web chats do not publish these local events, and cloud-hosted Work environments do not execute scripts installed on your Mac. The module also opens a question as a draft in the ChatGPT desktop app; it never submits the draft. Valid connected session IDs can open their chat.
 

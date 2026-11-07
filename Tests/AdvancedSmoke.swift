@@ -32,6 +32,16 @@ import CoreGraphics
     precondition(IslandReviewRules.matchesReviewer(["reviewers":[["uuid":"{fixture}"]]],provider:"Bitbucket",query:"{fixture}"))
     precondition(IslandReviewRules.jiraHost("fixture.atlassian.net") && !IslandReviewRules.jiraHost("fixture.atlassian.net.evil.test"))
     precondition(IslandReviewRules.issueKey("APP-123") && !IslandReviewRules.issueKey("../transitions"))
-    print("PASS: 27 power argument, ChatGPT URL, snap geometry, battery alert and provider-boundary checks")
+    let config=IslandAgentHookRules.openAI(baseCommand:"/fixture/IslandBridge --directory /fixture")
+    let data=try! JSONSerialization.data(withJSONObject:config)
+    let decoded=try! JSONSerialization.jsonObject(with:data) as! [String:Any]
+    let hooks=decoded["hooks"] as! [String:[[String:Any]]]
+    let timeouts=["SessionStart":60,"UserPromptSubmit":60,"PermissionRequest":60,"Stop":60,"Interrupt":3,"SessionEnd":3]
+    precondition(Set(hooks.keys) == Set(timeouts.keys))
+    for (event,timeout) in timeouts {
+        let commands=hooks[event]!.first!["hooks"] as! [[String:Any]]
+        precondition(commands.first!["timeout"] as? Int == timeout)
+    }
+    print("PASS: 34 power argument, ChatGPT URL/hook timeout, snap geometry, battery alert and provider-boundary checks")
  }
 }
