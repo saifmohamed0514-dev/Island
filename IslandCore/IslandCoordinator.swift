@@ -146,13 +146,13 @@ class IslandCoordinator: ObservableObject {
 
                     if change.newValue {
                         self.hudEnableTask = Task { @MainActor in
-                            let granted = await XPCHelperClient.shared.ensureAccessibilityAuthorization(promptIfNeeded: true)
+                            let granted = await XPCHelperClient.shared.isAccessibilityAuthorized()
                             if Task.isCancelled { return }
 
                             if granted {
                                 await MediaKeyInterceptor.shared.start()
                             } else {
-                                Defaults[.hudReplacement] = false
+                                IslandSettingsController.shared.showPermissions(.accessibility)
                             }
                         }
                     } else {
@@ -167,7 +167,7 @@ class IslandCoordinator: ObservableObject {
             if Defaults[.hudReplacement] {
                 let authorized = await XPCHelperClient.shared.isAccessibilityAuthorized()
                 if !authorized {
-                    Defaults[.hudReplacement] = false
+                    MediaKeyInterceptor.shared.stop()
                 } else {
                     await MediaKeyInterceptor.shared.start(promptIfNeeded: false)
                 }

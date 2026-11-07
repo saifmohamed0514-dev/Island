@@ -9,6 +9,7 @@ python3 -m unittest discover -s Tests -p 'test_*.py'
 scripts/test-timer.sh
 scripts/test-completion.sh
 scripts/test-transition.sh
+scripts/test-permissions.sh
 scripts/test-files.sh
 scripts/test-bridge.sh
 scripts/test-advanced.sh

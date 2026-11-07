@@ -9,8 +9,14 @@ import Foundation
 
 class AppleScriptHelper {
     @discardableResult
-    class func execute(_ scriptText: String) async throws -> NSAppleEventDescriptor? {
-        try await withCheckedThrowingContinuation { continuation in
+    class func execute(_ scriptText: String,permissionTarget:String,userInitiated:Bool=false) async throws -> NSAppleEventDescriptor? {
+        guard await IslandSystemPermissionClient.automationStatus(permissionTarget) == .allowed else {
+            if userInitiated {
+                await MainActor.run { IslandSettingsController.shared.showPermissions(permissionTarget == "com.spotify.client" ? .spotify : .music) }
+            }
+            throw NSError(domain:"IslandPermission",code:1,userInfo:[NSLocalizedDescriptionKey:"Set up player access in Island’s Permissions page."])
+        }
+        return try await withCheckedThrowingContinuation { continuation in
             Task.detached(priority: .userInitiated) {
                 let script = NSAppleScript(source: scriptText)
                 var error: NSDictionary?
@@ -25,7 +31,7 @@ class AppleScriptHelper {
         }
     }
     
-    class func executeVoid(_ scriptText: String) async throws {
-        _ = try await execute(scriptText)
+    class func executeVoid(_ scriptText: String,permissionTarget:String) async throws {
+        _ = try await execute(scriptText,permissionTarget:permissionTarget,userInitiated:true)
     }
 }

@@ -4,19 +4,25 @@ import LaunchAtLogin
 import Sparkle
 import KeyboardShortcuts
 
+@MainActor final class IslandSettingsNavigation:ObservableObject {
+    static let shared=IslandSettingsNavigation()
+    @Published var selected="Overview"
+    @Published var requestedPermission:IslandPermission?
+}
 struct IslandSettingsView:View {
-    @State var selected = "Overview"
+    @ObservedObject private var navigation=IslandSettingsNavigation.shared
     let updaterController:SPUStandardUpdaterController?
-    let pages:[(String,String)] = [("Overview","capsule"),("Modules","square.grid.2x2"),("Dashboard","rectangle.grid.2x2"),("Focus & Sounds","timer"),("Displays","display.2"),("Window Snapping","macwindow"),("Media","music.note"),("Behavior","cursorarrow.rays"),("System Controls","switch.2"),("Wellbeing & Alerts","heart"),("Connections","network"),("Agents & Inbox","terminal"),("Language","globe"),("About Island","info.circle")]
+    let pages:[(String,String)] = [("Overview","capsule"),("Permissions","checkmark.shield"),("Modules","square.grid.2x2"),("Dashboard","rectangle.grid.2x2"),("Focus & Sounds","timer"),("Displays","display.2"),("Window Snapping","macwindow"),("Media","music.note"),("Behavior","cursorarrow.rays"),("System Controls","switch.2"),("Wellbeing & Alerts","heart"),("Connections","network"),("Agents & Inbox","terminal"),("Language","globe"),("About Island","info.circle")]
     var body:some View {
         NavigationSplitView {
             VStack(alignment:.leading,spacing:18) {
                 HStack(spacing:10) { IslandMark(size:36); VStack(alignment:.leading,spacing:2) { Text("Island").font(.system(size:18,weight:.semibold,design:.rounded)); Text("Make space.").font(.caption).foregroundStyle(.secondary) } }.padding(.horizontal,16).padding(.top,20)
-                List(selection:$selected) { ForEach(pages,id:\.0) { page in Label(LocalizedStringKey(page.0),systemImage:page.1).tag(page.0).padding(.vertical,3) } }.listStyle(.sidebar)
+                List(selection:$navigation.selected) { ForEach(pages,id:\.0) { page in Label(LocalizedStringKey(page.0),systemImage:page.1).tag(page.0).padding(.vertical,3) } }.listStyle(.sidebar)
             }.navigationSplitViewColumnWidth(200)
         } detail: {
             Group {
-                switch selected {
+                switch navigation.selected {
+                case "Permissions": IslandPermissionsView()
                 case "Modules": IslandModulesSettings()
                 case "Dashboard": IslandDashboardSettings()
                 case "Focus & Sounds": IslandFocusSettings()
@@ -30,9 +36,9 @@ struct IslandSettingsView:View {
                 case "Agents & Inbox": IslandBridgeSettings()
                 case "Language": IslandLanguageSettings()
                 case "About Island": IslandAboutSettings(updater:updaterController)
-                default: IslandOverviewSettings { selected = $0 }
+                default: IslandOverviewSettings { navigation.selected = $0 }
                 }
-            }.navigationTitle(LocalizedStringKey(selected)).frame(maxWidth:.infinity,maxHeight:.infinity)
+            }.navigationTitle(LocalizedStringKey(navigation.selected)).frame(maxWidth:.infinity,maxHeight:.infinity)
         }.frame(width:760,height:610).navigationSplitViewStyle(.balanced).tint(.blue)
     }
 }
@@ -47,7 +53,7 @@ struct IslandOverviewSettings:View {
             Section("Your Island") {
                 LabeledContent("Enabled modules",value:"\(modules.enabled.count)")
                 LabeledContent("Opens with",value:modules.defaultModule.title)
-                HStack { Button("Choose modules") { navigate("Modules") }; Button("Set up focus") { navigate("Focus & Sounds") } }
+                HStack { Button("Set up permissions") { navigate("Permissions") };Button("Choose modules") { navigate("Modules") }; Button("Set up focus") { navigate("Focus & Sounds") } }
             }
             Section("Start small") { Text("Enable only what you use. Optional data connections and permissions are requested when you choose them, and your notes and timer stay on this Mac.").foregroundStyle(.secondary) }
             Section("Release channel") { Label(IslandUpdateConfiguration.isConfigured ? "Signed update channel connected" : "Local preview · update channel not connected",systemImage:"arrow.down.circle").foregroundStyle(.secondary) }
@@ -84,6 +90,7 @@ struct IslandMediaSettings:View {
             Section("Your player") {
                 Picker("Music source",selection:$source) { ForEach(MediaControllerType.allCases) { Text($0.rawValue).tag($0) } }
                 Toggle("Show music beside the notch",isOn:$coordinator.musicLiveActivityEnabled)
+                Button("Manage player permissions…") { IslandSettingsController.shared.showPermissions(source == .spotify ? .spotify : .music) }
                 Text("Now Playing works with supported apps and browsers. Playback and seeking depend on the chosen player.").foregroundStyle(.secondary)
             }
             Section("Artwork") { Text("Island uses the player's real artwork and metadata. When music is idle, it shows Not Playing once.").foregroundStyle(.secondary) }
@@ -128,15 +135,10 @@ struct IslandSystemSettings:View {
         Form {
             Section("System overlays") {
                 Toggle("Replace volume and brightness HUDs",isOn:$hud)
-                Button("Review Accessibility access…") { Task { _ = await XPCHelperClient.shared.ensureAccessibilityAuthorization(promptIfNeeded:true) } }
-                Text("Accessibility permission enables HUD replacement and the window-layout module. Island never grants it automatically.").foregroundStyle(.secondary)
+                Button("Manage permissions…") { IslandSettingsController.shared.showPermissions(.accessibility) }
+                Text("Set up access once in Permissions, then choose the features you want here.").foregroundStyle(.secondary)
             }
             Section("Battery") { IslandPowerSwitch();Toggle("Show battery in Island",isOn:$battery); Text("The battery pop-up follows system appearance and uses native glass where macOS supports it.").foregroundStyle(.secondary) }
-            Section("Personal data") {
-                Button("Connect Calendar") { Task { await IslandAgenda.shared.connect(events:true) } }
-                Button("Connect Reminders") { Task { await IslandAgenda.shared.connect(events:false) } }
-                Text("Camera access is requested only when you start the Mirror module. You can revoke permissions in System Settings.").foregroundStyle(.secondary)
-            }
         }.formStyle(.grouped)
     }
 }

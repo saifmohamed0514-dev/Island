@@ -3,6 +3,7 @@ import Combine
 import AppKit
 import IOKit
 import IOBluetooth
+import CoreBluetooth
 
 @MainActor final class IslandDevices:ObservableObject {
     static let shared=IslandDevices()
@@ -17,6 +18,7 @@ import IOBluetooth
         clock=Task { [weak self] in while !Task.isCancelled { self?.refresh();try? await Task.sleep(for:.seconds(60)) } }
     }
     func refresh() {
+        guard CBManager.authorization == .allowedAlways else { devices=[];status="Set up Bluetooth access in Permissions to see your devices.";return }
         var result:[String:Device]=[:]
         for device in IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice] ?? [] where device.isConnected() {
             let name=device.name ?? "Bluetooth Device",id=device.addressString ?? name
@@ -65,11 +67,12 @@ struct IslandDevicesView:View {
     var body:some View {
         VStack(alignment:.leading,spacing:10) {
             HStack { Text("Bluetooth & Devices").font(.headline);Spacer();Button("Refresh") { model.refresh() } }
+            if CBManager.authorization != .allowedAlways { Button("Set up Bluetooth…") { IslandSettingsController.shared.showPermissions(.bluetooth) } }
             ForEach(model.devices) { device in
                 HStack { Image(systemName:"antenna.radiowaves.left.and.right");Text(device.name);Spacer();if !device.parts.isEmpty { Text(device.parts.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)%" }.joined(separator:" · ")).font(.caption).foregroundStyle((device.battery ?? 100) <= 20 ? .orange : .secondary) } else { Text("Connected").foregroundStyle(.secondary) } }
             }
             Text(model.status).font(.caption).foregroundStyle(.secondary)
-        }
+        }.task { model.refresh() }
     }
 }
 enum IslandWindowLayout:String,CaseIterable,Identifiable {
@@ -103,7 +106,7 @@ struct IslandWindowSnapView: View {
         VStack(alignment:.leading,spacing:9) {
             HStack {
                 Picker("App",selection:$target) { ForEach(apps,id:\.processIdentifier) { app in Text(app.localizedName ?? "App").tag(app.processIdentifier) } }
-                Button("Allow Accessibility…") { Task { await XPCHelperClient.shared.ensureAccessibilityAuthorization(promptIfNeeded: true) } }
+                Button("Set up window access…") { IslandSettingsController.shared.showPermissions(.accessibility) }
             }
             LazyVGrid(columns:Array(repeating:GridItem(.flexible()),count:4),spacing:6) {
                 ForEach(IslandWindowLayout.allCases) { layout in Button(layout.rawValue) { snap(layout) }.buttonStyle(.bordered).disabled(target == 0) }

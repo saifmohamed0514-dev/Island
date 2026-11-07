@@ -25970,6 +25970,16 @@
           }
         }
       }
+    },
+    "Permissions": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الأذونات"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

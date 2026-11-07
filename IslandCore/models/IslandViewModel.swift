@@ -8,6 +8,7 @@
 import Combine
 import Defaults
 import SwiftUI
+import AVFoundation
 
 class IslandViewModel: NSObject, ObservableObject {
     @ObservedObject var coordinator = IslandCoordinator.shared
@@ -137,7 +138,7 @@ class IslandViewModel: NSObject, ObservableObject {
             return
         }
 
-        switch webcamManager.authorizationStatus {
+        switch AVCaptureDevice.authorizationStatus(for:.video) {
         case .authorized:
             if webcamManager.isSessionRunning {
                 webcamManager.stopSession()
@@ -147,33 +148,8 @@ class IslandViewModel: NSObject, ObservableObject {
                 isCameraExpanded = true
             }
 
-        case .denied, .restricted:
-            DispatchQueue.main.async {
-                NSApp.setActivationPolicy(.regular)
-                NSApp.activate(ignoringOtherApps: true)
-
-                let alert = NSAlert()
-                alert.messageText = "Camera Access Required"
-                alert.informativeText = "Please allow camera access in System Settings."
-                alert.addButton(withTitle: "Open Settings")
-                alert.addButton(withTitle: "Cancel")
-
-                if alert.runModal() == .alertFirstButtonReturn {
-                    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera") {
-                        NSWorkspace.shared.open(url)
-                    }
-                }
-
-                NSApp.setActivationPolicy(.accessory)
-                NSApp.deactivate()
-            }
-
-        case .notDetermined:
-            isRequestingAuthorization = true
-            webcamManager.checkAndRequestVideoAuthorization()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                self.isRequestingAuthorization = false
-            }
+        case .denied,.restricted,.notDetermined:
+            IslandSettingsController.shared.showPermissions(.camera)
 
         default:
             break

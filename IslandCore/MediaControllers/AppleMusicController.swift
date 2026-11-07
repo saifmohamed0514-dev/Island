@@ -123,7 +123,7 @@ class AppleMusicController: MediaControllerProtocol {
             end try
         end tell
         """
-        try? await AppleScriptHelper.executeVoid(script)
+        try? await AppleScriptHelper.executeVoid(script,permissionTarget:"com.apple.Music")
         try? await Task.sleep(for: .milliseconds(150))
         await updatePlaybackInfo()
     }
@@ -155,7 +155,7 @@ class AppleMusicController: MediaControllerProtocol {
     
     private func executeCommand(_ command: String) async {
         let script = "tell application \"Music\" to \(command)"
-        try? await AppleScriptHelper.executeVoid(script)
+        try? await AppleScriptHelper.executeVoid(script,permissionTarget:"com.apple.Music")
     }
     
     private func fetchPlaybackInfoAsync() async throws -> NSAppleEventDescriptor? {
@@ -194,7 +194,7 @@ class AppleMusicController: MediaControllerProtocol {
         end tell
         """
         
-        return try await AppleScriptHelper.execute(script)
+        return try await AppleScriptHelper.execute(script,permissionTarget:"com.apple.Music")
     }
     
 }

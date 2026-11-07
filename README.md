@@ -1,4 +1,4 @@
-# Island 2.3.3
+# Island 2.4.0
 
 An independent, open-source macOS notch utility, based on [Boring Notch](https://github.com/TheBoredTeam/boring.notch). GPL-3.0; original copyright notices and third-party licenses are retained.
 
@@ -15,6 +15,7 @@ An independent, open-source macOS notch utility, based on [Boring Notch](https:/
 - ChatGPT Work/Codex, Claude Code and Cursor local hooks, one-request decisions and ChatGPT draft handoff. See [Integrations/README.md](Integrations/README.md).
 - Narrow Low Power Mode service with one-time macOS setup; later toggles need no password. Local ad-hoc updates can require setup again. See [Power/README.md](Power/README.md).
 - Hourly weather, optional device/wellbeing alerts, seven-day usage categories, provider pagination/Jira transitions and opt-in window snapping.
+- One Permissions page with feature explanations, actual status checks and a sequential setup guide. Optional selections, skip/retry, and resume after System Settings. macOS privacy approvals remain separate from administrator authentication.
 - Island-specific, signed Sparkle update configuration. Updates are off until configured.
 
 Apple silicon, macOS 15+. Build with Xcode 26 or later. The supplied preview is locally signed and **not notarized**. A physical external monitor and all optional integrations still require live testing.

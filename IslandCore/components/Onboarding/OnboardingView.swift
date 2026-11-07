@@ -22,7 +22,7 @@ struct OnboardingView:View {
                 VStack(spacing:22) {
                     Spacer(); IslandMark(size:76); Text("Your Island is ready.").font(.title.weight(.semibold))
                     Text("Hover at the top of your screen. Add modules and connections when you need them.").multilineTextAlignment(.center).foregroundStyle(.secondary)
-                    Spacer(); Button("Choose modules",action:onOpenSettings).buttonStyle(.bordered); Button("Start using Island",action:onFinish).buttonStyle(.borderedProminent).controlSize(.large)
+                    Spacer(); Button("Set up permissions") { onFinish();IslandSettingsController.shared.showPermissions() }.buttonStyle(.bordered);Button("Choose modules",action:onOpenSettings).buttonStyle(.bordered); Button("Start using Island",action:onFinish).buttonStyle(.borderedProminent).controlSize(.large)
                 }.padding(34)
             }
         }.frame(width:420,height:540)

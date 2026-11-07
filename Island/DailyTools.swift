@@ -120,7 +120,7 @@ struct IslandAgendaView: View {
     var body: some View {
         VStack(alignment:.leading,spacing:9) {
             HStack { TextField("Search calendar",text:$query).textFieldStyle(.roundedBorder); Button("Refresh") { Task { await agenda.refresh() } } }
-            if !agenda.calendarConnected { Button("Connect Calendar") { Task { await agenda.connect(events:true) } } }
+            if !agenda.calendarConnected { Button("Set up Calendar…") { IslandSettingsController.shared.showPermissions(.calendar) } }
             ForEach(agenda.events.filter { query.isEmpty || [ $0.title ?? "", $0.location ?? "", $0.notes ?? "", $0.calendar.title ].joined(separator:" ").localizedCaseInsensitiveContains(query) },id:\.calendarItemIdentifier) { event in
                 HStack { Text(event.startDate,style:.time).monospacedDigit().foregroundStyle(.secondary); Text(event.title ?? "Event"); Spacer(); if let url = event.url { Link("Open",destination:url) } }
             }
@@ -136,7 +136,7 @@ struct IslandTasksView: View {
     @State var trash = false
     var body: some View {
         VStack(alignment:.leading,spacing:8) {
-            if !agenda.remindersConnected { Button("Connect Reminders") { Task { await agenda.connect(events:false) } } }
+            if !agenda.remindersConnected { Button("Set up Reminders…") { IslandSettingsController.shared.showPermissions(.reminders) } }
             HStack { TextField("Add a task",text:$text).textFieldStyle(.roundedBorder).onSubmit { add() }; Button("Add") { add() }.disabled(text.trimmingCharacters(in:.whitespaces).isEmpty || !agenda.remindersConnected); Toggle("Completed",isOn:$completed).toggleStyle(.checkbox); Toggle("Trash",isOn:$trash).toggleStyle(.checkbox) }
             if trash {
                 Text("Tasks remain recoverable here for 30 days.").font(.caption).foregroundStyle(.secondary)

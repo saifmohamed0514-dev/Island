@@ -1,4 +1,4 @@
-# Island 2.3 development status
+# Island 2.4 development status
 
 Updated November 7, 2026. This is an implementation inventory, not a claim of full MacNotch parity or zero bugs.
 
@@ -29,6 +29,7 @@ A running timer appears in two bounded wings beside the physical camera. Complet
 - Local ChatGPT Work/Codex/Claude Code/Cursor hook bridge: session events, expiring single-request approval/denial, explicit review, compact pending count. Setup exports a helper and example configs to a chosen folder; it does not alter existing client settings. Inbox displays explicitly forwarded alerts. See Integrations/README.md.
 - ChatGPT draft handoff and connected chat links, an English/Arabic language picker with core Arabic labels, in-app help and a diagnostic summary containing no note text, tokens or user paths. Some detailed messages retain English.
 - Dedicated, source-included Low Power Mode service and one-time GUI setup helper; narrow fixed-command interface, immediate yellow switch state and macOS reconciliation. Live setup/authorization remains a separate verification step. Ad-hoc updates may require setup again; normal toggles do not. See Power/README.md.
+- Central Permissions page for Accessibility, media-key monitoring, Bluetooth, camera, calendar, reminders, notifications, Music/Spotify automation, shared Focus and Low Power Mode. Select features, request one at a time, skip or finish later, and resume after manual System Settings approval. Checks do not request grants. Existing media polling checks automation permission before scripting; setup owns the consent prompt. No Touch ID shortcut bypasses macOS or client hook review.
 - GPL source, local Git repository, signed Sparkle release tooling, build/release workflows and beginner publishing guide. Automatic updates remain unconfigured and off; nothing has been uploaded.
 
 ## Remaining reference scope

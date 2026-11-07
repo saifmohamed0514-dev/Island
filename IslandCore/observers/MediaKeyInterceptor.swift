@@ -64,6 +64,8 @@ final class MediaKeyInterceptor {
             }
         }
         
+        // Permission setup owns prompts; starting an enabled feature only checks.
+        guard CGPreflightListenEventAccess() else { return }
         let mask = CGEventMask(1 << kSystemDefinedEventType.rawValue)
         eventTap = CGEvent.tapCreate(
             tap: .cghidEventTap,

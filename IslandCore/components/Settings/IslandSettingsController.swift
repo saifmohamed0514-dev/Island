@@ -66,6 +66,11 @@ class IslandSettingsController: NSWindowController {
         window.delegate = self
     }
     
+    func showPermissions(_ permission:IslandPermission?=nil) {
+        IslandSettingsNavigation.shared.requestedPermission=permission
+        IslandSettingsNavigation.shared.selected="Permissions"
+        showWindow()
+    }
     func showWindow() {
         // Set app to regular mode first
         NSApp.setActivationPolicy(.regular)

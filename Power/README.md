@@ -2,7 +2,7 @@
 
 Island itself remains a sandboxed, normal-user application. The optional root service exposes only `ping` and one Boolean Low Power Mode operation for the selected power source. It cannot execute arbitrary commands or receive paths from clients.
 
-Choose **Enable power controls** in Battery or System Controls. A short-lived, unsandboxed **Island Power Setup** app opens the normal macOS administrator dialog. Its installer validates the containing Island signature, copies the already-signed power payload into a root-private staging folder, verifies its SHA-256, then installs root-owned files:
+Open **Settings → Permissions**, select **Low Power Mode**, and choose **Set up selected**. Battery and System Controls link to the same Permissions page. A short-lived, unsandboxed **Island Power Setup** app opens the normal macOS administrator dialog. Its installer validates the containing Island signature, copies the already-signed power payload into a root-private staging folder, verifies its SHA-256, then installs root-owned files:
 
 - `/Library/PrivilegedHelperTools/org.islandapp.Island.Power`
 - `/Library/LaunchDaemons/org.islandapp.Island.Power.plist`

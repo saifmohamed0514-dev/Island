@@ -26,6 +26,19 @@ import Security
         observer=NotificationCenter.default.addObserver(forName:.NSProcessInfoPowerStateDidChange,object:nil,queue:.main) { [weak self] _ in Task { @MainActor in self?.refresh() } }
     }
     func refresh() { if !busy { enabled=ProcessInfo.processInfo.isLowPowerModeEnabled };probe() }
+    func checkAvailability() async -> Bool {
+        await withCheckedContinuation { continuation in
+            var finished=false
+            @MainActor func finish(_ result:Bool) {
+                guard !finished else { return };finished=true;self.available=result
+                if !result { self.connection?.invalidate();self.connection=nil }
+                continuation.resume(returning:result)
+            }
+            guard let service=proxy(onError:{ Task { @MainActor in finish(false) } }) else { finish(false);return }
+            service.ping { result in Task { @MainActor in finish(result) } }
+            Task { try? await Task.sleep(for:.seconds(2));finish(false) }
+        }
+    }
     private func proxy(onError:@escaping()->Void)->IslandPowerControl? {
         if connection == nil {
             let connection=NSXPCConnection(machServiceName:"org.islandapp.Island.Power",options:.privileged)
@@ -74,7 +87,7 @@ struct IslandPowerSwitch:View {
                     if power.busy { ProgressView().controlSize(.mini).accessibilityLabel("Updating power mode") }
                     Toggle("Low Power Mode",isOn:Binding(get:{ power.enabled },set:{ power.setEnabled($0) })).labelsHidden().toggleStyle(.switch).tint(.yellow).allowsHitTesting(!power.busy)
                 }
-            } else { Button(power.busy ? "Setting up…" : "Enable power controls…") { power.install() }.disabled(power.busy) }
+            } else { Button(power.busy ? "Setting up…" : "Set up power controls…") { IslandSettingsController.shared.showPermissions(.power) }.disabled(power.busy) }
             if !power.message.isEmpty { Text(power.message).font(.caption).foregroundStyle(.secondary) }
         }.onAppear { power.refresh() }
     }

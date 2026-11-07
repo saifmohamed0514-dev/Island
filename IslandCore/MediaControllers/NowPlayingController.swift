@@ -46,7 +46,7 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
                     end try
                 end tell
                 """
-                try? await AppleScriptHelper.executeVoid(script)
+                try? await AppleScriptHelper.executeVoid(script,permissionTarget:bundleID)
             }
         }
         
@@ -164,13 +164,13 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
                 let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Music")
                 if !runningApps.isEmpty {
                     let script = "tell application \"Music\" to set sound volume to \(volumePercentage)"
-                    try? await AppleScriptHelper.executeVoid(script)
+                    try? await AppleScriptHelper.executeVoid(script,permissionTarget:bundleID)
                 }
             } else if bundleID == "com.spotify.client" {
                 let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: "com.spotify.client")
                 if !runningApps.isEmpty {
                     let script = "tell application \"Spotify\" to set sound volume to \(volumePercentage)"
-                    try? await AppleScriptHelper.executeVoid(script)
+                    try? await AppleScriptHelper.executeVoid(script,permissionTarget:bundleID)
                 }
             }
         }
@@ -308,7 +308,7 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
                  end try
              end tell
              """
-             if let result = try? await AppleScriptHelper.execute(script) {
+             if let result = try? await AppleScriptHelper.execute(script,permissionTarget:bundleID) {
                  var updated = self.playbackState
                  updated.isFavorite = result.booleanValue
                  self.playbackState = updated

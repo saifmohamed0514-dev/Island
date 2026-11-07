@@ -77,8 +77,9 @@ struct IslandDashboardSettings:View {
                 if start == end { Text("Choose different times to schedule a Work period.").foregroundStyle(.orange) }
             }
         }.formStyle(.grouped).onChange(of:useFocus) {
-            if useFocus { INFocusStatusCenter.default.requestAuthorization { status in Task { @MainActor in if status != .authorized || INFocusStatusCenter.default.focusStatus.isFocused == nil { useFocus=false;focusStatus="Focus sharing is unavailable for Island on this Mac. Use the daily schedule instead." };IslandProfileSchedule.shared.start() } } }
-            else { IslandProfileSchedule.shared.start() }
+            if useFocus && INFocusStatusCenter.default.authorizationStatus != .authorized { useFocus=false;IslandSettingsController.shared.showPermissions(.focus) }
+            else if useFocus && INFocusStatusCenter.default.focusStatus.isFocused == nil { useFocus=false;focusStatus="Focus sharing is unavailable for Island on this Mac. Use the daily schedule instead." }
+            IslandProfileSchedule.shared.start()
         }.onChange(of:scheduled) { IslandProfileSchedule.shared.start() }.onChange(of:start) { IslandProfileSchedule.shared.start() }.onChange(of:end) { IslandProfileSchedule.shared.start() }
     }
 }

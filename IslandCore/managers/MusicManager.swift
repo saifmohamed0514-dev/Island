@@ -319,7 +319,7 @@ class MusicManager: ObservableObject {
         end tell
         """
 
-        if let result = try? await AppleScriptHelper.execute(script) {
+        if let result = try? await AppleScriptHelper.execute(script,permissionTarget:"com.apple.Music") {
             let loved = result.booleanValue
             self.isFavoriteTrack = loved
             self.forceUpdate()
@@ -386,7 +386,7 @@ class MusicManager: ObservableObject {
                         end if
                     end tell
                     """
-                    if let result = try await AppleScriptHelper.execute(script), let lyricsString = result.stringValue, !lyricsString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    if let result = try await AppleScriptHelper.execute(script,permissionTarget:"com.apple.Music"), let lyricsString = result.stringValue, !lyricsString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         self.currentLyrics = lyricsString.trimmingCharacters(in: .whitespacesAndNewlines)
                         self.isFetchingLyrics = false
                         self.syncedLyrics = []
@@ -727,7 +727,7 @@ class MusicManager: ObservableObject {
         }
         
         if let volumeScript = script,
-           let result = try? await AppleScriptHelper.execute(volumeScript) {
+           let result = try? await AppleScriptHelper.execute(volumeScript,permissionTarget:bundleID) {
             let volumeValue = result.int32Value
             let currentVolume = Double(volumeValue) / 100.0
             

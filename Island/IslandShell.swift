@@ -105,6 +105,7 @@ struct IslandNowPlayingView:View {
                     Text("Not Playing").font(.system(size:22,weight:.semibold))
                     Text("Your music, right here.").font(.subheadline).foregroundStyle(.secondary)
                     Button("Open Music") { music.openMusicApp() }.buttonStyle(.bordered).padding(.top,5)
+                    if Defaults[.mediaController] == .appleMusic || Defaults[.mediaController] == .spotify { Button("Set up player…") { IslandSettingsController.shared.showPermissions(Defaults[.mediaController] == .spotify ? .spotify : .music) }.buttonStyle(.borderless) }
                 } else {
                     Text(music.songTitle).font(.system(size:17,weight:.semibold)).lineLimit(1)
                     Text(music.artistName).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)

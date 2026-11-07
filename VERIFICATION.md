@@ -1,9 +1,9 @@
-# Island 2.3.3 verification — November 7, 2026
+# Island 2.4.0 verification — November 7, 2026
 
-## Passed for build 234
+## Passed for build 240
 
-- Release build for Apple silicon with Xcode 27.2, minimum macOS 15; version 2.3.3 build 234.
-- 125 Swift checks: 12 timer state/persistence/boundary checks; 32 dial/preset/cycle/module/widget/schedule/display-geometry checks; seven tests of actual production timer completion/relaunch/presets; 10 production archive extraction/path/symlink checks; six typed translation fixtures; 34 power-argument/ChatGPT-link/hook-timeout/snap-geometry/device-alert/provider rules; 13 production open/close method checks with isolated dependencies for deferred resets, rapid reopening and existing close guards; 11 production service fixtures for pagination/review filtering/Jira transitions and context guards/hourly forecast. Fixtures do not use private accounts, Keychain or paid APIs.
+- Release build for Apple silicon with Xcode 27.2, minimum macOS 15; version 2.4.0 build 240.
+- 142 Swift checks: 12 timer state/persistence/boundary checks; 32 dial/preset/cycle/module/widget/schedule/display-geometry checks; seven tests of actual production timer completion/relaunch/presets; 10 production archive extraction/path/symlink checks; six typed translation fixtures; 34 power-argument/ChatGPT-link/hook-timeout/snap-geometry/device-alert/provider rules; 13 production open/close method checks with isolated dependencies for deferred resets, rapid reopening and existing close guards; 17 production permission-queue checks for ordered requests, existing grants, restrictions, manual approval/resume, skipping, retry, denial and cancellation; 11 production service fixtures for pagination/review filtering/Jira transitions and context guards/hourly forecast. Fixtures do not use private accounts, Keychain or paid APIs.
 - 11 Python protocol tests of the real compiled bridge: ChatGPT/Codex/Claude/Cursor allow/deny/expiry and malformed-input boundaries. No agent command was executed or approved by these fixtures.
 - Six Python release/configuration checks, including real Sparkle signing with an ephemeral test key, tamper rejection and mismatched-public-key rejection. No production update key was created or retained.
 - Actual power installer script builder validated against the signed staged app and payload; shell parsing and AppleScript compilation passed. This did not execute administrator operations.
@@ -16,6 +16,8 @@ The reported Interrupt/SessionEnd timeout warnings were traced to generated 60-s
 
 Opening/closing now keeps the expanded canvas at a fixed size inside one animated clipping surface, keeps the hosting canvas fixed, removes the conditional outer height and competing state springs, fades compact/expanded content, and defers the default-tab reset until outgoing content has faded. Rapid reopening cancels that reset. Geometry respects Reduce Motion. The 13 new checks exercise extracted production methods with test-only dependencies; they do not prove animation smoothness on screen. Fresh visual validation remains pending because the interface tool cannot bind the installed app.
 
+Permission setup is exercised through the actual queue/controller with a fake system client: no OS approval or revocation occurs in these tests. Native API status adapters and Settings navigation compile in the release build; the new page, native prompts and cross-app return/resume still need live visual testing. Existing grants are read rather than reset, the camera is not started by approval, and client hook trust is never written. Power availability now uses an actual bounded ping rather than assuming an asynchronous probe has completed.
+
 ## Earlier live interface checks retained
 
 On the built-in display: no top gap; ring drag changed the duration to 60 minutes; a 45-minute preset was added, selected and restored after relaunch; module controls/reorder/overflow; actual system readings; keyboard entry; weather retrieval; note creation/editing/switching/autosave/recoverable trash. The test note was moved to note trash.
@@ -24,7 +26,7 @@ The 2.2 interface showed the own player/tray/settings/dashboard, four widgets, a
 
 ## Live checks still pending
 
-The interface tool currently resolves the replaced canonical app to its old bundle identity, preventing a fresh visual inspection of build 234. The actual installed metadata and running process identity were independently verified. The new GUI administrator setup, real Low Power Mode on/off and its switch animation must still be confirmed. Both macOS power profiles remained at Low Power Mode off at the last check. The previous legacy power service was not changed.
+The interface tool currently resolves the replaced canonical app to its old bundle identity, preventing a fresh visual inspection of build 240. The actual installed metadata and running process identity were independently verified. The new GUI administrator setup, real Low Power Mode on/off and its switch animation must still be confirmed. Both macOS power profiles remained at Low Power Mode off at the last check. The previous legacy power service was not changed.
 
 Only the built-in display is connected; physical external-display placement remains unverified. Geometry tests do not replace that check. New Bluetooth/window-control permissions were not granted during this audit. Actual drag snapping, accessory coverage, removable-volume ejection, private GitHub/GitLab/Bitbucket/Jira access, the remaining client session events and real permission decisions, OpenAI translation, Ollama with a model, live Reminders writes, custom ringtone import and audible completion, sleep/wake, AirDrop and genuine Sparkle upgrades still need end-to-end checks. UI language coverage beyond core Arabic labels is partial; restart behavior needs a live check.
 

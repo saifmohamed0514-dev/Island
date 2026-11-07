@@ -49,7 +49,7 @@ struct IslandWellbeingSettings:View {
                 Stepper("Notify at \(threshold)%",value:$threshold,in:5...50,step:5)
                 Text("Requires the Bluetooth module. Alerts use battery levels reported by macOS; not every accessory exposes them.").font(.caption).foregroundStyle(.secondary)
             }
-            Section("Alerts") { Button("Allow system notifications…") { Task { status=await IslandNotices.shared.requestPermission() ? "System notifications are allowed." : "Review Island in System Settings → Notifications." } };Text(status).foregroundStyle(.secondary);Text("Island also keeps these alerts in its own Inbox. This does not read notifications from unrelated apps.").font(.caption).foregroundStyle(.secondary) }
+            Section("Alerts") { Button("Set up notifications…") { IslandSettingsController.shared.showPermissions(.notifications) };Text("Island also keeps these alerts in its own Inbox. This does not read notifications from unrelated apps.").font(.caption).foregroundStyle(.secondary) }
         }.formStyle(.grouped).onChange(of:reminders) { configure() }.onChange(of:waterInterval) { configure() }.onChange(of:breakInterval) { configure() }.onChange(of:windDown) { configure() }.onChange(of:deviceAlerts) { IslandDevices.shared.configure(IslandModuleStore.shared.enabled.contains(.devices)) }
     }
     func configure() { IslandWellbeingReminders.shared.configure(IslandModuleStore.shared.enabled.contains(.health)) }

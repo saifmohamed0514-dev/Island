@@ -1,4 +1,4 @@
-Island 2.3.3 (234) — development preview
+Island 2.4.0 (240) — development preview
 
 INSTALL
 Run Island.app on an Apple silicon Mac with macOS 15 or newer. Keep one copy in Applications and quit other notch utilities to avoid overlapping overlays. This build is locally signed, not Apple-notarized; macOS may block it after downloading to another Mac.
@@ -9,11 +9,14 @@ The player, tray, dashboard, settings, welcome flow, icon and compact activities
 YOUR TIMER
 Choose Focus. Drag the ring while paused. Use + to enter a duration and save a preset. Settings → Focus & Sounds manages presets, work/break cycles and ringtones. Timer state persists across relaunch.
 
+PERMISSIONS, TOGETHER
+Settings → Permissions is the home for access setup. Select the features you want, then choose Set up selected. Existing approvals are skipped; manual System Settings steps are checked when you return. Not now and Finish later keep setup optional. macOS requires separate privacy approvals; one Touch ID check cannot grant them all. Camera access alone never starts the mirror. Files are approved when selected, and client hooks remain subject to their own review.
+
 YOUR MODULES
 Settings → Modules enables, reorders and chooses your starting module. Settings → Dashboard chooses four widget slots and an optional daily Work/Minimal schedule. More contains overflow modules. Pin keeps Island open. Displays chooses screens; Behavior configures keyboard shortcuts; System Controls has HUD replacement and permission connections. Language & Help includes core Arabic labels, an in-app guide and a private diagnostic summary.
 
 POWER CONTROLS
-Choose Enable power controls in Battery or System Controls and approve the normal macOS administrator dialog. The dedicated service only changes Low Power Mode. Normal toggles need no password; an ad-hoc preview update can require setup again. See Source/Power/README.md. Live authorization remains a separate check in this preview.
+Open Settings → Permissions and select Low Power Mode, then choose Set up selected. Approve the normal macOS administrator dialog. The dedicated service only changes Low Power Mode. Normal toggles need no password; an ad-hoc preview update can require setup again. See Source/Power/README.md. Live authorization remains a separate check in this preview.
 
 CHATGPT, CLAUDE AND CURSOR
 Enable AI Coding and Inbox. Settings → Agents & Inbox prepares a helper, six ChatGPT/Codex hook examples and a portable plugin in a private folder. Merge the intended hooks or install the plugin, then review and trust them in the client. Do not install both forms. The app’s setup does not edit client settings. Local Work/Codex sessions are supported; ordinary web chats do not emit local hooks. A draft button opens text in ChatGPT without sending it. See Source/Integrations/README.md.

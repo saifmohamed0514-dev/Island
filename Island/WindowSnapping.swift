@@ -73,7 +73,7 @@ struct IslandWindowSettings:View {
     @ObservedObject var monitor=IslandWindowSnapping.shared
     var body:some View {
         Form {
-            Section("Snap as you drag") { Toggle("Preview layouts at screen edges",isOn:$snapping);Text("Drag a window’s title bar to the left, right, top or corners, then release. Island checks that the window is moving, so selecting text or dragging a file doesn’t snap it.").foregroundStyle(.secondary);Text(monitor.status).font(.caption).foregroundStyle(.secondary);Button("Check Accessibility and try again") { Task { _=await XPCHelperClient.shared.ensureAccessibilityAuthorization(promptIfNeeded:true);monitor.configure() } } }
+            Section("Snap as you drag") { Toggle("Preview layouts at screen edges",isOn:$snapping);Text("Drag a window’s title bar to the left, right, top or corners, then release. Island checks that the window is moving, so selecting text or dragging a file doesn’t snap it.").foregroundStyle(.secondary);Text(monitor.status).font(.caption).foregroundStyle(.secondary);Button("Manage window access…") { IslandSettingsController.shared.showPermissions(.accessibility) } }
             Section("Manual layouts") { Text("The Window Layouts module also has halves, thirds, corners and Maximize buttons. Some windows enforce minimum sizes, and full-screen windows may not be resizable.").foregroundStyle(.secondary) }
         }.formStyle(.grouped).onChange(of:snapping) { monitor.configure() }
     }
