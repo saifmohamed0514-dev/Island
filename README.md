@@ -1,4 +1,4 @@
-# Island 2.5.0
+# Island 2.6.0
 
 An independent, open-source macOS notch utility, based on [Boring Notch](https://github.com/TheBoredTeam/boring.notch). GPL-3.0; original copyright notices and third-party licenses are retained.
 
@@ -11,7 +11,7 @@ An independent, open-source macOS notch utility, based on [Boring Notch](https:/
 - Optional system volume/brightness HUD replacement with macOS Accessibility permission.
 - Persistent focus timer with a draggable ring, saved custom presets, work/break cycles, selectable sounds, audio import, volume and repeat-until-stopped.
 - Shared timer across displays; multiple local notes and four configurable dashboard widgets.
-- An interactive module designer with a persistent notch preview, typed drag/drop, clickable per-module settings, add/hide, order controls, layout undo, search and a visible interaction guide. Settings can be resized.
+- A four-position module canvas: drag blocks into the notch preview, swap positions inside it, click for settings, and use the same arrangement on the real Island. Live blocks open full module controls; a grid button returns to the layout. Includes typed drag/drop, undo, search and a visible interaction guide. Settings can be resized.
 - Module toggles, ordering, daily scheduled layouts and keyboard shortcut settings. Optional weather, tasks, day progress, wellbeing, system/usage monitoring, launcher, code hosting, local/optional cloud translation, device readings, window layouts, file actions and a local agent hook bridge/inbox. See FEATURE-STATUS.md for exact scope.
 - ChatGPT Work/Codex, Claude Code and Cursor local hooks, one-request decisions and ChatGPT draft handoff. See [Integrations/README.md](Integrations/README.md).
 - Narrow Low Power Mode service with one-time macOS setup; later toggles need no password. Local ad-hoc updates can require setup again. See [Power/README.md](Power/README.md).

@@ -51,6 +51,7 @@ class IslandCoordinator: ObservableObject {
     static let shared = IslandCoordinator()
 
     @Published var currentView: NotchViews = IslandModuleStore.shared.defaultModule
+    @Published var showingCanvasDetail=false
     @Published var helloAnimationRunning: Bool = false
     private var sneakPeekDispatch: DispatchWorkItem?
     private var expandingViewDispatch: DispatchWorkItem?

@@ -5,6 +5,7 @@ import SwiftUI
         _ = NSApplication.shared
         let folder=URL(fileURLWithPath:CommandLine.arguments[1],isDirectory:true)
         for (name,selected,scheme) in [("designer-light",NotchViews.focus,ColorScheme.light),("designer-dark",.weather,.dark)] {
+            IslandCanvasStore.shared.preferences=IslandCanvasPreferences(enabled:scheme == .dark,slots:scheme == .dark ? [.weather,.home,.notes,.focus] : [.home,.shelf,.focus,nil])
             let domain="IslandDesignerRender-"+UUID().uuidString
             let defaults=UserDefaults(suiteName:domain)!
             defer { defaults.removePersistentDomain(forName:domain) }

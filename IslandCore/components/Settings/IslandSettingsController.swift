@@ -72,6 +72,10 @@ class IslandSettingsController: NSWindowController {
         IslandSettingsNavigation.shared.selected="Permissions"
         showWindow()
     }
+    func showModuleDesigner(_ module:NotchViews?=nil) {
+        if let module { UserDefaults.standard.set(module.rawValue,forKey:"island.designer.selected");UserDefaults.standard.set(true,forKey:"island.designer.inspector") }
+        IslandSettingsNavigation.shared.selected="Modules";showWindow()
+    }
     func showWindow() {
         // Set app to regular mode first
         NSApp.setActivationPolicy(.regular)

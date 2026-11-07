@@ -58,11 +58,12 @@ struct IslandDashboardSettings:View {
     }
     var body:some View {
         Form {
-            Section("Four spaces, your choice") {
+            Section("Classic Dashboard widgets") {
                 ForEach(0..<4,id:\.self) { index in
                     Picker("Widget \(index+1)",selection:Binding(get:{ IslandWidget.slots(slots)[index] },set:{ new in var widgets=IslandWidget.slots(slots);widgets[index]=new;slots=widgets.map(\.rawValue).joined(separator:",") })) { ForEach(IslandWidget.allCases) { Text($0.title).tag($0) } }
                 }
                 Text("Widgets open their module when it is enabled. Your widget choices stay the same when you change layouts.").foregroundStyle(.secondary)
+                Text("Arrange full module blocks in Settings → Modules. These classic widgets are also available by adding Dashboard as a block.").font(.caption).foregroundStyle(.secondary)
             }
             Section("System Focus") {
                 Toggle("Follow shared Focus status",isOn:$useFocus)

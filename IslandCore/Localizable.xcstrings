@@ -26100,6 +26100,116 @@
           }
         }
       }
+    },
+    "Build your Island": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "صمّم Island"
+          }
+        }
+      }
+    },
+    "Drop into a space": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أفلت داخل مساحة"
+          }
+        }
+      }
+    },
+    "Drag blocks to swap": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اسحب الوحدات لتبديلها"
+          }
+        }
+      }
+    },
+    "Drop a module here": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أفلت وحدة هنا"
+          }
+        }
+      }
+    },
+    "Use this layout in Island": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "استخدم هذا التخطيط في Island"
+          }
+        }
+      }
+    },
+    "Drop to remove": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أفلت للإزالة"
+          }
+        }
+      }
+    },
+    "Modules to add": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "وحدات للإضافة"
+          }
+        }
+      }
+    },
+    "Show in layout": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إظهار في التخطيط"
+          }
+        }
+      }
+    },
+    "Enable module": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تفعيل الوحدة"
+          }
+        }
+      }
+    },
+    "Position": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الموضع"
+          }
+        }
+      }
+    },
+    "Back to your layout": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "العودة إلى تخطيطك"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

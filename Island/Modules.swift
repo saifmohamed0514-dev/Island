@@ -149,6 +149,7 @@ struct IslandModulePreferences: Codable,Equatable {
         guard next != preferences else { return false };preferences=next;persist();return true
     }
     func restore(_ snapshot:IslandModulePreferences) { preferences=snapshot;persist() }
+    func enableForCanvas(_ modules:[NotchViews]) { preferences.enabled += modules+[.dashboard];preferences.start = .dashboard;persist() }
     func move(_ module: NotchViews, by delta: Int) {
         guard let index = preferences.order.firstIndex(of: module) else { return }
         let new = min(preferences.order.count - 1, max(0, index + delta)); preferences.order.swapAt(index, new); persist()

@@ -30,11 +30,16 @@ struct IslandMark:View {
 struct IslandHeader:View {
     @EnvironmentObject var vm:IslandViewModel
     @ObservedObject var battery = BatteryStatusViewModel.shared
+    @ObservedObject var canvas=IslandCanvasStore.shared
+    @ObservedObject var coordinator=IslandCoordinator.shared
     var body:some View {
         HStack(spacing:0) {
             TabSelectionView().frame(maxWidth:.infinity,alignment:.leading)
             Color.clear.frame(width:min(130,vm.closedNotchSize.width * 0.65)).allowsHitTesting(false)
             HStack(spacing:8) {
+                if canvas.preferences.enabled && (coordinator.currentView != .dashboard || coordinator.showingCanvasDetail) {
+                    Button { coordinator.showingCanvasDetail=false;coordinator.currentView = .dashboard } label: { Image(systemName:"square.grid.2x2") }.help("Back to your layout").accessibilityLabel("Back to your layout")
+                }
                 Button { vm.isPinned.toggle() } label: { Image(systemName:vm.isPinned ? "pin.fill" : "pin").foregroundStyle(vm.isPinned ? .cyan : .secondary) }.help(vm.isPinned ? "Unpin Island" : "Keep Island open").accessibilityLabel(vm.isPinned ? "Unpin Island" : "Pin Island")
                 Button { IslandSettingsController.shared.showWindow() } label: { Image(systemName:"slider.horizontal.3") }.help("Customize Island").accessibilityLabel("Island settings")
                 if Defaults[.showBatteryIndicator] {

@@ -1,7 +1,7 @@
 import Foundation
 import UniformTypeIdentifiers
 @main struct DesignerSmoke {
-    static func main() throws {
+    @MainActor static func main() async throws {
         var count=0
         func check(_ value:Bool) { precondition(value,"Designer check \(count+1)");count+=1 }
         var original=IslandModulePreferences();original.normalize()
@@ -39,6 +39,7 @@ import UniformTypeIdentifiers
         var corrupt=original;corrupt.order=[.focus,.focus];corrupt.enabled=[.focus,.focus];corrupt.start = .focus
         corrupt.place(.notes,relativeTo:.focus)
         check(corrupt.enabled == [.notes,.focus] && corrupt.start == .focus && corrupt.order.count == NotchViews.allCases.count)
+        try CanvasSmoke.run()
         print("PASS: \(count) production module-placement and typed-drag checks; before/after, hidden modules, overflow, default preservation, duplicates, persistence and invalid payloads; no live settings changed")
     }
 }

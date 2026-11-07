@@ -211,6 +211,7 @@ class IslandViewModel: NSObject, ObservableObject {
                 if IslandModuleStore.shared.enabled.contains(.shelf) && !ShelfStateViewModel.shared.isEmpty && Defaults[.openShelfByDefault] {
                     self.coordinator.currentView = .shelf
                 } else if !self.coordinator.openLastTabByDefault {
+                    self.coordinator.showingCanvasDetail=false
                     self.coordinator.currentView = IslandModuleStore.shared.defaultModule
                 }
                 self.closedContentTask = nil

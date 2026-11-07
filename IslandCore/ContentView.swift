@@ -21,6 +21,7 @@ struct ContentView: View {
     @ObservedObject var webcamManager = WebcamManager.shared
 
     @ObservedObject var coordinator = IslandCoordinator.shared
+    @ObservedObject var canvas = IslandCanvasStore.shared
     @ObservedObject var focusTimer = IslandFocusTimer.shared
     @ObservedObject var agentBridge = IslandAgentBridge.shared
     @ObservedObject var musicManager = MusicManager.shared
@@ -216,6 +217,8 @@ struct ContentView: View {
                 IslandHeader().frame(height:34)
                 Rectangle().fill(.white.opacity(0.07)).frame(height:1).padding(.top,3)
                 Group {
+                    if canvas.preferences.showsLayout(currentView:coordinator.currentView,showingDetail:coordinator.showingCanvasDetail) { IslandCanvasLiveView() }
+                    else {
                     switch coordinator.currentView {
                     case .home: IslandNowPlayingView()
                     case .shelf: IslandTrayView()
@@ -223,6 +226,7 @@ struct ContentView: View {
                     case .notes: IslandNotesView()
                     case .dashboard: IslandDashboardView()
                     default: IslandModuleContent(module:coordinator.currentView)
+                    }
                     }
                 }.frame(height:150,alignment:.top).padding(.top,12)
             }

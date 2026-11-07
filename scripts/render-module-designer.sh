@@ -1,6 +1,7 @@
 #!/bin/bash
 # Offscreen SwiftUI layout renders of the actual editor/preview source, with
-# isolated in-memory module fixtures and sample defaults. No window or OS access.
+# isolated in-memory module fixtures and sample defaults. Default: no window.
+# ISLAND_DESIGNER_DEMO=1 builds a separate, explicitly launched fixture window.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 OUTPUT="${1:?Pass an output directory}"
@@ -15,6 +16,7 @@ e=Path('IslandCore/enums/generic.swift').read_text();e=e[e.index('public enum No
 m=Path('Island/Modules.swift').read_text();m=m[m.index('extension NotchViews'):m.index('@MainActor final class IslandModuleStore')]
 s=Path('Island/IslandShell.swift').read_text();s=s[s.index('struct IslandSurface:'):s.index('struct IslandMark:')]
 p=Path('Island/ModulePreview.swift').read_text()
+c=Path('Island/CanvasLayout.swift').read_text();c=c[c.index('struct IslandCanvasPreferences:'):c.index('@MainActor final class IslandCanvasStore')]
 d=Path('Island/ModuleDesigner.swift').read_text();d=d[d.index('struct IslandModuleDesigner:'):d.index('struct IslandModuleInspector:')]
 fixture='''
 @MainActor final class IslandModuleStore:ObservableObject {
@@ -28,10 +30,34 @@ fixture='''
  func setDefault(_ value:NotchViews) { preferences.start=value }
  func setEnabled(_ value:NotchViews,_ enabled:Bool) { }
  func profile(_ name:String) { }
+ func enableForCanvas(_ values:[NotchViews]) { preferences.enabled += values+[.dashboard];preferences.start = .dashboard;preferences.normalize() }
+}
+@MainActor final class IslandCanvasStore:ObservableObject {
+ static let shared=IslandCanvasStore()
+ @Published var preferences=IslandCanvasPreferences()
+ func place(_ module:NotchViews,at index:Int) { preferences.place(module,at:index) }
+ func remove(_ module:NotchViews) { preferences.remove(module) }
+ func setEnabled(_ value:Bool) { preferences.enabled=value }
+ func template(_ name:String) { }
+ func restore(_ value:IslandCanvasPreferences) { preferences=value }
 }
 struct IslandModuleInspector:View { let module:NotchViews;var body:some View { Text(module.title) } }
 '''
-Path(sys.argv[1]).write_text('import SwiftUI\nimport Combine\nimport Foundation\n'+e+m+s+p+fixture+d)
+Path(sys.argv[1]).write_text('import SwiftUI\nimport Combine\nimport Foundation\n'+e+m+c+s+p+fixture+d)
 PY
-xcrun swiftc -module-cache-path "$STAGE/cache" "$STAGE/Views.swift" Tests/DesignerRender.swift -o "$STAGE/render"
-"$STAGE/render" "$OUTPUT"
+if [[ "${ISLAND_DESIGNER_DEMO:-0}" == 1 ]]; then
+    APP="$OUTPUT/Island Canvas Check.app"
+    mkdir -p "$APP/Contents/MacOS"
+    xcrun swiftc -module-cache-path "$STAGE/cache" "$STAGE/Views.swift" Tests/DesignerDemo.swift -o "$APP/Contents/MacOS/IslandCanvasCheck"
+    python3 - "$APP/Contents/Info.plist" <<'INFO'
+import plistlib,sys
+from pathlib import Path
+types=plistlib.loads(Path('IslandCore/Info.plist').read_bytes())['UTExportedTypeDeclarations']
+Path(sys.argv[1]).write_bytes(plistlib.dumps({'CFBundleIdentifier':'org.islandapp.CanvasCheck','CFBundleName':'Island Canvas Check','CFBundleDisplayName':'Island Layout Check','CFBundleExecutable':'IslandCanvasCheck','CFBundlePackageType':'APPL','CFBundleVersion':'1','NSHighResolutionCapable':True,'UTExportedTypeDeclarations':types}))
+INFO
+    codesign --force --sign - "$APP"
+    printf 'Created fixture app; not launched: %s\n' "$APP"
+else
+    xcrun swiftc -module-cache-path "$STAGE/cache" "$STAGE/Views.swift" Tests/DesignerRender.swift -o "$STAGE/render"
+    "$STAGE/render" "$OUTPUT"
+fi

@@ -26,9 +26,9 @@ import Foundation
         NSApp.modalWindow=nil;SharingStateManager.shared.preventNotchClose=true;vm.close();precondition(vm.notchState == .open)
         SharingStateManager.shared.preventNotchClose=false
 
-        coordinator.currentView = .focus;coordinator.openLastTabByDefault=true;vm.close()
+        coordinator.currentView = .focus;coordinator.openLastTabByDefault=true;coordinator.showingCanvasDetail=true;vm.close()
         try await Task.sleep(for:.milliseconds(450))
-        precondition(coordinator.currentView == .focus)
+        precondition(coordinator.currentView == .focus && coordinator.showingCanvasDetail)
         coordinator.openLastTabByDefault=false;ShelfStateViewModel.shared.isEmpty=false;Defaults.shelfByDefault=true
         vm.open();vm.close();try await Task.sleep(for:.milliseconds(450))
         precondition(coordinator.currentView == .shelf)

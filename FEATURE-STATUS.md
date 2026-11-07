@@ -1,4 +1,4 @@
-# Island 2.5 development status
+# Island 2.6 development status
 
 Updated November 7, 2026. This is an implementation inventory, not a claim of full MacNotch parity or zero bugs.
 
@@ -11,7 +11,7 @@ A running timer appears in two bounded wings beside the physical camera. Complet
 ## Available features
 
 - 21 selectable modules: Dashboard, Now Playing, File Tray, Focus, Notes, Calendar, Tasks, Day Progress, Weather, Wellbeing, System Monitor, Screen Time, Launcher, Code Hosting, Translation, Bluetooth, Window Layouts, File Actions, Mirror, AI Coding and Inbox.
-- Settings → Modules includes an interactive notch preview, searchable module cards, private typed drag/drop for adding and reordering, drop-to-hide, undo and click-to-inspect module settings. A persistent gesture legend and How it works guide explain the interactions; keyboard-accessible enable/earlier/later controls offer alternatives. Preview content is illustrative and does not invoke live module actions. Settings can be resized.
+- Settings → Modules is a four-position module canvas. Drop cards into the body of the notch preview, drag existing blocks to swap positions, or replace a block with a new card. The first placement applies the arrangement to the real Island’s Dashboard. Click preview blocks for settings; click real blocks for full controls, with a grid button to return. Layout removal and module enablement are separate. Existing classic Dashboard widgets and module navigation settings are retained. Includes undo, templates, search, position buttons and visible instructions. Preview content is illustrative.
 - Modules can be enabled, ordered and selected as the default. Five appear in the strip; the rest use More. Minimal/Work/Everything layouts and four configurable dashboard widgets. Optional daily Work/Minimal scheduling, including overnight periods and local time-zone changes; a shared system Focus state can take priority when macOS makes it available and permission is granted.
 - Own player with real artwork and metadata, transport, seeking, supported player-volume controls, and one Not Playing idle label. The licensed media-controller backends support Now Playing, Apple Music, Spotify and YouTube Music subject to source requirements.
 - Own file tray, drag/drop, file picker, Quick Look, context actions and AirDrop. Existing bookmark/persistence backend is retained.

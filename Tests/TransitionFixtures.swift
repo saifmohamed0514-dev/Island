@@ -9,6 +9,7 @@ func getClosedNotchSize(screenUUID:String?=nil)->CGSize { CGSize(width:185,heigh
     static let shared=IslandCoordinator()
     var currentView:Module = .focus
     var openLastTabByDefault=false
+    var showingCanvasDetail=false
     struct Peek { var show=false }
     var sneakPeek=Peek()
 }
