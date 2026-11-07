@@ -24,6 +24,8 @@ scripts/build.sh
 
 After committing the corresponding source, `scripts/package-source.sh` creates a complete app + source ZIP.
 
+`xcrun swift scripts/make-icon.swift` regenerates all ten custom icon resolutions and the ICNS from the included vector drawing.
+
 The app ZIP is created at `dist/Island.zip`. Dependencies are pinned in the Xcode project's `Package.resolved`. First build needs internet. No paid Apple account is required for a local preview. For public distribution, review Developer ID signing and notarization.
 
 ## Open-source setup and updates

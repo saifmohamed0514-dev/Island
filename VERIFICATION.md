@@ -17,6 +17,7 @@
 - Earlier live checks: timer start/pause/reset, ringtone preview/stop with no error, single idle label, percentage contrast and system-linked glass battery pop-up.
 - Live 2.2 UI: own player/tray/settings/dashboard, four widget cards, camera-safe timer countdown after normal relaunch, then complete clearing of the activity after the real timer expired. No full-width Timer finished banner was present.
 - Live 2.2 UI: native app-menu Open Island and Settings entries, widget/schedule settings, and optional agent setup page. The app runs normally without --inspect-island; the verification timer was restored to its previous five-minute duration.
+- All ten app-icon catalog resolutions now use the same custom Island artwork; the old icon PNGs were removed. The 1024-pixel render was visually inspected, and scripts/make-icon.swift makes the artwork reproducible.
 - Clean build verified to contain only IslandControls.xpc and no inherited welcome audio. The separately compiled local bridge is signed and sealed into the app.
 - New preview installed as ~/Applications/Island Preview.app and relaunched normally. The original /Applications/Island.app is preserved. User preferences were not reset.
 - Update feed and public key remain absent; updater startup stays disabled until configured.
