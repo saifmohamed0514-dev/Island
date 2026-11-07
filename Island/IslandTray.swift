@@ -64,6 +64,7 @@ struct IslandTrayTile:View {
             Button("Open") { ShelfActionService.open(item) }
             if let url = item.URL { Button("Quick Look") { vm.isBatteryPopoverActive = true; preview.show(urls:[url]) } }
             Button("Show in Finder") { ShelfActionService.reveal(item) }
+            if let url=item.URL,url.isFileURL { Button("File actions…") { IslandFileSelection.shared.set([url]);IslandModuleStore.shared.setEnabled(.files,true);IslandCoordinator.shared.currentView = .files } }
             Divider(); Button("Remove from tray",role:.destructive) { trayRemove() }
         }
     }

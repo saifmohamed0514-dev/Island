@@ -105,11 +105,6 @@ struct BatteryMenuView: View {
                 Text("Max Capacity: \(islandBatteryPercent(maxCapacity))%")
                     .font(.subheadline)
                     .fontWeight(.regular)
-                if isInLowPowerMode {
-                    Label("Low Power Mode", systemImage: "bolt.circle")
-                        .font(.subheadline)
-                        .fontWeight(.regular)
-                }
                 if isCharging {
                     Label("Charging", systemImage: "bolt.fill")
                         .font(.subheadline)
@@ -134,6 +129,7 @@ struct BatteryMenuView: View {
             }
             .padding(.vertical, 8)
 
+            IslandPowerSwitch()
             Divider().background(Color.white)
 
             Button(action: openBatteryPreferences) {

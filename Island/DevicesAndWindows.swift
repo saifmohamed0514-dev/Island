@@ -4,39 +4,69 @@ import AppKit
 import IOKit
 import IOBluetooth
 
-@MainActor final class IslandDevices: ObservableObject {
-    struct Device: Identifiable { var id:String; var name:String; var battery:Int?; var connected:Bool }
-    @Published var devices:[Device] = []
-    @Published var status = "Refresh to read paired devices and available battery levels."
+@MainActor final class IslandDevices:ObservableObject {
+    static let shared=IslandDevices()
+    struct Device:Identifiable { var id:String;var name:String;var battery:Int?;var parts:[String:Int]=[:];var connected:Bool }
+    @Published var devices:[Device]=[]
+    @Published var status="Refresh to read connected devices and available battery levels."
+    private var clock:Task<Void,Never>?
+    private var previous:[String:Int]=[:]
+    func configure(_ enabled:Bool) {
+        clock?.cancel();clock=nil
+        guard enabled,UserDefaults.standard.bool(forKey:"island.devices.alerts") else { return }
+        clock=Task { [weak self] in while !Task.isCancelled { self?.refresh();try? await Task.sleep(for:.seconds(60)) } }
+    }
     func refresh() {
-        var result:[String:Device] = [:]
-        let paired = IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice] ?? []
-        for device in paired where device.isConnected() {
-            let name = device.name ?? "Bluetooth Device"
-            result[name] = Device(id:name,name:name,battery:nil,connected:true)
+        var result:[String:Device]=[:]
+        for device in IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice] ?? [] where device.isConnected() {
+            let name=device.name ?? "Bluetooth Device",id=device.addressString ?? name
+            result[id]=Device(id:id,name:name,battery:nil,connected:true)
         }
-        var iterator:io_iterator_t = 0
-        if IOServiceGetMatchingServices(kIOMainPortDefault,IOServiceMatching("AppleDeviceManagementHIDEventService"),&iterator) == KERN_SUCCESS {
-            defer { IOObjectRelease(iterator) }
-            var service = IOIteratorNext(iterator)
+        for className in ["AppleDeviceManagementHIDEventService","IOBluetoothDevice"] {
+            var iterator:io_iterator_t=0
+            guard IOServiceGetMatchingServices(kIOMainPortDefault,IOServiceMatching(className),&iterator) == KERN_SUCCESS else { continue }
+            defer { IOObjectRelease(iterator) };var service=IOIteratorNext(iterator)
             while service != 0 {
-                let name = IORegistryEntryCreateCFProperty(service,"Product" as CFString,kCFAllocatorDefault,0)?.takeRetainedValue() as? String ?? "Input Device"
-                let battery = (IORegistryEntryCreateCFProperty(service,"BatteryPercent" as CFString,kCFAllocatorDefault,0)?.takeRetainedValue() as? NSNumber)?.intValue
-                if let battery, (0...100).contains(battery) { result[name] = Device(id:name,name:name,battery:battery,connected:true) }
-                IOObjectRelease(service); service = IOIteratorNext(iterator)
+                func property(_ key:String)->Any? { IORegistryEntryCreateCFProperty(service,key as CFString,kCFAllocatorDefault,0)?.takeRetainedValue() }
+                let name=property("Product") as? String ?? property("Name") as? String ?? "Input Device"
+                let address=property("DeviceAddress") as? String
+                let known=result.values.first { $0.name == name || (address != nil && $0.id == address) }
+                if className != "IOBluetoothDevice" || known != nil || (property("Connected") as? Bool == true) {
+                    var parts:[String:Int]=[:]
+                    for (label,key) in [("Battery","BatteryPercent"),("Left","BatteryPercentLeft"),("Right","BatteryPercentRight"),("Case","BatteryPercentCase")] {
+                        if let level=(property(key) as? NSNumber)?.intValue,(0...100).contains(level) { parts[label]=level }
+                    }
+                    if !parts.isEmpty {
+                        let id=known?.id ?? address ?? name
+                        result[id]=Device(id:id,name:known?.name ?? name,battery:parts["Battery"] ?? parts.values.min(),parts:parts,connected:true)
+                    }
+                }
+                IOObjectRelease(service);service=IOIteratorNext(iterator)
             }
         }
-        devices = result.values.sorted { $0.name < $1.name }
-        status = devices.isEmpty ? "No connected devices reported. Review Bluetooth permission if needed." : "Battery levels are shown only when macOS reports them."
+        devices=result.values.sorted { $0.name < $1.name }
+        if UserDefaults.standard.bool(forKey:"island.devices.alerts") {
+            let threshold=UserDefaults.standard.object(forKey:"island.devices.threshold") as? Int ?? 20
+            for device in devices {
+                guard let level=device.battery else { continue }
+                if IslandDeviceAlertRules.shouldWarn(level:level,threshold:threshold,previous:previous[device.id]) {
+                    let key="island.device.warned."+Data(device.id.utf8).base64EncodedString()
+                    let last=UserDefaults.standard.double(forKey:key)
+                    if Date().timeIntervalSince1970-last > 6*3600 { IslandNotices.shared.post(title:"\(device.name) battery is low",body:"\(level)% remaining. Connect it to power when convenient.",source:"Devices");UserDefaults.standard.set(Date().timeIntervalSince1970,forKey:key) }
+                }
+                previous[device.id]=level
+            }
+        }
+        status=devices.isEmpty ? "No connected devices reported. Review Bluetooth access if needed." : "Levels and separate earbuds/case appear only when macOS reports them."
     }
 }
-struct IslandDevicesView: View {
-    @StateObject var model = IslandDevices()
-    var body: some View {
+struct IslandDevicesView:View {
+    @ObservedObject var model=IslandDevices.shared
+    var body:some View {
         VStack(alignment:.leading,spacing:10) {
-            HStack { Text("Bluetooth & Devices").font(.headline); Spacer(); Button("Refresh") { model.refresh() } }
+            HStack { Text("Bluetooth & Devices").font(.headline);Spacer();Button("Refresh") { model.refresh() } }
             ForEach(model.devices) { device in
-                HStack { Image(systemName:"antenna.radiowaves.left.and.right"); Text(device.name); Spacer(); if let battery = device.battery { Text("\(battery)%").foregroundStyle(battery <= 20 ? .orange : .secondary) } else { Text("Connected").foregroundStyle(.secondary) } }
+                HStack { Image(systemName:"antenna.radiowaves.left.and.right");Text(device.name);Spacer();if !device.parts.isEmpty { Text(device.parts.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)%" }.joined(separator:" · ")).font(.caption).foregroundStyle((device.battery ?? 100) <= 20 ? .orange : .secondary) } else { Text("Connected").foregroundStyle(.secondary) } }
             }
             Text(model.status).font(.caption).foregroundStyle(.secondary)
         }

@@ -31,6 +31,7 @@
 	<array>
 		<string>$(PRODUCT_BUNDLE_IDENTIFIER)-spks</string>
 		<string>$(PRODUCT_BUNDLE_IDENTIFIER)-spki</string>
+		<string>org.islandapp.Island.Power</string>
 	</array>
 </dict>
 </plist>

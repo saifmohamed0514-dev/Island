@@ -294,12 +294,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if let index=CommandLine.arguments.firstIndex(of:"--relaunch-from-pid"),index+1<CommandLine.arguments.count,let pid=Int32(CommandLine.arguments[index+1]),NSRunningApplication(processIdentifier:pid)?.isTerminated == false {
+            DispatchQueue.main.asyncAfter(deadline:.now()+0.2) { [weak self] in self?.applicationDidFinishLaunching(notification) };return
+        }
         if let id = Bundle.main.bundleIdentifier, let existing = NSRunningApplication.runningApplications(withBundleIdentifier: id).first(where: { $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }) {
             existing.activate(options: []); NSApp.terminate(nil); return
         }
         _ = IslandFocusTimer.shared
         IslandProfileSchedule.shared.start()
+        IslandWindowSnapping.shared.configure()
         IslandUsageTracker.shared.setEnabled(IslandModuleStore.shared.enabled.contains(.usage))
+        IslandDevices.shared.configure(IslandModuleStore.shared.enabled.contains(.devices))
+        IslandWellbeingReminders.shared.configure(IslandModuleStore.shared.enabled.contains(.health))
         IslandAgentBridge.shared.start(IslandModuleStore.shared.enabled.contains(.agents) || IslandModuleStore.shared.enabled.contains(.inbox))
 
 

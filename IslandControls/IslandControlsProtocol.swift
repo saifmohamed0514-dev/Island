@@ -9,6 +9,7 @@ import Foundation
 
 /// The protocol that this service will vend as its API. This protocol will also need to be visible to the process hosting the service.
 @objc protocol IslandControlsProtocol {
+    func windowBounds(_ pid:Int32,with reply:@escaping([NSNumber]?)->Void)
     func tileWindow(_ pid: Int32, x: Double, y: Double, width: Double, height: Double, with reply: @escaping (Bool) -> Void)
     func isAccessibilityAuthorized(with reply: @escaping (Bool) -> Void)
     func requestAccessibilityAuthorization()

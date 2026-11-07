@@ -2,6 +2,7 @@ import SwiftUI
 import Combine
 import Darwin
 import CoreGraphics
+import Charts
 
 struct IslandSystemSample {
     var cpu: Double?
@@ -53,42 +54,66 @@ struct IslandSystemView: View {
     private var observer: NSObjectProtocol?
     private var last = Date()
     private var day: String = ""
+    private var activeApp:(id:String,name:String)?
+    @Published var undoEntries:[String:Entry]?
     func setEnabled(_ enabled: Bool) {
         guard enabled else { timer?.invalidate(); timer = nil; if let observer { NSWorkspace.shared.notificationCenter.removeObserver(observer); self.observer = nil }; return }
         guard timer == nil else { return }; loadDay()
-        last = Date()
+        last = Date();if let app=NSWorkspace.shared.frontmostApplication,let id=app.bundleIdentifier { activeApp=(id,app.localizedName ?? id) }
         timer = Timer.scheduledTimer(withTimeInterval: 10,repeats:true) { [weak self] _ in Task { @MainActor in self?.record() } }
         observer = NSWorkspace.shared.notificationCenter.addObserver(forName:NSWorkspace.didActivateApplicationNotification,object:nil,queue:.main) { [weak self] notice in
             guard let app = notice.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication, let id = app.bundleIdentifier else { return }
             Task { @MainActor in
-                guard let self else { return }; self.loadDay(); var entry = self.entries[id] ?? Entry(name:app.localizedName ?? id,seconds:0,switches:0); entry.switches += 1; self.entries[id] = entry; self.persist()
+                guard let self else { return }; self.record();self.activeApp=(id,app.localizedName ?? id);self.loadDay(); var entry = self.entries[id] ?? Entry(name:app.localizedName ?? id,seconds:0,switches:0); entry.switches += 1; self.entries[id] = entry; self.persist()
             }
         }
     }
     private func loadDay() {
         let today = String(Int(Calendar.current.startOfDay(for:Date()).timeIntervalSince1970))
-        if day != today { day = today; entries = (UserDefaults.standard.data(forKey:"island.usage."+day).flatMap { try? JSONDecoder().decode([String:Entry].self,from:$0) }) ?? [:] }
+        if day != today { undoEntries=nil;day = today; entries = (UserDefaults.standard.data(forKey:"island.usage."+day).flatMap { try? JSONDecoder().decode([String:Entry].self,from:$0) }) ?? [:] }
     }
     private func record() {
         loadDay(); let now = Date(); defer { last = now }
         guard CGEventSource.secondsSinceLastEventType(.combinedSessionState,eventType:CGEventType(rawValue:UInt32.max)!) < 120,
-              let app = NSWorkspace.shared.frontmostApplication, let id = app.bundleIdentifier else { return }
-        var entry = entries[id] ?? Entry(name:app.localizedName ?? id,seconds:0,switches:0)
-        entry.seconds += max(0,min(15,now.timeIntervalSince(last))); entries[id] = entry; persist()
+              let activeApp,now.timeIntervalSince(last) >= 0,now.timeIntervalSince(last) <= 20 else { return }
+        let id=activeApp.id
+        var entry = entries[id] ?? Entry(name:activeApp.name,seconds:0,switches:0)
+        entry.seconds += max(0,now.timeIntervalSince(max(last,Calendar.current.startOfDay(for:now)))); entries[id] = entry; persist()
     }
     private func persist() { UserDefaults.standard.set(try? JSONEncoder().encode(entries),forKey:"island.usage."+day) }
-    func clearToday() { entries = [:]; persist() }
+    func clearToday() { undoEntries=entries;entries=[:];persist() }
+    func undoClear() {
+        guard let backup=undoEntries else { return };for (id,value) in backup { var entry=entries[id] ?? Entry(name:value.name,seconds:0,switches:0);entry.seconds += value.seconds;entry.switches += value.switches;entries[id]=entry };undoEntries=nil;persist()
+    }
+    func history(daysAgo:Int)->[String:Entry] {
+        guard daysAgo != 0 else { return entries }
+        let date=Calendar.current.date(byAdding:.day,value:-daysAgo,to:Date()) ?? Date(),key=String(Int(Calendar.current.startOfDay(for:date).timeIntervalSince1970))
+        return UserDefaults.standard.data(forKey:"island.usage."+key).flatMap { try? JSONDecoder().decode([String:Entry].self,from:$0) } ?? [:]
+    }
 }
-struct IslandUsageView: View {
-    @ObservedObject var usage = IslandUsageTracker.shared
-    var body: some View {
+struct IslandUsageView:View {
+    @ObservedObject var usage=IslandUsageTracker.shared
+    @State var daysAgo=0
+    @AppStorage("island.usage.categories") var categoryData=Data()
+    let categories=["Work","Communication","Entertainment","Other"]
+    var labels:[String:String] { (try? JSONDecoder().decode([String:String].self,from:categoryData)) ?? [:] }
+    var selected:[String:IslandUsageTracker.Entry] { usage.history(daysAgo:daysAgo) }
+    var body:some View {
         VStack(alignment:.leading,spacing:8) {
-            IslandModuleHeading(title:"Screen Time",subtitle:"Today · active use only · stored locally")
-            if usage.entries.isEmpty { Text("Tracking starts when this module is enabled. Idle time over two minutes is excluded.").foregroundStyle(.secondary) }
-            ForEach(usage.entries.sorted { $0.value.seconds > $1.value.seconds },id:\.key) { pair in
-                HStack { Text(pair.value.name); Spacer(); Text("\(Int(pair.value.seconds/60))m · \(pair.value.switches) switches").foregroundStyle(.secondary) }
+            HStack { Text("Screen Time").font(.headline);Spacer();Picker("Day",selection:$daysAgo) { Text("Today").tag(0);ForEach(1...6,id:\.self) { value in Text("\(value) days ago").tag(value) } }.frame(width:165) }
+            Chart(Array((0...6).reversed()),id:\.self) { offset in
+                let date=Calendar.current.date(byAdding:.day,value:-offset,to:Date()) ?? Date(),seconds=usage.history(daysAgo:offset).values.reduce(0) { $0+$1.seconds }
+                BarMark(x:.value("Day",date,unit:.day),y:.value("Minutes",seconds/60)).foregroundStyle(.cyan.gradient)
+            }.frame(height:70)
+            if selected.isEmpty { Text("No tracked activity for this day. Tracking runs only while this module is enabled.").font(.caption).foregroundStyle(.secondary) }
+            HStack { ForEach(categories,id:\.self) { category in
+                let seconds=selected.filter { labels[$0.key,default:"Other"] == category }.values.reduce(0) { $0+$1.seconds }
+                Text("\(category): \(Int(seconds/60))m").font(.caption2).foregroundStyle(.secondary)
+            } }
+            ForEach(selected.sorted { $0.value.seconds > $1.value.seconds },id:\.key) { pair in
+                HStack { Text(pair.value.name);Spacer();Picker("Category",selection:Binding(get:{ labels[pair.key,default:"Other"] },set:{ value in var map=labels;map[pair.key]=value;categoryData=(try? JSONEncoder().encode(map)) ?? Data() })) { ForEach(categories,id:\.self) { Text($0).tag($0) } }.labelsHidden().frame(width:130);Text("\(Int(pair.value.seconds/60))m · \(pair.value.switches) switches").font(.caption).foregroundStyle(.secondary) }
             }
-            Button("Clear today’s counters",role:.destructive) { usage.clearToday() }.font(.caption)
+            HStack { Button("Clear today’s counters",role:.destructive) { usage.clearToday() }.font(.caption);if usage.undoEntries != nil { Button("Undo clear") { usage.undoClear() }.font(.caption) };Spacer();Text("Local counters · idle time excluded").font(.caption2).foregroundStyle(.secondary) }
         }.onAppear { usage.setEnabled(true) }
     }
 }

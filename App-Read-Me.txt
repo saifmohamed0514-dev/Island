@@ -1,21 +1,28 @@
-Island 2.2 — development preview
+Island 2.3.1 (232) — development preview
 
-Run Island.app on an Apple silicon Mac with macOS 15 or newer. Quit other notch utilities first to avoid overlapping overlays. This build is locally signed, not Apple-notarized; macOS may block it after downloading to another Mac.
+INSTALL
+Run Island.app on an Apple silicon Mac with macOS 15 or newer. Keep one copy in Applications and quit other notch utilities to avoid overlapping overlays. This build is locally signed, not Apple-notarized; macOS may block it after downloading to another Mac.
 
 YOUR ISLAND
-The player, tray, dashboard, settings, welcome flow, icon and compact activities now use Island’s own design. A completed timer clears its compact Done indicator after four seconds. It does not leave a strip under the camera.
+The player, tray, dashboard, settings, welcome flow, icon and compact activities use Island’s own design. A completed timer clears its compact Done indicator after four seconds. Battery percentage is inside the icon; its pop-up uses system-linked native glass on supported macOS versions.
 
 YOUR TIMER
 Choose Focus. Drag the ring while paused. Use + to enter a duration and save a preset. Settings → Focus & Sounds manages presets, work/break cycles and ringtones. Timer state persists across relaunch.
 
 YOUR MODULES
-Settings → Modules enables, reorders and chooses your starting module. Settings → Dashboard chooses four widget slots and an optional daily Work/Minimal schedule. More contains overflow modules. Pin keeps Island open. Displays chooses screens; Behavior configures keyboard shortcuts; System Controls has HUD replacement and permission connections.
+Settings → Modules enables, reorders and chooses your starting module. Settings → Dashboard chooses four widget slots and an optional daily Work/Minimal schedule. More contains overflow modules. Pin keeps Island open. Displays chooses screens; Behavior configures keyboard shortcuts; System Controls has HUD replacement and permission connections. Language & Help includes core Arabic labels, an in-app guide and a private diagnostic summary.
+
+POWER CONTROLS
+Choose Enable power controls in Battery or System Controls and approve the normal macOS administrator dialog. The dedicated service only changes Low Power Mode. Normal toggles need no password; an ad-hoc preview update can require setup again. See Source/Power/README.md. Live authorization remains a separate check in this preview.
+
+CHATGPT, CLAUDE AND CURSOR
+Enable AI Coding and Inbox. Settings → Agents & Inbox prepares a helper, six ChatGPT/Codex hook examples and a portable plugin in a private folder. Merge the intended hooks or install the plugin, then review and trust them in the client. Do not install both forms. The app’s setup does not edit client settings. Local Work/Codex sessions are supported; ordinary web chats do not emit local hooks. A draft button opens text in ChatGPT without sending it. See Source/Integrations/README.md.
 
 OPTIONAL CONNECTIONS
-Calendar, Reminders and Mirror ask for their permissions when selected. Weather uses your city search. Code Hosting uses explicit refresh and Keychain tokens. Translation defaults to local Ollama; OpenAI is optional, needs a separate API key/model, sends the entered text only on Translate and may incur API charges. Agents & Inbox prepares local hook examples without changing your Claude/Cursor settings. Bluetooth and window layouts depend on macOS permissions and device support.
+Calendar, Reminders and Mirror ask for permission when selected. Weather uses a manual city and has an hourly chart. Code Hosting uses explicit refresh, pagination and Keychain tokens; Jira changes require confirmation. Translation defaults to local Ollama; OpenAI is optional, needs a separate API key/model, sends the entered text only on Translate and may incur API charges. Bluetooth readings and window snapping depend on macOS permissions and device support. Device and wellbeing alerts are optional and run while Island is running.
 
 WHAT IS INCLUDED
 Island.app, corresponding source and local Git history in Source, licenses, build/release scripts, tests, verification report and beginner publishing guide. No user preferences, passwords, private signing keys or account tokens are included. Automatic updates remain off until your own release feed and public key are configured. Nothing has been uploaded.
 
 STATUS
-This remains a development preview, not verified full MacNotch parity. FEATURE-STATUS.md lists remaining scope and VERIFICATION.md records actual checks. The previous privileged Low Power Mode toggle is not reconstructed in this source; Battery Settings opens the macOS control.
+This remains a development preview, not verified full MacNotch parity. FEATURE-STATUS.md lists remaining scope and VERIFICATION.md records actual checks, including what has not been tested live.

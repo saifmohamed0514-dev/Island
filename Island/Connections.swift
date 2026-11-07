@@ -36,87 +36,130 @@ struct IslandConnectionsSettings: View {
                     Button("Remove saved token",role:.destructive) { do { try IslandSecrets.save("",account:provider); status = "Removed." } catch { status = "Couldn’t remove this token." } }
                 }
                 Text(status).foregroundStyle(.secondary)
-                Text("Use a token with read-only access. Public GitHub repositories can work without a token. Bitbucket uses a bearer token. Jira uses your account email and API token.").font(.caption).foregroundStyle(.secondary)
+                Text("Use read-only tokens for review lists. Jira status changes require transition permission. Public GitHub repositories can work without a token. Bitbucket uses a bearer token. Jira uses your account email and API token.").font(.caption).foregroundStyle(.secondary)
             }
             Section("Translation") {
                 Text("Ollama runs on this Mac and needs no cloud key. OpenAI is optional: save your API key above, choose OpenAI in Translation, and enter a model available to your API account. Only pressing Translate sends the entered text to the selected provider. OpenAI API usage is billed separately by OpenAI.").foregroundStyle(.secondary)
             }
-            Section("Privacy") { Text("Services are contacted only when you press Refresh or Translate. Tokens stay out of project files, logs and release packages. Connection errors are shown in the module.").foregroundStyle(.secondary) }
+            Section("Privacy") { Text("Services are contacted only when you choose a refresh, translation or Jira action. Tokens stay out of project files, logs and release packages. Connection errors are shown in the module.").foregroundStyle(.secondary) }
         }.formStyle(.grouped)
     }
 }
-@MainActor final class IslandCodeHosting: ObservableObject {
-    struct Review: Identifiable { let id: String; let title:String; let subtitle:String; let url:URL }
-    @Published var reviews:[Review] = []
-    @Published var status = "Choose a provider and repository, then refresh."
-    @Published var loading = false
-    func refresh(provider:String,repository:String,jiraHost:String,email:String,jql:String) async {
-        guard !loading else { return }; loading = true; defer { loading = false }; status = "Loading…"; reviews = []
+@MainActor final class IslandCodeHosting:ObservableObject {
+    struct Review:Identifiable { let id:String;let title:String;let subtitle:String;let url:URL;let issueKey:String? }
+    struct Transition:Identifiable { let id:String;let name:String;let needsFields:Bool }
+    @Published var reviews:[Review]=[]
+    @Published var transitions:[Transition]=[]
+    @Published var status="Choose a provider and repository, then refresh."
+    @Published var loading=false
+    @Published var page=1
+    @Published var hasNext=false
+    private let session:URLSession
+    private let tokenProvider:(String)->String?
+    private var transitionContext:(issue:String,host:String,email:String)?
+    init(session:URLSession = .shared,tokenProvider:@escaping(String)->String? = { IslandSecrets.read(account:$0) }) { self.session=session;self.tokenProvider=tokenProvider }
+    private var jiraCursors:[Int:String]=[1:""]
+    private func jiraRequest(host:String,email:String,path:String) throws -> URLRequest {
+        guard IslandReviewRules.jiraHost(host),!email.isEmpty,let token=tokenProvider("Jira") else { throw URLError(.userAuthenticationRequired) }
+        var request=URLRequest(url:URL(string:"https://\(host)/rest/api/3/"+path)!)
+        request.timeoutInterval=20;request.setValue("Basic "+Data("\(email):\(token)".utf8).base64EncodedString(),forHTTPHeaderField:"Authorization");request.setValue("application/json",forHTTPHeaderField:"Content-Type");return request
+    }
+    func refresh(provider:String,repository:String,jiraHost:String,email:String,jql:String,reviewer:String="",page requestedPage:Int=1) async {
+        guard !loading else { return };loading=true;defer { loading=false };status="Loading…"
         do {
             var request:URLRequest
             if provider == "Jira" {
-                guard jiraHost.range(of:#"^[A-Za-z0-9-]+\.atlassian\.net$"#,options:.regularExpression) != nil, !email.isEmpty, let token = IslandSecrets.read(account:provider) else { status = "Add your Jira site, email and a saved API token."; return }
-                request = URLRequest(url:URL(string:"https://\(jiraHost)/rest/api/3/search/jql")!); request.httpMethod = "POST"
-                request.httpBody = try JSONSerialization.data(withJSONObject:["jql":jql,"maxResults":30,"fields":["summary","status"]])
-                request.setValue("application/json",forHTTPHeaderField:"Content-Type")
-                request.setValue("Basic "+Data("\(email):\(token)".utf8).base64EncodedString(),forHTTPHeaderField:"Authorization")
+                if requestedPage == 1 { jiraCursors=[1:""] }
+                guard let cursor=jiraCursors[requestedPage] else { return }
+                request=try jiraRequest(host:jiraHost,email:email,path:"search/jql");request.httpMethod="POST"
+                var body:[String:Any]=["jql":jql,"maxResults":30,"fields":["summary","status"]];if !cursor.isEmpty { body["nextPageToken"]=cursor };request.httpBody=try JSONSerialization.data(withJSONObject:body)
             } else {
-                guard repository.range(of:#"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"#,options:.regularExpression) != nil else { status = "Enter workspace/repository."; return }
-                let endpoint:String
-                switch provider {
-                case "GitLab": endpoint = "https://gitlab.com/api/v4/projects/\(repository.replacingOccurrences(of:"/",with:"%2F"))/merge_requests?state=opened&per_page=30"
-                case "Bitbucket": endpoint = "https://api.bitbucket.org/2.0/repositories/\(repository)/pullrequests?state=OPEN&pagelen=30"
-                default: endpoint = "https://api.github.com/repos/\(repository)/pulls?state=open&per_page=30"
-                }
-                request = URLRequest(url:URL(string:endpoint)!)
-                if let token = IslandSecrets.read(account:provider) { request.setValue("Bearer "+token,forHTTPHeaderField:"Authorization") }
+                guard let url=IslandReviewRules.endpoint(provider:provider,repository:repository,page:requestedPage) else { status="Enter workspace/repository.";return }
+                request=URLRequest(url:url);if let token=tokenProvider(provider) { request.setValue("Bearer "+token,forHTTPHeaderField:"Authorization") }
             }
-            request.timeoutInterval = 20; request.setValue("application/json",forHTTPHeaderField:"Accept")
-            let (data,response) = try await URLSession.shared.data(for:request)
-            guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else { status = "Service declined the request. Check your token, repository and access."; return }
-            let json = try JSONSerialization.jsonObject(with:data)
-            let items: [[String:Any]]
-            if let values = json as? [[String:Any]] { items = values }
-            else if let result = json as? [String:Any] { items = (result["values"] ?? result["issues"]) as? [[String:Any]] ?? [] }
-            else { throw URLError(.cannotParseResponse) }
-            reviews = items.compactMap { item in
-                let key = String(describing:item["number"] ?? item["iid"] ?? item["id"] ?? "")
-                let title:String; let target:String; let detail:String
+            request.timeoutInterval=20;request.setValue("application/json",forHTTPHeaderField:"Accept")
+            let(data,response)=try await session.data(for:request)
+            guard let http=response as? HTTPURLResponse,(200...299).contains(http.statusCode) else { status="Service declined the request. Check access and rate limits.";return }
+            let json=try JSONSerialization.jsonObject(with:data);let object=json as? [String:Any]
+            let items=(json as? [[String:Any]]) ?? (object?["values"] as? [[String:Any]]) ?? (object?["issues"] as? [[String:Any]]) ?? []
+            if provider == "Jira" {
+                let token=object?["nextPageToken"] as? String
+                hasNext=token?.isEmpty == false && (object?["isLast"] as? Bool != true)
+                if let token,hasNext { jiraCursors[requestedPage+1]=token }
+            } else if provider == "Bitbucket" { hasNext=object?["next"] as? String != nil }
+            else { hasNext=(http.value(forHTTPHeaderField:"Link")?.contains("rel=\"next\"") ?? false) || (provider == "GitLab" && http.value(forHTTPHeaderField:"X-Next-Page")?.isEmpty == false) }
+            reviews=items.filter { provider == "Jira" || IslandReviewRules.matchesReviewer($0,provider:provider,query:reviewer) }.compactMap { item in
+                let key=String(describing:item["number"] ?? item["iid"] ?? item["id"] ?? "")
                 if provider == "Jira" {
-                    let issueKey = item["key"] as? String ?? key
-                    let fields = item["fields"] as? [String:Any] ?? [:]
-                    title = fields["summary"] as? String ?? issueKey; target = "https://\(jiraHost)/browse/\(issueKey)"; detail = issueKey
-                } else {
-                    title = item["title"] as? String ?? "Review"
-                    target = item["html_url"] as? String ?? item["web_url"] as? String ?? (((item["links"] as? [String:Any])?["html"] as? [String:Any])?["href"] as? String ?? "")
-                    detail = "#\(key) · \(repository)"
+                    guard let issueKey=item["key"] as? String,IslandReviewRules.issueKey(issueKey) else { return nil }
+                    let fields=item["fields"] as? [String:Any] ?? [:];let state=(fields["status"] as? [String:Any])?["name"] as? String ?? ""
+                    return Review(id:issueKey,title:fields["summary"] as? String ?? issueKey,subtitle:issueKey+" · "+state,url:URL(string:"https://\(jiraHost)/browse/\(issueKey)")!,issueKey:issueKey)
                 }
-                guard let url = URL(string:target), url.scheme == "https" else { return nil }
-                return Review(id:key,title:title,subtitle:detail,url:url)
+                let target=item["html_url"] as? String ?? item["web_url"] as? String ?? (((item["links"] as? [String:Any])?["html"] as? [String:Any])?["href"] as? String ?? "")
+                guard let url=URL(string:target),url.scheme == "https" else { return nil }
+                return Review(id:key,title:item["title"] as? String ?? "Review",subtitle:"#\(key) · \(repository)",url:url,issueKey:nil)
             }
-            status = reviews.isEmpty ? "No open items found." : "\(reviews.count) open items · refreshed now"
-        } catch { status = "Couldn’t reach the service. Try again when connected." }
+            page=requestedPage;status="Page \(page) · \(reviews.count) shown · \(items.count) retrieved"+(reviewer.isEmpty || provider == "Jira" ? "" : " · reviewer filter applies to this page")
+        } catch { status="Couldn’t load this page. Check your connection and saved credentials." }
+    }
+    func loadTransitions(issue:String,host:String,email:String) async {
+        guard !loading,IslandReviewRules.issueKey(issue) else { return };loading=true;transitions=[];transitionContext=nil;defer { loading=false }
+        do {
+            let request=try jiraRequest(host:host,email:email,path:"issue/\(issue)/transitions?expand=transitions.fields")
+            let(data,response)=try await session.data(for:request)
+            guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
+            let object=try JSONSerialization.jsonObject(with:data) as? [String:Any]
+            transitions=(object?["transitions"] as? [[String:Any]] ?? []).compactMap { item in
+                guard let id=item["id"] as? String,let name=item["name"] as? String else { return nil }
+                let fields=item["fields"] as? [String:[String:Any]] ?? [:]
+                return Transition(id:id,name:name,needsFields:fields.values.contains { ($0["required"] as? Bool == true) && $0["defaultValue"] == nil })
+            };transitionContext=(issue,host,email);status=transitions.isEmpty ? "No available transitions. Open the issue in Jira." : "Choose a status change for \(issue)."
+        } catch { status="Couldn’t load Jira transitions. Check your account permissions." }
+    }
+    func transition(issue:String,choice:Transition,host:String,email:String) async {
+        guard !loading,IslandReviewRules.issueKey(issue),transitionContext?.issue == issue,transitionContext?.host == host,transitionContext?.email == email,transitions.contains(where: { $0.id == choice.id }),!choice.needsFields else { status="Reload transitions after changing the issue or account.";return }
+        loading=true;defer { loading=false }
+        do {
+            var request=try jiraRequest(host:host,email:email,path:"issue/\(issue)/transitions");request.httpMethod="POST";request.httpBody=try JSONSerialization.data(withJSONObject:["transition":["id":choice.id]])
+            let(_,response)=try await session.data(for:request)
+            guard (response as? HTTPURLResponse)?.statusCode == 204 else { throw URLError(.badServerResponse) }
+            status="Changed \(issue) to \(choice.name). Refresh to load its current status.";transitions=[]
+        } catch { status="Jira didn’t confirm this change. Check the issue in Jira before retrying; its workflow may require additional fields." }
     }
 }
-struct IslandCodeHostingView: View {
-    @StateObject var service = IslandCodeHosting()
-    @AppStorage("island.code.provider") var provider = "GitHub"
-    @AppStorage("island.code.repository") var repository = ""
-    @AppStorage("island.code.jiraHost") var jiraHost = ""
-    @AppStorage("island.code.email") var email = ""
-    @AppStorage("island.code.jql") var jql = "assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC"
-    var body: some View {
+struct IslandCodeHostingView:View {
+    @StateObject var service=IslandCodeHosting()
+    @AppStorage("island.code.provider") var provider="GitHub"
+    @AppStorage("island.code.repository") var repository=""
+    @AppStorage("island.code.jiraHost") var jiraHost=""
+    @AppStorage("island.code.email") var email=""
+    @AppStorage("island.code.jql") var jql="assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC"
+    @AppStorage("island.code.reviewer") var reviewer=""
+    @State var transitionIssue:String?
+    @State var pending:IslandCodeHosting.Transition?
+    @State var confirm=false
+    func invalidate() { service.reviews=[];service.transitions=[];service.page=1;service.hasNext=false;transitionIssue=nil;service.status="Refresh to load these settings." }
+    func refresh(_ page:Int=1) { Task { await service.refresh(provider:provider,repository:repository,jiraHost:jiraHost,email:email,jql:jql,reviewer:reviewer,page:page) } }
+    var body:some View {
         VStack(alignment:.leading,spacing:8) {
             HStack {
                 Picker("Provider",selection:$provider) { ForEach(["GitHub","GitLab","Bitbucket","Jira"],id:\.self) { Text($0).tag($0) } }.labelsHidden().frame(width:115)
                 if provider != "Jira" { TextField("workspace/repository",text:$repository).textFieldStyle(.roundedBorder) }
-                Button(service.loading ? "Loading…" : "Refresh") { Task { await service.refresh(provider:provider,repository:repository,jiraHost:jiraHost,email:email,jql:jql) } }.disabled(service.loading)
+                Button(service.loading ? "Loading…" : "Refresh") { refresh() }.disabled(service.loading)
+            }.disabled(service.loading)
+            if provider == "Jira" { HStack { TextField("your-site.atlassian.net",text:$jiraHost);TextField("Account email",text:$email) };TextField("JQL",text:$jql) }
+            else { TextField("Requested reviewer username / ID (this page)",text:$reviewer).textFieldStyle(.roundedBorder) }
+            HStack { Text(service.status).font(.caption).foregroundStyle(.secondary);Spacer();Button("Previous") { refresh(max(1,service.page-1)) }.disabled(service.page<=1 || service.loading);Button("Next") { refresh(service.page+1) }.disabled(!service.hasNext || service.loading) }
+            ForEach(service.reviews) { review in
+                HStack { VStack(alignment:.leading) { Link(review.title,destination:review.url);Text(review.subtitle).font(.caption).foregroundStyle(.secondary) };Spacer();if let issue=review.issueKey { Button("Change status…") { transitionIssue=issue;Task { await service.loadTransitions(issue:issue,host:jiraHost,email:email) } }.disabled(service.loading) } }
             }
-            if provider == "Jira" { HStack { TextField("your-site.atlassian.net",text:$jiraHost); TextField("Account email",text:$email) }; TextField("JQL",text:$jql) }
-            Text(service.status).font(.caption).foregroundStyle(.secondary)
-            ForEach(service.reviews) { review in HStack { Link(review.title,destination:review.url); Spacer(); Text(review.subtitle).font(.caption).foregroundStyle(.secondary) } }
-            Text("Save access tokens under Settings → Connections. Refresh contacts the chosen provider.").font(.caption2).foregroundStyle(.secondary)
-        }
+            if let issue=transitionIssue,!service.transitions.isEmpty {
+                HStack { Text(issue).font(.caption);ForEach(service.transitions) { choice in Button(choice.name+(choice.needsFields ? " ↗" : "")) { if choice.needsFields { if IslandReviewRules.jiraHost(jiraHost),let url=URL(string:"https://\(jiraHost)/browse/\(issue)") { NSWorkspace.shared.open(url) } } else { pending=choice;confirm=true } }.disabled(service.loading) } }
+            }
+            Text("Tokens stay in Keychain. Required-field transitions open Jira to complete the form.").font(.caption2).foregroundStyle(.secondary)
+        }.disabled(service.loading).confirmationDialog("Change \(transitionIssue ?? "issue") to \(pending?.name ?? "selected status")?",isPresented:$confirm) {
+            Button("Change status") { if let issue=transitionIssue,let choice=pending { Task { await service.transition(issue:issue,choice:choice,host:jiraHost,email:email) } } };Button("Cancel",role:.cancel) {}
+        }.onChange(of:provider) { invalidate() }.onChange(of:repository) { invalidate() }.onChange(of:jiraHost) { invalidate() }.onChange(of:email) { invalidate() }.onChange(of:jql) { invalidate() }.onChange(of:reviewer) { invalidate() }
     }
 }
 // Typed decoding rejects incomplete and refused cloud results instead of displaying partial translations.

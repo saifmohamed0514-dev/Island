@@ -38,14 +38,29 @@ enum IslandFileCommands {
         guard CGImageDestinationFinalize(destination) else { throw CocoaError(.fileWriteUnknown) }
     }
 }
+@MainActor final class IslandFileSelection:ObservableObject {
+    static let shared=IslandFileSelection()
+    @Published var urls:[URL]=[]
+    private var scopes:[URL]=[]
+    func set(_ values:[URL]) { scopes.forEach { $0.stopAccessingSecurityScopedResource() };urls=values;scopes=values.filter { $0.startAccessingSecurityScopedResource() } }
+    func load(_ providers:[NSItemProvider]) {
+        for provider in providers where provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+            provider.loadItem(forTypeIdentifier:UTType.fileURL.identifier,options:nil) { item,_ in
+                let url:URL?;if let data=item as? Data { url=URL(dataRepresentation:data,relativeTo:nil) } else { url=item as? URL }
+                guard let url,url.isFileURL else { return };Task { @MainActor in self.set(self.urls+[url]) }
+            }
+        }
+    }
+}
 struct IslandFileActionsView: View {
-    @State var selected:[URL] = []
+    @ObservedObject var selection=IslandFileSelection.shared
+    var selected:[URL] { get { selection.urls } nonmutating set { selection.set(newValue) } }
     @State var status = "Choose files for a quick action. Your originals are kept unless you choose Move or Trash."
     @State var busy = false
     @State var confirmTrash = false
     var body: some View {
         VStack(alignment:.leading,spacing:10) {
-            HStack { Text("File Actions").font(.headline); Spacer(); Button("Choose files…") { choose() }.disabled(busy) }
+            HStack { Text("File Actions").font(.headline); Spacer(); Button("Choose files…") { choose() }.disabled(busy);Button("Eject disk…") { eject() }.disabled(busy) }
             if !selected.isEmpty {
                 Text(selected.map(\.lastPathComponent).joined(separator:", ")).font(.caption).lineLimit(2).foregroundStyle(.secondary)
                 HStack {
@@ -56,7 +71,18 @@ struct IslandFileActionsView: View {
                 }.disabled(busy)
             }
             Text(busy ? "Working…" : status).font(.caption).foregroundStyle(.secondary)
-        }.confirmationDialog("Move \(selected.count) selected items to Trash?",isPresented:$confirmTrash) { Button("Move to Trash",role:.destructive) { recycle() } }
+        }.padding(8).background(.white.opacity(0.025),in:RoundedRectangle(cornerRadius:16))
+        .onDrop(of:[.fileURL],isTargeted:nil) { providers in selection.load(providers);return true }
+        .confirmationDialog("Move \(selected.count) selected items to Trash?",isPresented:$confirmTrash) { Button("Move to Trash",role:.destructive) { recycle() } }
+    }
+    func eject() {
+        let panel=NSOpenPanel();panel.canChooseFiles=false;panel.canChooseDirectories=true;panel.message="Choose the removable disk itself under Locations."
+        guard panel.runModal() == .OK,let selected=panel.url else { return }
+        do {
+            let values=try selected.resourceValues(forKeys:[.volumeURLKey,.volumeIsEjectableKey,.volumeIsRemovableKey])
+            guard let volume=values.volume,!volume.path.isEmpty,volume.path != "/",values.volumeIsEjectable == true || values.volumeIsRemovable == true else { status="Choose a removable or ejectable volume. Your startup disk can’t be ejected here.";return }
+            try NSWorkspace.shared.unmountAndEjectDevice(at:volume);status="The disk was ejected."
+        } catch { status="macOS couldn’t eject that disk. Close files using it and try again in Finder." }
     }
     func choose() { let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.allowsMultipleSelection = true; if panel.runModal() == .OK { selected = panel.urls; status = "Choose an action." } }
     func folder() -> URL? { let panel = NSOpenPanel(); panel.canChooseFiles = false; panel.canChooseDirectories = true; return panel.runModal() == .OK ? panel.url : nil }

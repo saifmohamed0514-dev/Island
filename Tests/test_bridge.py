@@ -55,6 +55,25 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(result,{})
         self.assertEqual(final['resolution'],'Review in original client')
 
+    def test_chatgpt_allow_and_deny_once(self):
+        result,record=self.invoke('chatgpt','PermissionRequest',True)
+        self.assertEqual(result['hookSpecificOutput']['decision'],{'behavior':'allow'})
+        self.assertEqual(record['provider'],'chatgpt')
+        result,_=self.invoke('chatgpt','PermissionRequest',False)
+        self.assertEqual(result['hookSpecificOutput']['decision']['behavior'],'deny')
+
+    def test_codex_timeout_retains_normal_prompt(self):
+        result,record=self.invoke('codex','PermissionRequest')
+        self.assertEqual(result,{})
+        self.assertFalse(record['approval'])
+
+    def test_chatgpt_stop_never_approves(self):
+        result,record=self.invoke('chatgpt','Stop',payload={'session_id':'test','turn_id':'turn','last_assistant_message':'Fixture complete'})
+        self.assertEqual(result,{})
+        self.assertEqual(record['session'],'test')
+        self.assertEqual(record['message'],'Fixture complete')
+        self.assertFalse(record['approval'])
+
     def test_cursor_allow_and_timeout(self):
         result,_=self.invoke('cursor','beforeShellExecution',True)
         self.assertEqual(result['permission'],'allow')

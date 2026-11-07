@@ -7,12 +7,12 @@ import KeyboardShortcuts
 struct IslandSettingsView:View {
     @State var selected = "Overview"
     let updaterController:SPUStandardUpdaterController?
-    let pages:[(String,String)] = [("Overview","capsule"),("Modules","square.grid.2x2"),("Dashboard","rectangle.grid.2x2"),("Focus & Sounds","timer"),("Displays","display.2"),("Media","music.note"),("Behavior","cursorarrow.rays"),("System Controls","switch.2"),("Connections","network"),("Agents & Inbox","terminal"),("About Island","info.circle")]
+    let pages:[(String,String)] = [("Overview","capsule"),("Modules","square.grid.2x2"),("Dashboard","rectangle.grid.2x2"),("Focus & Sounds","timer"),("Displays","display.2"),("Window Snapping","macwindow"),("Media","music.note"),("Behavior","cursorarrow.rays"),("System Controls","switch.2"),("Wellbeing & Alerts","heart"),("Connections","network"),("Agents & Inbox","terminal"),("Language","globe"),("About Island","info.circle")]
     var body:some View {
         NavigationSplitView {
             VStack(alignment:.leading,spacing:18) {
                 HStack(spacing:10) { IslandMark(size:36); VStack(alignment:.leading,spacing:2) { Text("Island").font(.system(size:18,weight:.semibold,design:.rounded)); Text("Make space.").font(.caption).foregroundStyle(.secondary) } }.padding(.horizontal,16).padding(.top,20)
-                List(selection:$selected) { ForEach(pages,id:\.0) { page in Label(page.0,systemImage:page.1).tag(page.0).padding(.vertical,3) } }.listStyle(.sidebar)
+                List(selection:$selected) { ForEach(pages,id:\.0) { page in Label(LocalizedStringKey(page.0),systemImage:page.1).tag(page.0).padding(.vertical,3) } }.listStyle(.sidebar)
             }.navigationSplitViewColumnWidth(200)
         } detail: {
             Group {
@@ -21,15 +21,18 @@ struct IslandSettingsView:View {
                 case "Dashboard": IslandDashboardSettings()
                 case "Focus & Sounds": IslandFocusSettings()
                 case "Displays": IslandDisplaySettings()
+                case "Window Snapping": IslandWindowSettings()
                 case "Media": IslandMediaSettings()
                 case "Behavior": IslandBehaviorSettings()
                 case "System Controls": IslandSystemSettings()
+                case "Wellbeing & Alerts": IslandWellbeingSettings()
                 case "Connections": IslandConnectionsSettings()
                 case "Agents & Inbox": IslandBridgeSettings()
+                case "Language": IslandLanguageSettings()
                 case "About Island": IslandAboutSettings(updater:updaterController)
                 default: IslandOverviewSettings { selected = $0 }
                 }
-            }.navigationTitle(selected).frame(maxWidth:.infinity,maxHeight:.infinity)
+            }.navigationTitle(LocalizedStringKey(selected)).frame(maxWidth:.infinity,maxHeight:.infinity)
         }.frame(width:760,height:610).navigationSplitViewStyle(.balanced).tint(.blue)
     }
 }
@@ -128,7 +131,7 @@ struct IslandSystemSettings:View {
                 Button("Review Accessibility access…") { Task { _ = await XPCHelperClient.shared.ensureAccessibilityAuthorization(promptIfNeeded:true) } }
                 Text("Accessibility permission enables HUD replacement and the window-layout module. Island never grants it automatically.").foregroundStyle(.secondary)
             }
-            Section("Battery") { Toggle("Show battery in Island",isOn:$battery); Text("The battery pop-up follows system appearance and uses native glass where macOS supports it.").foregroundStyle(.secondary) }
+            Section("Battery") { IslandPowerSwitch();Toggle("Show battery in Island",isOn:$battery); Text("The battery pop-up follows system appearance and uses native glass where macOS supports it.").foregroundStyle(.secondary) }
             Section("Personal data") {
                 Button("Connect Calendar") { Task { await IslandAgenda.shared.connect(events:true) } }
                 Button("Connect Reminders") { Task { await IslandAgenda.shared.connect(events:false) } }
@@ -139,12 +142,14 @@ struct IslandSystemSettings:View {
 }
 struct IslandAboutSettings:View {
     let updater:SPUStandardUpdaterController?
+    @State var help=false
     var body:some View {
         Form {
             Section {
                 HStack(spacing:16) { IslandMark(size:58); VStack(alignment:.leading,spacing:5) { Text("Island").font(.largeTitle.weight(.semibold)); Text("Version \(Bundle.main.releaseVersionNumber ?? "") · Build \(Bundle.main.buildVersionNumber ?? "")").foregroundStyle(.secondary) } }.padding(.vertical,12)
                 Text("An independent, open-source workspace for the top of your Mac.")
             }
+            Section("Help") { Button("Island guide") { help=true } }
             Section("Updates") {
                 if let updater, IslandUpdateConfiguration.isConfigured { CheckForUpdatesView(updater:updater.updater) }
                 else { Text("Updates are not connected for this local preview.").foregroundStyle(.secondary) }
@@ -153,7 +158,7 @@ struct IslandAboutSettings:View {
                 Text("Island includes GPL-3.0 code from Boring Notch and other open-source components. Their copyright and license notices remain included. The Island interface is independently designed.").font(.caption).foregroundStyle(.secondary)
                 Link("Original project and license",destination:URL(string:"https://github.com/TheBoredTeam/boring.notch")!)
             }
-        }.formStyle(.grouped)
+        }.formStyle(.grouped).sheet(isPresented:$help) { IslandHelpView() }
     }
 }
 struct IslandMirrorView:View {

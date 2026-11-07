@@ -25,6 +25,9 @@ final class XPCHelperClient: NSObject {
             }
         } catch { return false }
     }
+    nonisolated func windowBounds(_ pid:Int32) async -> [Double]? {
+        do { let service=await MainActor.run { ensureRemoteService() };let result:[NSNumber]?=try await service.withContinuation { service,continuation in service.windowBounds(pid) { continuation.resume(returning:$0) } };return result?.map(\.doubleValue) } catch { return nil }
+    }
     // MARK: - Connection Management (Main Actor Isolated)
     
     @MainActor

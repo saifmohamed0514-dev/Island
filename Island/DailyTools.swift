@@ -10,6 +10,8 @@ struct IslandHealthView: View {
     @AppStorage("island.health.mindful") var mindful = 0
     @AppStorage("island.health.waterGoal") var waterGoal = 8
     @AppStorage("island.health.breakGoal") var breakGoal = 6
+    @AppStorage("island.health.mindfulGoal") var mindfulGoal=5
+    @State var stretchSince:Date?
     @State var breathingSince: Date?
     @State var eyeBreakSince: Date?
     var body: some View {
@@ -18,12 +20,18 @@ struct IslandHealthView: View {
             HStack(spacing:25) {
                 healthRing("Water",current:water,goal:max(1,waterGoal),color:.cyan)
                 healthRing("Breaks",current:breaks,goal:max(1,breakGoal),color:.green)
-                healthRing("Mindful",current:mindful,goal:5,color:.purple)
+                healthRing("Mindful",current:mindful,goal:max(1,mindfulGoal),color:.purple)
                 VStack(alignment:.leading,spacing:7) {
                     HStack { Button("− Water") { water = max(0,water-1) }; Button("+ Water") { water += 1 } }
-                    HStack { Button("Movement break") { breaks += 1 }; Button("Eye break") { eyeBreakSince = Date() } }
+                    HStack { Button("Stretch break") { stretchSince=Date() }; Button("Eye break") { eyeBreakSince = Date() } }
                     Button(breathingSince == nil ? "Start breathing" : "Finish breathing") { if breathingSince == nil { breathingSince = Date() } else { mindful += 1; breathingSince = nil } }
                 }.buttonStyle(.bordered)
+            }
+            if let start=stretchSince {
+                TimelineView(.periodic(from:.now,by:1)) { context in
+                    let remaining=max(0,60-Int(context.date.timeIntervalSince(start)))
+                    HStack { Text(remaining > 40 ? "Relax your shoulders and unclench your hands." : remaining > 20 ? "Stand and move at a comfortable pace." : "Rest your gaze away from the screen.").font(.caption);Spacer();Text("\(remaining)s").monospacedDigit();Button(remaining == 0 ? "Finish break" : "Skip") { if remaining == 0 { breaks += 1 };stretchSince=nil } }
+                }
             }
             if let start = breathingSince {
                 TimelineView(.periodic(from:.now,by:1)) { context in

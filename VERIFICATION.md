@@ -1,30 +1,27 @@
-# Island 2.2 verification — November 6, 2026
+# Island 2.3.1 verification — November 7, 2026
 
-## Passed
+## Passed for build 232
 
-- Release build for Apple silicon with Xcode 27.2, minimum macOS 15; version 2.2.0 build 220.
-- 12 deterministic timer state, persistence, duration-boundary and single-completion checks.
-- 32 dial/preset/cycle/module/widget/schedule/display-geometry checks, including crossing the dial seam, limits, preset filtering, module fallback/order, four-session long breaks, negative/above-screen coordinates, bounded compact widths, dashboard-slot normalization and overnight schedule boundaries.
-- Seven checks of the actual production timer class: transient completion expiry, no repeated completion, no banner restored from saved finished state, preset persistence, reset and work/break transition. Tests use an isolated in-memory store and Silent tone.
-- Six typed translation-response fixture checks, including incomplete/refused/empty output rejection. No cloud request.
-- Eight Python protocol tests of the real compiled bridge helper: Claude allow-once/deny/timeout, Cursor allow/timeout, wrong nonce, numeric boolean, notice and oversized-request handling. No agent command is executed.
-- 10 archive checks using the production extraction code, including actual successful extraction, traversal rejection and symlink rejection.
-- Six Python release/configuration tests, including actual Sparkle signing with an ephemeral test key, tamper rejection and mismatched-public-key rejection. No production update key was created or retained.
-- Strict recursive local code-signature verification before packaging and after extraction.
-- Live UI: no top gap on the built-in display; ring drag changed the duration to 60 minutes; a 45-minute preset was added, selected and restored after relaunch.
-- Live UI: module controls, reorder, enablement and overflow navigation. System Monitor displayed actual CPU/memory/storage readings.
-- Live UI: keyboard entry in the notch, weather retrieval, note creation/editing/switching, automatic save and recoverable trash. The temporary verification note was moved to recoverable trash.
-- Earlier live checks: timer start/pause/reset, ringtone preview/stop with no error, single idle label, percentage contrast and system-linked glass battery pop-up.
-- Live 2.2 UI: own player/tray/settings/dashboard, four widget cards, camera-safe timer countdown after normal relaunch, then complete clearing of the activity after the real timer expired. No full-width Timer finished banner was present.
-- Live 2.2 UI: native app-menu Open Island and Settings entries, widget/schedule settings, and optional agent setup page. The app runs normally without --inspect-island; the verification timer was restored to its previous five-minute duration.
-- All ten app-icon catalog resolutions now use the same custom Island artwork; the old icon PNGs were removed. The 1024-pixel render was visually inspected, and scripts/make-icon.swift makes the artwork reproducible.
-- Clean build verified to contain only IslandControls.xpc and no inherited welcome audio. The separately compiled local bridge is signed and sealed into the app.
-- New preview installed as ~/Applications/Island Preview.app and relaunched normally. The original /Applications/Island.app is preserved. User preferences were not reset.
-- Update feed and public key remain absent; updater startup stays disabled until configured.
-- ZIP integrity, source repository integrity and extracted application checks.
+- Release build for Apple silicon with Xcode 27.2, minimum macOS 15; version 2.3.1 build 232.
+- 105 deterministic Swift checks: 12 timer state/persistence/boundary checks; 32 dial/preset/cycle/module/widget/schedule/display-geometry checks; seven tests of actual production timer completion/relaunch/presets; 10 production archive extraction/path/symlink checks; six typed translation fixtures; 27 power-argument/ChatGPT-link/snap-geometry/device-alert/provider rules; 11 production service fixtures for pagination/review filtering/Jira transitions and context guards/hourly forecast. Fixtures do not use private accounts, Keychain or paid APIs.
+- 11 Python protocol tests of the real compiled bridge: ChatGPT/Codex/Claude/Cursor allow/deny/expiry and malformed-input boundaries. No agent command was executed or approved by these fixtures.
+- Six Python release/configuration checks, including real Sparkle signing with an ephemeral test key, tamper rejection and mismatched-public-key rejection. No production update key was created or retained.
+- Actual power installer script builder validated against the signed staged app and payload; shell parsing and AppleScript compilation passed. This did not execute administrator operations.
+- Strict recursive local code-signature verification. Exactly IslandControls.xpc is embedded; no inherited welcome audio. Signed IslandBridge, IslandPower and Island Power Setup are sealed into the app.
+- One current installed app at /Applications/Island.app. Earlier installed, archived and generated app copies were moved to recoverable Trash. Preferences, notes and private bridge files were preserved. The running process reports org.islandapp.Island.
+- AI Coding and Inbox were enabled in the live interface. A private bridge folder was chosen and six local hooks installed with the user’s explicit approval, preserving client configuration. The client’s separate trust review remains pending; no real hook event has yet been observed. No trust database was modified.
+- Update feed and public key remain absent; updater startup stays disabled until configured. Nothing published.
 
-## Limits and remaining work
+## Earlier live interface checks retained
 
-Only the built-in display is connected; physical external-display behavior remains unverified. Geometry tests do not replace that check. New Bluetooth/window-control permissions were not granted during this audit. Actual window resizing, Bluetooth coverage, private GitHub/GitLab/Bitbucket/Jira access, real Claude/Cursor hooks, OpenAI translation, Ollama with an installed model, live Reminders modifications, custom ringtone import and audible timer completion, real sleep/wake, file-picker workflows, AirDrop and real app updates require end-to-end checks. The file tests exercise the production command layer rather than claiming every UI action was tested.
+On the built-in display: no top gap; ring drag changed the duration to 60 minutes; a 45-minute preset was added, selected and restored after relaunch; module controls/reorder/overflow; actual system readings; keyboard entry; weather retrieval; note creation/editing/switching/autosave/recoverable trash. The test note was moved to note trash.
 
-The GitHub workflows have not run remotely. Nothing was published. This preview is locally ad-hoc signed, not Apple-notarized. Upstream concurrency/deprecation warnings remain. FEATURE-STATUS.md lists the outstanding MacNotch scope; this is not a claim that full parity or zero bugs has been achieved.
+The 2.2 interface showed the own player/tray/settings/dashboard, four widgets, a camera-safe timer countdown and complete activity clearing after real expiry. No full-width Timer finished strip remained. Normal app-menu Open Island and Settings worked; the timer was restored to five minutes. Earlier checks covered start/pause/reset, ringtone preview/stop without error, a single idle label, percentage contrast and native system-linked battery glass. All ten custom icon resolutions were visually checked/reproducibly generated.
+
+## Live checks still pending
+
+The interface tool currently resolves the replaced canonical app to its old bundle identity, preventing a fresh visual inspection of build 232. The actual installed metadata and running process identity were independently verified. The new GUI administrator setup, real Low Power Mode on/off and its switch animation must still be confirmed. Both macOS power profiles remained at Low Power Mode off at the last check. The previous legacy power service was not changed.
+
+Only the built-in display is connected; physical external-display placement remains unverified. Geometry tests do not replace that check. New Bluetooth/window-control permissions were not granted during this audit. Actual drag snapping, accessory coverage, removable-volume ejection, private GitHub/GitLab/Bitbucket/Jira access, real client hooks, OpenAI translation, Ollama with a model, live Reminders writes, custom ringtone import and audible completion, sleep/wake, AirDrop and genuine Sparkle upgrades still need end-to-end checks. UI language coverage beyond core Arabic labels is partial; restart behavior needs a live check.
+
+GitHub workflows have not run remotely. This preview is locally ad-hoc signed, not Apple-notarized. Inherited concurrency/deprecation warnings remain. FEATURE-STATUS.md records remaining reference scope; this report does not claim full parity or zero bugs.

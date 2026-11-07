@@ -6,7 +6,7 @@ struct IslandDecision:Decodable { let id:String; let nonce:String; let allow:Boo
 func argument(_ name:String) -> String? { guard let index = CommandLine.arguments.firstIndex(of:name), index+1 < CommandLine.arguments.count else { return nil }; return CommandLine.arguments[index+1] }
 let provider = argument("--provider") ?? "relay"
 let eventName = argument("--event") ?? "Notification"
-let approval = provider == "claude" && eventName == "PermissionRequest" || provider == "cursor" && ["beforeShellExecution","beforeMCPExecution"].contains(eventName)
+let approval = ["claude","chatgpt","codex"].contains(provider) && eventName == "PermissionRequest" || provider == "cursor" && ["beforeShellExecution","beforeMCPExecution"].contains(eventName)
 func result(_ allow:Bool? = nil) -> [String:Any] {
     guard approval else { return [:] }
     if provider == "cursor" { return ["permission":allow == true ? "allow" : "deny","user_message":allow == true ? "Approved once in Island." : "Not approved in Island."] }
@@ -25,7 +25,7 @@ func privateDirectory(_ url:URL) throws {
     try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:url.path)
 }
 do {
-    guard ["claude","cursor","relay"].contains(provider), let directory = argument("--directory"), directory.hasPrefix("/") else { throw CocoaError(.fileReadInvalidFileName) }
+    guard ["claude","cursor","chatgpt","codex","relay"].contains(provider), let directory = argument("--directory"), directory.hasPrefix("/") else { throw CocoaError(.fileReadInvalidFileName) }
     let root = URL(fileURLWithPath:directory,isDirectory:true); let events = root.appendingPathComponent("events",isDirectory:true); let decisions = root.appendingPathComponent("decisions",isDirectory:true)
     try privateDirectory(events); try privateDirectory(decisions)
     var input = Data()
@@ -39,6 +39,7 @@ do {
     if let value = object["tool_input"] { request["input"] = value }
     if let value = object["command"] { request["command"] = value }
     if let value = object["cwd"] { request["workingDirectory"] = value }
+    if let value = object["turn_id"] { request["turn"] = value }
     let requestData = try JSONSerialization.data(withJSONObject:request,options:[.prettyPrinted,.sortedKeys])
     let complete = requestData.count <= 65536
     let message = String((object["message"] as? String ?? object["last_assistant_message"] as? String ?? "").prefix(4000))

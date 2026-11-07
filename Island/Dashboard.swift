@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import Intents
 
 enum IslandWidget:String,CaseIterable,Identifiable {
     case clock,focus,music,notes,battery,day,files
@@ -26,7 +27,7 @@ enum IslandScheduleRules {
     private var applied:String?
     func start() {
         task?.cancel(); task = nil
-        guard UserDefaults.standard.bool(forKey:"island.schedule.enabled") else { applied = nil; return }
+        guard UserDefaults.standard.bool(forKey:"island.schedule.enabled") || UserDefaults.standard.bool(forKey:"island.schedule.useFocus") else { applied = nil; return }
         task = Task { [weak self] in
             while !Task.isCancelled { self?.check(); try? await Task.sleep(for:.seconds(30)) }
         }
@@ -35,8 +36,12 @@ enum IslandScheduleRules {
         let defaults = UserDefaults.standard, components = Calendar.current.dateComponents([.hour,.minute,.day,.month,.year],from:Date())
         let start = defaults.object(forKey:"island.schedule.start") as? Int ?? 540
         let end = defaults.object(forKey:"island.schedule.end") as? Int ?? 1020
-        let profile = IslandScheduleRules.profile(minute:(components.hour ?? 0)*60+(components.minute ?? 0),start:start,end:end)
-        let stamp = "\(components.year ?? 0)-\(components.month ?? 0)-\(components.day ?? 0)-\(start)-\(end)-\(profile)"
+        let timed = IslandScheduleRules.profile(minute:(components.hour ?? 0)*60+(components.minute ?? 0),start:start,end:end)
+        let focus=INFocusStatusCenter.default.authorizationStatus == .authorized ? INFocusStatusCenter.default.focusStatus.isFocused : nil
+        let useFocus=defaults.bool(forKey:"island.schedule.useFocus") && focus != nil
+        let profile=useFocus ? (focus == true ? "Work" : "Minimal") : timed
+        if !useFocus && !defaults.bool(forKey:"island.schedule.enabled") { return }
+        let stamp = "\(useFocus)-\(components.year ?? 0)-\(components.month ?? 0)-\(components.day ?? 0)-\(start)-\(end)-\(profile)"
         guard stamp != applied else { return }; applied = stamp
         IslandModuleStore.shared.profile(profile)
     }
@@ -44,6 +49,8 @@ enum IslandScheduleRules {
 struct IslandDashboardSettings:View {
     @AppStorage("island.dashboard.slots") var slots = "clock,focus,music,notes"
     @AppStorage("island.schedule.enabled") var scheduled = false
+    @AppStorage("island.schedule.useFocus") var useFocus=false
+    @State var focusStatus=""
     @AppStorage("island.schedule.start") var start = 540
     @AppStorage("island.schedule.end") var end = 1020
     func time(_ value:Binding<Int>)->Binding<Date> {
@@ -57,6 +64,11 @@ struct IslandDashboardSettings:View {
                 }
                 Text("Widgets open their module when it is enabled. Your widget choices stay the same when you change layouts.").foregroundStyle(.secondary)
             }
+            Section("System Focus") {
+                Toggle("Follow shared Focus status",isOn:$useFocus)
+                Text("Applies Work while a shared system Focus is on and Minimal when it is off. Requires Focus sharing permission. Focus takes priority over the daily schedule; macOS shares an on/off state, not the Focus name.").font(.caption).foregroundStyle(.secondary)
+                if !focusStatus.isEmpty { Text(focusStatus).foregroundStyle(.secondary) }
+            }
             Section("Daily layout schedule") {
                 Toggle("Switch module layouts on a schedule",isOn:$scheduled)
                 DatePicker("Work starts",selection:time($start),displayedComponents:.hourAndMinute).disabled(!scheduled)
@@ -64,7 +76,10 @@ struct IslandDashboardSettings:View {
                 Text("Applies Work at the first time and Minimal at the second, every day in your Mac’s time zone. Turning this on applies the current layout immediately. Manual changes last until the next boundary; your notes, files and timer are kept.").font(.caption).foregroundStyle(.secondary)
                 if start == end { Text("Choose different times to schedule a Work period.").foregroundStyle(.orange) }
             }
-        }.formStyle(.grouped).onChange(of:scheduled) { IslandProfileSchedule.shared.start() }.onChange(of:start) { IslandProfileSchedule.shared.start() }.onChange(of:end) { IslandProfileSchedule.shared.start() }
+        }.formStyle(.grouped).onChange(of:useFocus) {
+            if useFocus { INFocusStatusCenter.default.requestAuthorization { status in Task { @MainActor in if status != .authorized || INFocusStatusCenter.default.focusStatus.isFocused == nil { useFocus=false;focusStatus="Focus sharing is unavailable for Island on this Mac. Use the daily schedule instead." };IslandProfileSchedule.shared.start() } } }
+            else { IslandProfileSchedule.shared.start() }
+        }.onChange(of:scheduled) { IslandProfileSchedule.shared.start() }.onChange(of:start) { IslandProfileSchedule.shared.start() }.onChange(of:end) { IslandProfileSchedule.shared.start() }
     }
 }
 struct IslandDashboardView:View {

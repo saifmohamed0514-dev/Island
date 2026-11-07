@@ -54,7 +54,8 @@ struct IslandDialDrag {
 }
 
 extension NotchViews {
-    var title: String {
+    var title:String { NSLocalizedString(englishTitle,comment:"Island module") }
+    private var englishTitle: String {
         switch self {
         case .home: return "Now Playing"
         case .shelf: return "File Tray"
@@ -150,6 +151,8 @@ struct IslandModulePreferences: Codable {
         defaults.set(try? JSONEncoder().encode(preferences), forKey: "island.modules")
         if !enabled.contains(IslandCoordinator.shared.currentView) { IslandCoordinator.shared.currentView = defaultModule }
         IslandUsageTracker.shared.setEnabled(enabled.contains(.usage))
+        IslandDevices.shared.configure(IslandModuleStore.shared.enabled.contains(.devices))
+        IslandWellbeingReminders.shared.configure(IslandModuleStore.shared.enabled.contains(.health))
         IslandAgentBridge.shared.start(enabled.contains(.agents) || enabled.contains(.inbox))
     }
 }

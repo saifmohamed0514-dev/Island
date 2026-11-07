@@ -1,21 +1,40 @@
-# Island local bridge
+# Island agent connections
 
-IslandBridge is a small native command-line transport bundled inside Island.app and built from IslandBridge.swift. It executes no agent commands. Both the app and client hooks exchange JSON in a local folder you choose. No HTTP server or cloud account is required.
+Island supports local ChatGPT Work/Codex, Claude Code and Cursor hook sessions. The native IslandBridge executable is built from IslandBridge.swift; it records bounded JSON events in a private local folder and returns a single decision for an active permission request. It does not run agent commands, read transcript files or create persistent allow rules.
 
-In Settings → Modules enable AI Coding and/or Inbox. In Settings → Agents & Inbox choose a new private, unsynced folder. Island exports the signed helper plus Claude Code/Cursor example configurations. Review and merge the examples into the intended client's settings, preserving existing hooks. Island never edits those settings automatically. To disconnect fully, remove the installed hooks from your client and disconnect the folder in Island.
+## ChatGPT Work and Codex
 
-Claude PermissionRequest asks for a single allow/deny decision. If unanswered, Island returns an empty response so Claude keeps its own normal permission flow. Cursor beforeShellExecution uses allow/deny and declines on timeout. No always-allow rule is generated. The request must have a matching random ID and nonce; expired or malformed responses are ignored. Review the full tool arguments before allowing anything. Local event files may contain those arguments: keep the folder private and outside cloud syncing.
+1. Enable **AI Coding** and **Inbox** in Settings → Modules.
+2. Prepare a private, unsynced folder under Settings → Agents & Inbox. Island exports the signed helper, `chatgpt-codex-hooks.example.json`, a plugin folder and client instructions.
+3. Use either the hook example in your local `~/.codex/hooks.json` / project hook configuration, or the generated plugin. Preserve existing handlers. Do not install both forms, which would duplicate requests.
+4. In the desktop app select **Review hooks** above the composer or **Settings → Hooks**. In the CLI use `/hooks`. Review and trust the six Island definitions. Island does not alter the trust database or bypass this step.
 
-The helper bounds input and event history. Events expire from Island's view after 24 hours, with disk cleanup performed on later incoming events. Explicitly forwarded notices are an inbox; this is not a reader for arbitrary macOS Notification Center content.
+The six events are SessionStart, UserPromptSubmit, PermissionRequest, Stop, Interrupt and SessionEnd. The bridge receives only the fields present in those local events. It records metadata, the last assistant message when supplied, and tool arguments for permission review, so keep the folder private. It ignores transcript paths. No separate API key is needed for this local connection.
 
-A script can forward a notice by sending JSON with title/body to:
+This applies to local Work/Codex sessions on this Mac. Plain web chats do not publish these local events, and cloud-hosted Work environments do not execute scripts installed on your Mac. The module also opens a question as a draft in the ChatGPT desktop app; it never submits the draft. Valid connected session IDs can open their chat.
+
+[OpenAI hook reference](https://learn.chatgpt.com/docs/hooks), [desktop draft and chat links](https://learn.chatgpt.com/docs/reference/commands), [plugin support and environment limits](https://learn.chatgpt.com/docs/plugins).
+
+## Claude Code and Cursor
+
+Generated examples preserve your existing client configuration. Merge the intended hooks into your client’s own settings. Claude Code and ChatGPT/Codex PermissionRequest allow/deny responses apply once; expiry returns no decision so the client retains its usual prompt. Cursor beforeShellExecution/beforeMCPExecution timeout declines. Allow never creates an always-allow rule. Review the complete request before choosing Allow once.
+
+[Claude Code hooks](https://code.claude.com/docs/en/hooks), [Cursor hooks](https://cursor.com/docs/hooks).
+
+## Privacy and inbox
+
+The folder stores tool arguments and may include sensitive text. Files are owner-only where written by the transport; event directories are private. Input is bounded, oversized requests cannot be approved, and decisions require matching random IDs/nonces. Events disappear from Island’s view after 24 hours; disk cleanup runs on later incoming events. Disconnecting removes the bookmark, not your files or client hooks. Remove the hooks in the client to stop forwarding.
+
+Update bridge files preserves the existing generated files in a private backup folder. Review changed hooks before trusting them again.
+
+Inbox includes Island’s own alerts and explicitly forwarded notices; it is not a reader for arbitrary Notification Center histories. Scripts can forward title/body JSON on stdin to:
 
 ```sh
 /path/to/IslandBridge --directory /private/chosen/folder --provider relay --event Notification
 ```
 
-Supply JSON on standard input. Quoted real paths and client-specific hook schemas matter; use the generated examples for your chosen folder.
+## Verification
 
-Protocol reference: [Claude Code hooks](https://code.claude.com/docs/en/hooks), [Cursor hooks](https://cursor.com/docs/hooks). The automated tests run synthetic requests through the real compiled helper, including one-time allow, deny, expiry, malformed booleans, wrong nonce and oversized inputs. No actual agent tools or shell commands are authorized during tests. Real client configuration remains a separate live check.
+Production CLI fixtures cover ChatGPT/Codex/Claude/Cursor allow, deny, expiry, malformed Boolean decisions, wrong nonce and oversized inputs. No real agent command is authorized by a fixture. Actual client trust and a real session event are separate live checks.
 
-Optional cloud translation uses [OpenAI Responses](https://developers.openai.com/api/reference/typescript/resources/responses/methods/create). It sends only on Translate with OpenAI selected, uses a Keychain key, requests store:false, and rejects incomplete/refused responses. The tests use local response fixtures; no paid API request was made.
+Optional cloud translation uses [OpenAI Responses](https://developers.openai.com/api/reference/typescript/resources/responses/methods/create), with a separate user-chosen model and Keychain API key. It sends only on Translate with OpenAI selected and sets store:false. Tests use local response fixtures and make no paid API request.

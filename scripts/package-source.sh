@@ -24,6 +24,8 @@ assert set(re.findall(r'CURRENT_PROJECT_VERSION = ([^;]+);',project)) == {info['
 assert info['CFBundleIdentifier']=='org.islandapp.Island'
 assert sorted(p.name for p in (app/'Contents/XPCServices').iterdir())==['IslandControls.xpc'],'Unexpected embedded helper'
 assert not (app/'Contents/Resources/boring.m4a').exists(),'Obsolete welcome audio'
+assert (app/'Contents/Resources/IslandPower').is_file(),'Missing power daemon'
+assert (app/'Contents/Library/LoginItems/IslandPowerSetup.app').is_dir(),'Missing setup app'
 assert 'SUFeedURL' not in info or info.get('SUPublicEDKey'),'Incomplete update configuration'
 PY
 git clone --quiet --local --no-hardlinks "$ROOT" "$BUNDLE/Source"

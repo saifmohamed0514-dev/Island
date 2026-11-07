@@ -11,9 +11,21 @@ import IOKit
 import CoreGraphics
 
 class IslandControls: NSObject, IslandControlsProtocol {
+    @objc func windowBounds(_ pid:Int32,with reply:@escaping([NSNumber]?)->Void) {
+        guard AXIsProcessTrusted(),pid>0 else { reply(nil);return }
+        let app=AXUIElementCreateApplication(pid);AXUIElementSetMessagingTimeout(app,0.3);var focused:CFTypeRef?
+        guard AXUIElementCopyAttributeValue(app,kAXFocusedWindowAttribute as CFString,&focused) == .success,let focused,CFGetTypeID(focused) == AXUIElementGetTypeID() else { reply(nil);return }
+        let window=focused as! AXUIElement;var p:CFTypeRef?;var s:CFTypeRef?
+        guard AXUIElementCopyAttributeValue(window,kAXPositionAttribute as CFString,&p) == .success,AXUIElementCopyAttributeValue(window,kAXSizeAttribute as CFString,&s) == .success,let p,let s,CFGetTypeID(p) == AXValueGetTypeID(),CFGetTypeID(s) == AXValueGetTypeID() else { reply(nil);return }
+        var point=CGPoint.zero,size=CGSize.zero
+        guard AXValueGetValue(p as! AXValue,.cgPoint,&point),AXValueGetValue(s as! AXValue,.cgSize,&size) else { reply(nil);return }
+        reply([point.x,point.y,size.width,size.height].map { NSNumber(value:Double($0)) })
+    }
+
     @objc func tileWindow(_ pid: Int32, x: Double, y: Double, width: Double, height: Double, with reply: @escaping (Bool) -> Void) {
         guard AXIsProcessTrusted(), pid > 0, [x,y,width,height].allSatisfy({ $0.isFinite && abs($0) < 100000 }), width > 100, height > 100 else { reply(false); return }
         let app = AXUIElementCreateApplication(pid)
+        AXUIElementSetMessagingTimeout(app,0.5)
         var focused: CFTypeRef?
         guard AXUIElementCopyAttributeValue(app, kAXFocusedWindowAttribute as CFString, &focused) == .success, let focused, CFGetTypeID(focused) == AXUIElementGetTypeID() else { reply(false); return }
         let window = focused as! AXUIElement

@@ -6,8 +6,10 @@ Everything is local right now. You do not need to create a website or pay for ho
 2. In GitHub, choose **New repository**, name it **Island**, and choose **Public**. Do not add a second README or license: this project already contains them.
 3. Use GitHub Desktop: **File → Add local repository**, choose this project folder (the `Source` folder if you extracted the complete ZIP), and publish it to the empty repository. If needed, use GitHub Desktop's existing-repository instructions. Keep the GPL license and third-party notices.
 4. Read `App-Read-Me.txt` in the package and `FEATURE-STATUS.md`. Describe the app as a development preview until the missing features and verification are finished.
-5. To share a manual download, build with `scripts/build.sh`, create a GitHub Release and attach `dist/Island.zip`. Users can download the ZIP. The local preview is not Apple-notarized, so macOS may block it on another Mac; explain that clearly.
+5. Keep one installed copy at Applications → Island. To share a manual download, build with `scripts/build.sh`, create a GitHub Release and attach `dist/Island.zip`. Users can download the ZIP. The local preview is not Apple-notarized, so macOS may block it on another Mac; explain that clearly.
 6. Automatic in-app updates need a one-time signing-key and feed setup. Follow `docs/RELEASING.md` before your first auto-updating public build.
+
+The complete download also contains Source/Integrations/README.md for local ChatGPT/Codex/Claude/Cursor setup and Source/Power/README.md for the optional Low Power Mode service. Never include your private bridge folder or client settings in a release.
 
 ## Every later update
 

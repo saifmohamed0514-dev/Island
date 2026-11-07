@@ -11,6 +11,8 @@
 	<string>Show connected Bluetooth devices you choose to inspect in Island.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>Show your chosen calendar events in Island.</string>
+	<key>NSFocusStatusUsageDescription</key>
+	<string>Switch your Island module layout when you choose to share system Focus status.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
 	<string>Show, add and complete tasks you choose in Island.</string>
 	<key>SUEnableDownloaderService</key>

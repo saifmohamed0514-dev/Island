@@ -32,10 +32,9 @@ body:
     attributes:
       label: Island Version
       description: >-
-        What version of our software are you running? (Go to ✦ in the menu bar >
-        Settings > About). The "Report a Bug" button in the About pane prefills
-        the exact version, build number, and update channel.
-      placeholder: "v2.7.3 (build 274, beta channel)"
+        What version are you running? Open Island in the menu bar, then
+        Settings > About Island. Include both version and build number.
+      placeholder: "2.3.1 (232)"
     validations:
       required: true
   - type: input
