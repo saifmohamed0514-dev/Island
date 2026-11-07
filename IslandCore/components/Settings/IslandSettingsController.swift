@@ -41,6 +41,7 @@ class IslandSettingsController: NSWindowController {
         guard let window = window else { return }
         
         window.title = "Island Settings"
+        window.contentMinSize=NSSize(width:760,height:610)
         window.titlebarAppearsTransparent = false
         window.titleVisibility = .visible
         window.toolbarStyle = .unified

@@ -22,6 +22,7 @@ project=pathlib.Path('Island.xcodeproj/project.pbxproj').read_text()
 assert set(re.findall(r'MARKETING_VERSION = ([^;]+);',project)) == {info['CFBundleShortVersionString']},'App/source versions differ'
 assert set(re.findall(r'CURRENT_PROJECT_VERSION = ([^;]+);',project)) == {info['CFBundleVersion']},'App/source build numbers differ'
 assert info['CFBundleIdentifier']=='org.islandapp.Island'
+assert any(item.get('UTTypeIdentifier')=='org.islandapp.module' and 'public.data' in item.get('UTTypeConformsTo',[]) for item in info.get('UTExportedTypeDeclarations',[])),'Missing module drag type'
 assert sorted(p.name for p in (app/'Contents/XPCServices').iterdir())==['IslandControls.xpc'],'Unexpected embedded helper'
 assert not (app/'Contents/Resources/boring.m4a').exists(),'Obsolete welcome audio'
 assert (app/'Contents/Resources/IslandPower').is_file(),'Missing power daemon'

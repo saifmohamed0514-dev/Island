@@ -1,4 +1,4 @@
-# Island 2.4 development status
+# Island 2.5 development status
 
 Updated November 7, 2026. This is an implementation inventory, not a claim of full MacNotch parity or zero bugs.
 
@@ -11,6 +11,7 @@ A running timer appears in two bounded wings beside the physical camera. Complet
 ## Available features
 
 - 21 selectable modules: Dashboard, Now Playing, File Tray, Focus, Notes, Calendar, Tasks, Day Progress, Weather, Wellbeing, System Monitor, Screen Time, Launcher, Code Hosting, Translation, Bluetooth, Window Layouts, File Actions, Mirror, AI Coding and Inbox.
+- Settings → Modules includes an interactive notch preview, searchable module cards, private typed drag/drop for adding and reordering, drop-to-hide, undo and click-to-inspect module settings. A persistent gesture legend and How it works guide explain the interactions; keyboard-accessible enable/earlier/later controls offer alternatives. Preview content is illustrative and does not invoke live module actions. Settings can be resized.
 - Modules can be enabled, ordered and selected as the default. Five appear in the strip; the rest use More. Minimal/Work/Everything layouts and four configurable dashboard widgets. Optional daily Work/Minimal scheduling, including overnight periods and local time-zone changes; a shared system Focus state can take priority when macOS makes it available and permission is granted.
 - Own player with real artwork and metadata, transport, seeking, supported player-volume controls, and one Not Playing idle label. The licensed media-controller backends support Now Playing, Apple Music, Spotify and YouTube Music subject to source requirements.
 - Own file tray, drag/drop, file picker, Quick Look, context actions and AirDrop. Existing bookmark/persistence backend is retained.

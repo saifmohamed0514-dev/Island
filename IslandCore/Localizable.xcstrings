@@ -25980,6 +25980,126 @@
           }
         }
       }
+    },
+    "Arrange your Island": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "رتّب Island"
+          }
+        }
+      }
+    },
+    "All modules": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "كل الوحدات"
+          }
+        }
+      }
+    },
+    "Drag to add": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اسحب للإضافة"
+          }
+        }
+      }
+    },
+    "Drag icons to arrange": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اسحب الأيقونات للترتيب"
+          }
+        }
+      }
+    },
+    "Click for settings": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "انقر للإعدادات"
+          }
+        }
+      }
+    },
+    "How it works": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "طريقة الاستخدام"
+          }
+        }
+      }
+    },
+    "Drop here to hide": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أفلت هنا للإخفاء"
+          }
+        }
+      }
+    },
+    "Show in Island": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إظهار في Island"
+          }
+        }
+      }
+    },
+    "Earlier": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "سابقًا"
+          }
+        }
+      }
+    },
+    "Later": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لاحقًا"
+          }
+        }
+      }
+    },
+    "Undo": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تراجع"
+          }
+        }
+      }
+    },
+    "Find a module": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ابحث عن وحدة"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -106,7 +106,7 @@ extension NotchViews {
         }
     }
 }
-struct IslandModulePreferences: Codable {
+struct IslandModulePreferences: Codable,Equatable {
     var order: [NotchViews] = [.dashboard, .home, .shelf, .focus, .notes, .calendar, .tasks, .day, .weather, .health, .system, .usage, .launcher]
     var enabled: [NotchViews] = [.dashboard, .home, .shelf, .focus, .notes]
     var start: NotchViews = .dashboard
@@ -116,6 +116,16 @@ struct IslandModulePreferences: Codable {
         enabled = order.filter { enabled.contains($0) }
         if enabled.isEmpty { enabled = [.dashboard] }
         if !enabled.contains(start) { start = enabled[0] }
+    }
+    mutating func place(_ module:NotchViews,relativeTo target:NotchViews?=nil,after:Bool=false) {
+        normalize()
+        guard target != module else { return }
+        var active=order.filter { enabled.contains($0) && $0 != module }
+        let position=target.flatMap { active.firstIndex(of:$0) }.map { $0 + (after ? 1 : 0) } ?? active.count
+        active.insert(module,at:position)
+        order=active+order.filter { !active.contains($0) }
+        enabled=active
+        normalize()
     }
 }
 @MainActor final class IslandModuleStore: ObservableObject {
@@ -134,6 +144,11 @@ struct IslandModulePreferences: Codable {
         persist()
     }
     func setDefault(_ module: NotchViews) { preferences.start = module; persist() }
+    @discardableResult func place(_ module:NotchViews,relativeTo target:NotchViews?=nil,after:Bool=false)->Bool {
+        var next=preferences;next.place(module,relativeTo:target,after:after)
+        guard next != preferences else { return false };preferences=next;persist();return true
+    }
+    func restore(_ snapshot:IslandModulePreferences) { preferences=snapshot;persist() }
     func move(_ module: NotchViews, by delta: Int) {
         guard let index = preferences.order.firstIndex(of: module) else { return }
         let new = min(preferences.order.count - 1, max(0, index + delta)); preferences.order.swapAt(index, new); persist()
@@ -157,33 +172,8 @@ struct IslandModulePreferences: Codable {
     }
 }
 struct IslandModulesSettings: View {
-    @ObservedObject var modules = IslandModuleStore.shared
-    @Default(.hudReplacement) var hud
-    @Default(.showMirror) var mirror
     var body: some View {
-        Form {
-            Section("Make Island yours") {
-                HStack { ForEach(["Minimal", "Work", "Everything"], id: \.self) { profile in Button(profile) { modules.profile(profile) } } }
-                Picker("Open by default", selection: Binding(get: { modules.defaultModule }, set: { modules.setDefault($0) })) {
-                    ForEach(modules.enabled) { Text($0.title).tag($0) }
-                }
-                Text("Choose modules, then arrange them. The first five appear in the strip; the rest are under More. Hiding a running timer keeps it counting.").foregroundStyle(.secondary)
-            }
-            Section("Modules") {
-                ForEach(modules.preferences.order) { module in
-                    HStack {
-                        Toggle(isOn: Binding(get: { modules.enabled.contains(module) }, set: { modules.setEnabled(module, $0) })) { Label(module.title, systemImage: module.icon) }.disabled(modules.enabled.count == 1 && modules.enabled.contains(module))
-                        Button { modules.move(module, by: -1) } label: { Image(systemName: "chevron.up") }.help("Move \(module.title) earlier").disabled(module == modules.preferences.order.first)
-                        Button { modules.move(module, by: 1) } label: { Image(systemName: "chevron.down") }.help("Move \(module.title) later").disabled(module == modules.preferences.order.last)
-                    }
-                }
-            }
-            Section("System integrations") {
-                Toggle("Replace system HUD", isOn: $hud)
-                Toggle("Camera mirror", isOn: $mirror)
-                Text("HUD replacement requires macOS Accessibility permission. Camera, calendar and task access are requested only when you choose to connect them. Screen Time records app names and active-use duration locally while enabled.").foregroundStyle(.secondary)
-            }
-        }.formStyle(.grouped)
+        IslandModuleDesigner()
     }
 }
 struct IslandModuleContent: View {

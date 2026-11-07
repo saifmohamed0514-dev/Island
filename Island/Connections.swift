@@ -26,6 +26,7 @@ struct IslandConnectionsSettings: View {
     @State var provider = "GitHub"
     @State var token = ""
     @State var status = ""
+    init(provider:String="GitHub") { _provider=State(initialValue:provider) }
     var body: some View {
         Form {
             Section("Credentials") {

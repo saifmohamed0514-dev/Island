@@ -23,5 +23,16 @@
 	<array>
 		<dict/>
 	</array>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>org.islandapp.module</string>
+			<key>UTTypeDescription</key>
+			<string>Island module</string>
+			<key>UTTypeConformsTo</key>
+			<array><string>public.data</string></array>
+		</dict>
+	</array>
 </dict>
 </plist>

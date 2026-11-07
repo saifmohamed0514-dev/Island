@@ -39,7 +39,7 @@ struct IslandSettingsView:View {
                 default: IslandOverviewSettings { navigation.selected = $0 }
                 }
             }.navigationTitle(LocalizedStringKey(navigation.selected)).frame(maxWidth:.infinity,maxHeight:.infinity)
-        }.frame(width:760,height:610).navigationSplitViewStyle(.balanced).tint(.blue)
+        }.frame(minWidth:760,minHeight:610).navigationSplitViewStyle(.balanced).tint(.blue)
     }
 }
 struct IslandOverviewSettings:View {
