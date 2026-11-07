@@ -45,7 +45,7 @@ struct IslandModuleDesigner:View {
             HStack(spacing:10) {
                 Picker("Module settings",selection:Binding(get:{ selected },set:inspect)) { ForEach(NotchViews.allCases) { module in Text(module.title).tag(module) } }.pickerStyle(.menu)
                 Button("Open settings") { inspect(selected) }
-            }.help("Choose any module, including File Tray, then open its settings below.")
+            }.help("Choose any module, including File Tray, then open its settings panel.")
             Divider()
             moduleLibrary
         }.padding(16)

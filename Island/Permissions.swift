@@ -89,6 +89,24 @@ enum IslandPermissionStatus:Equatable {
     }
     var canSetUp:Bool { self == .ask || self == .settings || self == .needsPlayer }
 }
+// Recommendations follow the features the user actually chose. These are
+// selections only: no permission is requested until Set up selected is pressed.
+enum IslandPermissionRecommendations {
+    static func selected(modules:[NotchViews],snapping:Bool,hud:Bool,deviceAlerts:Bool,healthAlerts:Bool,player:String,useFocus:Bool)->Set<IslandPermission> {
+        var wanted=Set<IslandPermission>()
+        if snapping || hud || modules.contains(.windows) { wanted.insert(.accessibility) }
+        if hud { wanted.insert(.input) }
+        if modules.contains(.devices) { wanted.insert(.bluetooth) }
+        if modules.contains(.mirror) { wanted.insert(.camera) }
+        if modules.contains(.calendar) || modules.contains(.day) { wanted.insert(.calendar) }
+        if modules.contains(.tasks) { wanted.insert(.reminders) }
+        if deviceAlerts || healthAlerts { wanted.insert(.notifications) }
+        if player == "appleMusic" { wanted.insert(.music) }
+        if player == "spotify" { wanted.insert(.spotify) }
+        if useFocus { wanted.insert(.focus) }
+        return wanted
+    }
+}
 enum IslandPermissionAttempt { case finished,waitingInSettings }
 @MainActor protocol IslandPermissionClient {
     func snapshot() async -> [IslandPermission:IslandPermissionStatus]
@@ -279,6 +297,10 @@ enum IslandPermissionAttempt { case finished,waitingInSettings }
     static let shared=IslandPermissionSetup(client:IslandSystemPermissionClient())
 }
 struct IslandPermissionsView:View {
+    var guidedSetup=false
+    @State private var showAll=false
+    @State private var recommendations=Set<IslandPermission>()
+    private var visiblePermissions:[IslandPermission] { IslandPermission.allCases.filter { !guidedSetup || showAll || recommendations.contains($0) || setup.selected.contains($0) } }
     @ObservedObject private var setup=IslandPermissionSetup.shared
     @ObservedObject private var power=IslandPowerController.shared
     @ObservedObject private var bridge=IslandAgentBridge.shared
@@ -287,11 +309,11 @@ struct IslandPermissionsView:View {
         ScrollViewReader { scroll in
         Form {
             Section {
-                Label("A little setup. Then you’re ready.",systemImage:"checkmark.shield").font(.title2.weight(.semibold))
-                Text("Choose the features you want. Island will guide you through one approval at a time and skip anything already allowed.").foregroundStyle(.secondary)
+                Label(guidedSetup ? "Access for your Island" : "A little setup. Then you’re ready.",systemImage:"checkmark.shield").font(.title2.weight(.semibold))
+                Text(guidedSetup ? "These permissions support the features you chose. Set them up now, or continue and finish later. Approvals happen one at a time." : "Choose the features you want. Island will guide you through one approval at a time and skip anything already allowed.").foregroundStyle(.secondary)
                 HStack {
                     Button("Set up selected") { Task { await setup.begin() } }.buttonStyle(.borderedProminent).disabled(setup.running || setup.prompting || setup.refreshing || setup.remaining.isEmpty)
-                    Button("Select all") { setup.selected=Set(IslandPermission.allCases.filter { setup.status($0).canSetUp }) }.disabled(setup.running || setup.prompting)
+                    if !guidedSetup || showAll { Button("Select all") { setup.selected=Set(IslandPermission.allCases.filter { setup.status($0).canSetUp }) }.disabled(setup.running || setup.prompting) }
                     Button("Clear selection") { setup.selected=[] }.disabled(setup.running || setup.prompting)
                 }
                 Text("macOS keeps approvals separate. It may use Touch ID or your login password for administrator changes; privacy prompts have their own Allow buttons.").font(.caption).foregroundStyle(.secondary)
@@ -307,8 +329,10 @@ struct IslandPermissionsView:View {
                 }
             }
             if !setup.message.isEmpty { Section { Text(setup.message).foregroundStyle(.secondary) } }
-            Section("Your features") {
-                ForEach(IslandPermission.allCases) { key in permissionRow(key) }
+            Section(guidedSetup ? "For the features you chose" : "Your features") {
+                if visiblePermissions.isEmpty { Label("No extra access is needed for your current choices. Continue whenever you’re ready.",systemImage:"checkmark.circle").foregroundStyle(.secondary) }
+                ForEach(visiblePermissions) { key in permissionRow(key) }
+                if guidedSetup { Button(showAll ? "Show recommended permissions" : "Show other permissions") { showAll.toggle() }.disabled(setup.running || setup.prompting) }
             }
             Section("Files and app connections") {
                 Text("Files and folders are approved when you choose them. Island doesn’t need access to your whole disk, microphone or screen recording to use these features.").font(.caption).foregroundStyle(.secondary)
@@ -319,21 +343,16 @@ struct IslandPermissionsView:View {
         }.formStyle(.grouped)
         .task {
             await setup.refresh()
-            if !setup.hasSuggestedSelection {
-                let modules=IslandModuleStore.shared.enabled
-                var wanted:Set<IslandPermission>=[.power]
-                if Defaults[.hudReplacement] || modules.contains(.windows) { wanted.insert(.accessibility) }
-                if Defaults[.hudReplacement] { wanted.insert(.input) }
-                if modules.contains(.devices) { wanted.insert(.bluetooth) }
-                if modules.contains(.mirror) { wanted.insert(.camera) }
-                if modules.contains(.calendar) { wanted.insert(.calendar) }
-                if modules.contains(.tasks) { wanted.insert(.reminders) }
-                if UserDefaults.standard.bool(forKey:"island.health.reminders") || UserDefaults.standard.bool(forKey:"island.devices.alerts") { wanted.insert(.notifications) }
-                if Defaults[.mediaController] == .appleMusic { wanted.insert(.music) }
-                if Defaults[.mediaController] == .spotify { wanted.insert(.spotify) }
-                if UserDefaults.standard.bool(forKey:"island.schedule.useFocus") { wanted.insert(.focus) }
-                if let requested=navigation.requestedPermission { wanted.insert(requested) }
-                setup.selected=wanted;setup.hasSuggestedSelection=true
+            if !setup.hasSuggestedSelection || guidedSetup {
+                setup.selected=IslandPermissionRecommendations.selected(
+                    modules:IslandModuleStore.shared.enabled,
+                    snapping:UserDefaults.standard.bool(forKey:"island.windows.snap"),hud:Defaults[.hudReplacement],
+                    deviceAlerts:UserDefaults.standard.bool(forKey:"island.devices.alerts"),healthAlerts:UserDefaults.standard.bool(forKey:"island.health.reminders"),
+                    player:Defaults[.mediaController] == .appleMusic ? "appleMusic" : Defaults[.mediaController] == .spotify ? "spotify" : "nowPlaying",
+                    useFocus:UserDefaults.standard.bool(forKey:"island.schedule.useFocus"))
+                recommendations=setup.selected
+                if let requested=navigation.requestedPermission,!guidedSetup { setup.selected.insert(requested) }
+                setup.hasSuggestedSelection=true
             }
             while !Task.isCancelled { try? await Task.sleep(for:.seconds(1));guard !Task.isCancelled else { return };await setup.refresh() }
         }.onChange(of:navigation.requestedPermission) { if let key=navigation.requestedPermission { setup.selected.insert(key) } }

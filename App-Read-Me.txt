@@ -1,4 +1,4 @@
-Island 2.6.1 (261) — development preview
+Island 2.7.0 (270) — development preview
 
 INSTALL
 Run Island.app on an Apple silicon Mac with macOS 15 or newer. Keep one copy in Applications and quit other notch utilities to avoid overlapping overlays. This build is locally signed, not Apple-notarized; macOS may block it after downloading to another Mac.
@@ -8,6 +8,12 @@ The player, tray, dashboard, settings, welcome flow, icon and compact activities
 
 YOUR TIMER
 Choose Focus. Drag the ring while paused. Use + to enter a duration and save a preset. Settings → Focus & Sounds manages presets, work/break cycles and ringtones. Timer state persists across relaunch.
+
+FIRST START
+Island guides new users through everyday preferences, an interactive module preview, and permission setup for the features they chose. Drag modules into the black preview; click them for settings. Finish later keeps your choices and starts Island without requesting the remaining access. Reopen the guide with Set up Island in the menu or Settings → Overview. Existing settings are kept when you update.
+
+WINDOW SNAPPING
+Turn on Snap windows in setup or Settings → Window Snapping, then allow Window and system controls in Permissions. Drag a window’s title bar to the actual left, right, top, bottom or corners of the display and release. Preview frames leave room for the menu bar and Dock. Some apps enforce minimum sizes; full-screen windows need to leave full screen first. The Window Layouts module also offers manual buttons and an app picker.
 
 PERMISSIONS, TOGETHER
 Settings → Permissions is the home for access setup. Select the features you want, then choose Set up selected. Existing approvals are skipped; manual System Settings steps are checked when you return. Not now and Finish later keep setup optional. macOS requires separate privacy approvals; one Touch ID check cannot grant them all. Camera access alone never starts the mirror. Files are approved when selected, and client hooks remain subject to their own review.

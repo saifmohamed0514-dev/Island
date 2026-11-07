@@ -11,32 +11,69 @@ import IOKit
 import CoreGraphics
 
 class IslandControls: NSObject, IslandControlsProtocol {
-    @objc func windowBounds(_ pid:Int32,with reply:@escaping([NSNumber]?)->Void) {
-        guard AXIsProcessTrusted(),pid>0 else { reply(nil);return }
-        let app=AXUIElementCreateApplication(pid);AXUIElementSetMessagingTimeout(app,0.3);var focused:CFTypeRef?
-        guard AXUIElementCopyAttributeValue(app,kAXFocusedWindowAttribute as CFString,&focused) == .success,let focused,CFGetTypeID(focused) == AXUIElementGetTypeID() else { reply(nil);return }
-        let window=focused as! AXUIElement;var p:CFTypeRef?;var s:CFTypeRef?
-        guard AXUIElementCopyAttributeValue(window,kAXPositionAttribute as CFString,&p) == .success,AXUIElementCopyAttributeValue(window,kAXSizeAttribute as CFString,&s) == .success,let p,let s,CFGetTypeID(p) == AXValueGetTypeID(),CFGetTypeID(s) == AXValueGetTypeID() else { reply(nil);return }
+    // Hold the actual clicked window throughout a drag, even if focus changes.
+    private var snapWindows:[String:AXUIElement]=[:]
+    private let snapLock=NSLock()
+    private func attribute(_ element:AXUIElement,_ name:String)->CFTypeRef? {
+        var result:CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element,name as CFString,&result) == .success else { return nil }
+        return result
+    }
+    private func elementAttribute(_ element:AXUIElement,_ name:String)->AXUIElement? {
+        guard let value=attribute(element,name),CFGetTypeID(value) == AXUIElementGetTypeID() else { return nil }
+        return (value as! AXUIElement)
+    }
+    private func windowRect(_ window:AXUIElement)->CGRect? {
+        AXUIElementSetMessagingTimeout(window,0.3)
+        guard let p=attribute(window,kAXPositionAttribute),let s=attribute(window,kAXSizeAttribute),CFGetTypeID(p) == AXValueGetTypeID(),CFGetTypeID(s) == AXValueGetTypeID() else { return nil }
         var point=CGPoint.zero,size=CGSize.zero
-        guard AXValueGetValue(p as! AXValue,.cgPoint,&point),AXValueGetValue(s as! AXValue,.cgSize,&size) else { reply(nil);return }
-        reply([point.x,point.y,size.width,size.height].map { NSNumber(value:Double($0)) })
+        guard AXValueGetValue(p as! AXValue,.cgPoint,&point),AXValueGetValue(s as! AXValue,.cgSize,&size),[point.x,point.y,size.width,size.height].allSatisfy({ $0.isFinite }),size.width>0,size.height>0 else { return nil }
+        return CGRect(origin:point,size:size)
+    }
+    private func numbers(_ rect:CGRect?)->[NSNumber]? { rect.map { [$0.minX,$0.minY,$0.width,$0.height].map { NSNumber(value:Double($0)) } } }
+    private func mainWindow(_ pid:Int32)->AXUIElement? {
+        guard AXIsProcessTrusted(),pid>0 else { return nil }
+        let app=AXUIElementCreateApplication(pid);AXUIElementSetMessagingTimeout(app,0.3)
+        return elementAttribute(app,kAXFocusedWindowAttribute) ?? elementAttribute(app,kAXMainWindowAttribute)
+    }
+    @objc func windowBounds(_ pid:Int32,with reply:@escaping([NSNumber]?)->Void) { reply(mainWindow(pid).flatMap { numbers(windowRect($0)) }) }
+    @objc func captureSnapWindow(_ x:Double,y:Double,with reply:@escaping(String?,Int32,[NSNumber]?)->Void) {
+        guard AXIsProcessTrusted(),x.isFinite,y.isFinite,abs(x)<100000,abs(y)<100000 else { reply(nil,0,nil);return }
+        let system=AXUIElementCreateSystemWide();AXUIElementSetMessagingTimeout(system,0.3)
+        var hit:AXUIElement?
+        guard AXUIElementCopyElementAtPosition(system,Float(x),Float(y),&hit) == .success,let hit else { reply(nil,0,nil);return }
+        let window=(attribute(hit,kAXRoleAttribute) as? String == kAXWindowRole) ? hit : elementAttribute(hit,kAXWindowAttribute)
+        guard let window,attribute(window,"AXFullScreen") as? Bool != true,attribute(window,kAXMinimizedAttribute) as? Bool != true,let rect=windowRect(window) else { reply(nil,0,nil);return }
+        var pid:pid_t=0
+        guard AXUIElementGetPid(window,&pid) == .success,pid>0 else { reply(nil,0,nil);return }
+        let token=UUID().uuidString
+        snapLock.lock();if snapWindows.count>=16 { snapWindows.removeAll() };snapWindows[token]=window;snapLock.unlock()
+        reply(token,pid,numbers(rect))
+    }
+    private func snapWindow(_ token:String)->AXUIElement? { snapLock.lock();defer { snapLock.unlock() };return snapWindows[token] }
+    @objc func snapWindowBounds(_ token:String,with reply:@escaping([NSNumber]?)->Void) {
+        guard AXIsProcessTrusted(),let window=snapWindow(token) else { reply(nil);return };reply(numbers(windowRect(window)))
+    }
+    @objc func releaseSnapWindow(_ token:String) { snapLock.lock();snapWindows.removeValue(forKey:token);snapLock.unlock() }
+    private func tile(_ window:AXUIElement,x:Double,y:Double,width:Double,height:Double)->Bool {
+        guard AXIsProcessTrusted(),[x,y,width,height].allSatisfy({ $0.isFinite && abs($0)<100000 }),width>100,height>100,attribute(window,"AXFullScreen") as? Bool != true else { return false }
+        AXUIElementSetMessagingTimeout(window,0.5)
+        var size=CGSize(width:width,height:height),point=CGPoint(x:x,y:y)
+        guard let sizeValue=AXValueCreate(.cgSize,&size),let pointValue=AXValueCreate(.cgPoint,&point) else { return false }
+        // Move before growing, then size and position again: AppKit can clamp a
+        // requested size to the old display while a window crosses displays.
+        _ = AXUIElementSetAttributeValue(window,kAXPositionAttribute as CFString,pointValue)
+        let resized=AXUIElementSetAttributeValue(window,kAXSizeAttribute as CFString,sizeValue)
+        let moved=AXUIElementSetAttributeValue(window,kAXPositionAttribute as CFString,pointValue)
+        return resized == .success && moved == .success
+    }
+    @objc func tileSnapWindow(_ token:String,x:Double,y:Double,width:Double,height:Double,with reply:@escaping(Bool)->Void) {
+        guard let window=snapWindow(token) else { reply(false);return };reply(tile(window,x:x,y:y,width:width,height:height))
+    }
+    @objc func tileWindow(_ pid:Int32,x:Double,y:Double,width:Double,height:Double,with reply:@escaping(Bool)->Void) {
+        guard let window=mainWindow(pid) else { reply(false);return };reply(tile(window,x:x,y:y,width:width,height:height))
     }
 
-    @objc func tileWindow(_ pid: Int32, x: Double, y: Double, width: Double, height: Double, with reply: @escaping (Bool) -> Void) {
-        guard AXIsProcessTrusted(), pid > 0, [x,y,width,height].allSatisfy({ $0.isFinite && abs($0) < 100000 }), width > 100, height > 100 else { reply(false); return }
-        let app = AXUIElementCreateApplication(pid)
-        AXUIElementSetMessagingTimeout(app,0.5)
-        var focused: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(app, kAXFocusedWindowAttribute as CFString, &focused) == .success, let focused, CFGetTypeID(focused) == AXUIElementGetTypeID() else { reply(false); return }
-        let window = focused as! AXUIElement
-        var size = CGSize(width: width, height: height); var position = CGPoint(x: x, y: y)
-        guard let sizeValue = AXValueCreate(.cgSize, &size), let positionValue = AXValueCreate(.cgPoint, &position) else { reply(false); return }
-        let resized = AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, sizeValue)
-        let moved = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, positionValue)
-        reply(resized == .success && moved == .success)
-    }
-
-    
     @objc func isAccessibilityAuthorized(with reply: @escaping (Bool) -> Void) {
         reply(AXIsProcessTrusted())
     }

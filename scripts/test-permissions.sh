@@ -8,7 +8,8 @@ from pathlib import Path
 import sys
 s=Path('Island/Permissions.swift').read_text()
 s=s[s.index('enum IslandPermission:'):s.index('@MainActor final class IslandSystemPermissionClient:')]
-Path(sys.argv[1]).write_text('import Foundation\nimport Combine\n'+s)
+e=Path('IslandCore/enums/generic.swift').read_text();e=e[e.index('public enum NotchViews:'):e.index('enum SettingsEnum')]
+Path(sys.argv[1]).write_text('import Foundation\nimport Combine\n'+e+s)
 PY
 xcrun swiftc -module-cache-path "$STAGE/cache" "$STAGE/Permissions.swift" Tests/PermissionSmoke.swift -o "$STAGE/test"
 "$STAGE/test"

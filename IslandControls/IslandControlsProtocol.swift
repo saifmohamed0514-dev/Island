@@ -9,6 +9,10 @@ import Foundation
 
 /// The protocol that this service will vend as its API. This protocol will also need to be visible to the process hosting the service.
 @objc protocol IslandControlsProtocol {
+    func captureSnapWindow(_ x:Double,y:Double,with reply:@escaping(String?,Int32,[NSNumber]?)->Void)
+    func snapWindowBounds(_ token:String,with reply:@escaping([NSNumber]?)->Void)
+    func tileSnapWindow(_ token:String,x:Double,y:Double,width:Double,height:Double,with reply:@escaping(Bool)->Void)
+    func releaseSnapWindow(_ token:String)
     func windowBounds(_ pid:Int32,with reply:@escaping([NSNumber]?)->Void)
     func tileWindow(_ pid: Int32, x: Double, y: Double, width: Double, height: Double, with reply: @escaping (Bool) -> Void)
     func isAccessibilityAuthorized(with reply: @escaping (Bool) -> Void)

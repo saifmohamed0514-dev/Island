@@ -55,6 +55,7 @@ struct IslandOverviewSettings:View {
                 LabeledContent("Opens with",value:modules.defaultModule.title)
                 HStack { Button("Set up permissions") { navigate("Permissions") };Button("Choose modules") { navigate("Modules") }; Button("Set up focus") { navigate("Focus & Sounds") } }
             }
+            Section("Guided setup") { Button("Set up Island…") { (NSApp.delegate as? AppDelegate)?.showOnboardingWindow() };Text("Review preferences, customize your modules and set up access one step at a time.").foregroundStyle(.secondary) }
             Section("Start small") { Text("Enable only what you use. Optional data connections and permissions are requested when you choose them, and your notes and timer stay on this Mac.").foregroundStyle(.secondary) }
             Section("Release channel") { Label(IslandUpdateConfiguration.isConfigured ? "Signed update channel connected" : "Local preview · update channel not connected",systemImage:"arrow.down.circle").foregroundStyle(.secondary) }
         }.formStyle(.grouped)

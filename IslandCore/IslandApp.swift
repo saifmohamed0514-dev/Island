@@ -36,6 +36,7 @@ struct IslandApp: App {
                 }
             }
             .keyboardShortcut(KeyEquivalent(","), modifiers: .command)
+            Button("Set up Island…") { appDelegate.showOnboardingWindow() }
             CheckForUpdatesView(updater: updaterController.updater)
                 .disabled(!IslandUpdateConfiguration.isConfigured)
             Divider()
@@ -455,12 +456,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self.showOnboardingWindow()
             }
 
-        } else if MusicManager.shared.isNowPlayingDeprecated
-            && Defaults[.mediaController] == .nowPlaying
-        {
-            DispatchQueue.main.async {
-                self.showOnboardingWindow(step: .musicPermission)
-            }
         }
 
         if CommandLine.arguments.contains("--inspect-island") {
@@ -586,43 +581,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApplication.shared.terminate(self)
     }
 
-    private func showOnboardingWindow(step: OnboardingStep = .welcome) {
-        if onboardingWindowController == nil {
-            let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 420, height: 540),
-                styleMask: [.titled, .fullSizeContentView],
-                backing: .buffered,
-                defer: false
-            )
-            window.center()
-            window.title = "Welcome to Island"
-            window.titlebarAppearsTransparent = true
-            window.titleVisibility = .hidden
-            window.contentView = NSHostingView(
-                rootView: OnboardingView(
-                    step: step,
-                    onFinish: {
-                        window.orderOut(nil)
-//                        NSApp.setActivationPolicy(.accessory)
-                        window.close()
-                        NSApp.deactivate()
-                    },
-                    onOpenSettings: {
-                        window.close()
-                        IslandSettingsController.shared.showWindow()
-                    }
-                ))
-            window.isRestorable = false
-            window.identifier = NSUserInterfaceItemIdentifier("OnboardingWindow")
-
-            onboardingWindowController = NSWindowController(window: window)
+    func showOnboardingWindow(step:OnboardingStep = .welcome) {
+        if let window=onboardingWindowController?.window {
+            NSApp.setActivationPolicy(.regular);NSApp.activate(ignoringOtherApps:true);window.makeKeyAndOrderFront(nil);return
         }
-
-//        NSApp.setActivationPolicy(.regular)
-        NSApp.activate(ignoringOtherApps: true)
-        onboardingWindowController?.window?.makeKeyAndOrderFront(nil)
-        onboardingWindowController?.window?.orderFrontRegardless()
+        let window=NSWindow(contentRect:NSRect(x:0,y:0,width:740,height:700),styleMask:[.titled],backing:.buffered,defer:false)
+        window.title="Set up Island";window.isReleasedWhenClosed=false;window.isRestorable=false
+        window.identifier=NSUserInterfaceItemIdentifier("OnboardingWindow")
+        window.contentView=NSHostingView(rootView:OnboardingView(step:step,onFinish:{ [weak self,weak window] in
+            window?.orderOut(nil);window?.close();self?.onboardingWindowController=nil
+            NSApp.setActivationPolicy(.accessory)
+        }))
+        onboardingWindowController=NSWindowController(window:window)
+        window.center();NSApp.setActivationPolicy(.regular);NSApp.activate(ignoringOtherApps:true);window.makeKeyAndOrderFront(nil)
     }
+
 }
 
 extension Notification.Name {

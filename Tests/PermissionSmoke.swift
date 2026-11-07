@@ -70,6 +70,15 @@ import Foundation
         await restricted.refresh();await restricted.begin([.camera,.notifications])
         changed.values[.camera] = .restricted;await restricted.refresh()
         precondition(!restricted.running && changed.requests == [.camera,.notifications])
-        print("PASS: 17 production permission-flow checks; read-only refresh, stable ordering, granted/restricted skips, manual approval/resume, retry, decline, cancellation and no overlapping prompts; no OS permissions requested")
+        let minimal=IslandPermissionRecommendations.selected(modules:[.home,.shelf,.focus,.notes],snapping:false,hud:false,deviceAlerts:false,healthAlerts:false,player:"nowPlaying",useFocus:false)
+        precondition(minimal.isEmpty)
+        let snapOnly=IslandPermissionRecommendations.selected(modules:[.home],snapping:true,hud:false,deviceAlerts:false,healthAlerts:false,player:"nowPlaying",useFocus:false)
+        precondition(snapOnly == [.accessibility])
+        let chosen=IslandPermissionRecommendations.selected(modules:[.day,.tasks,.devices,.mirror],snapping:false,hud:true,deviceAlerts:true,healthAlerts:false,player:"spotify",useFocus:true)
+        precondition(chosen == [.calendar,.reminders,.bluetooth,.camera,.accessibility,.input,.notifications,.spotify,.focus])
+        precondition(!chosen.contains(.power) && !chosen.contains(.music))
+        let music=IslandPermissionRecommendations.selected(modules:[],snapping:false,hud:false,deviceAlerts:false,healthAlerts:true,player:"appleMusic",useFocus:false)
+        precondition(music == [.music,.notifications])
+        print("PASS: 22 production permission-flow checks; read-only refresh, stable ordering, granted/restricted skips, manual approval/resume, retry, decline, cancellation and no overlapping prompts; no OS permissions requested")
     }
 }

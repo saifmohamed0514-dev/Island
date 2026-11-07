@@ -28,6 +28,25 @@ final class XPCHelperClient: NSObject {
     nonisolated func windowBounds(_ pid:Int32) async -> [Double]? {
         do { let service=await MainActor.run { ensureRemoteService() };let result:[NSNumber]?=try await service.withContinuation { service,continuation in service.windowBounds(pid) { continuation.resume(returning:$0) } };return result?.map(\.doubleValue) } catch { return nil }
     }
+    nonisolated func captureSnapWindow(x:Double,y:Double) async -> (token:String,pid:Int32,bounds:[Double])? {
+        do {
+            let service=await MainActor.run { ensureRemoteService() }
+            let value:(String?,Int32,[NSNumber]?)=try await service.withContinuation { service,continuation in
+                service.captureSnapWindow(x,y:y) { token,pid,bounds in continuation.resume(returning:(token,pid,bounds)) }
+            }
+            guard let token=value.0,let bounds=value.2,bounds.count == 4 else { return nil }
+            return (token,value.1,bounds.map(\.doubleValue))
+        } catch { return nil }
+    }
+    nonisolated func snapWindowBounds(_ token:String) async -> [Double]? {
+        do { let service=await MainActor.run { ensureRemoteService() };let value:[NSNumber]?=try await service.withContinuation { service,continuation in service.snapWindowBounds(token) { continuation.resume(returning:$0) } };return value?.map(\.doubleValue) } catch { return nil }
+    }
+    nonisolated func releaseSnapWindow(_ token:String) async {
+        let service=await MainActor.run { ensureRemoteService() };try? await service.withService { $0.releaseSnapWindow(token) }
+    }
+    nonisolated func tileSnapWindow(_ token:String,x:Double,y:Double,width:Double,height:Double) async -> Bool {
+        do { let service=await MainActor.run { ensureRemoteService() };return try await service.withContinuation { service,continuation in service.tileSnapWindow(token,x:x,y:y,width:width,height:height) { continuation.resume(returning:$0) } } } catch { return false }
+    }
     // MARK: - Connection Management (Main Actor Isolated)
     
     @MainActor
