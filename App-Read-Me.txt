@@ -1,4 +1,4 @@
-Island 2.8.1 (281) — development preview
+Island 2.8.2 (282) — development preview
 
 INSTALL
 Run Island.app on an Apple silicon Mac with macOS 15 or newer. Keep one copy in Applications and quit other notch utilities to avoid overlapping overlays. This build is locally signed, not Apple-notarized; macOS may block it after downloading to another Mac.

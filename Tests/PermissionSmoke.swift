@@ -2,19 +2,33 @@ import Foundation
 @MainActor final class PermissionFixtureClient:IslandPermissionClient {
     var values=Dictionary(uniqueKeysWithValues:IslandPermission.allCases.map { ($0,IslandPermissionStatus.ask) })
     var requests:[IslandPermission]=[]
+    var fullReads=0,controlReads=0
     var waiting:Set<IslandPermission>=[]
     var nativeWaiting:Set<IslandPermission>=[]
     var declining:Set<IslandPermission>=[]
+    var unconfirmed:Set<IslandPermission>=[]
+    var checking:Set<IslandPermission>=[]
+    var holdNextSnapshot=false
+    var holdSnapshotAfterRequest=false
+    var snapshotContinuation:CheckedContinuation<Void,Never>?
     var hold:IslandPermission?
     var continuation:CheckedContinuation<Void,Never>?
     var inFlight=0,maxInFlight=0
-    func snapshot() async -> [IslandPermission:IslandPermissionStatus] { values }
+    func snapshot() async -> [IslandPermission:IslandPermissionStatus] {
+        fullReads+=1
+        let captured=values
+        if holdNextSnapshot { holdNextSnapshot=false;await withCheckedContinuation { snapshotContinuation=$0 } }
+        return captured
+    }
+    func controlsSnapshot() async -> [IslandPermission:IslandPermissionStatus] { controlReads+=1;return values.filter { $0.key == .accessibility || $0.key == .input || $0.key == .mediaControls } }
+    func releaseSnapshot() { snapshotContinuation?.resume();snapshotContinuation=nil }
     func request(_ key:IslandPermission) async -> IslandPermissionAttempt {
         requests.append(key);inFlight+=1;maxInFlight=max(maxInFlight,inFlight);defer { inFlight-=1 }
         if hold == key { await withCheckedContinuation { continuation=$0 } }
         if waiting.contains(key) { return .waitingInSettings }
         if nativeWaiting.contains(key) { return .waitingForApproval }
-        values[key] = declining.contains(key) ? .settings : .allowed
+        values[key] = checking.contains(key) ? .checking : unconfirmed.contains(key) ? .ask : declining.contains(key) ? .settings : .allowed
+        if holdSnapshotAfterRequest { holdSnapshotAfterRequest=false;holdNextSnapshot=true }
         return .finished
     }
     func release() { continuation?.resume();continuation=nil }
@@ -77,7 +91,7 @@ import Foundation
         let snapOnly=IslandPermissionRecommendations.selected(modules:[.home],snapping:true,hud:false,deviceAlerts:false,healthAlerts:false,player:"nowPlaying",useFocus:false)
         precondition(snapOnly == [.accessibility])
         let chosen=IslandPermissionRecommendations.selected(modules:[.day,.tasks,.devices,.mirror],snapping:false,hud:true,deviceAlerts:true,healthAlerts:false,player:"spotify",useFocus:true)
-        precondition(chosen == [.calendar,.reminders,.bluetooth,.camera,.accessibility,.input,.notifications,.spotify,.focus])
+        precondition(chosen == [.calendar,.reminders,.bluetooth,.camera,.accessibility,.input,.mediaControls,.notifications,.spotify,.focus])
         precondition(!chosen.contains(.power) && !chosen.contains(.music))
         let music=IslandPermissionRecommendations.selected(modules:[],snapping:false,hud:false,deviceAlerts:false,healthAlerts:true,player:"appleMusic",useFocus:false)
         precondition(music == [.music,.notifications])
@@ -98,6 +112,74 @@ import Foundation
         await native.refresh();precondition(nativeClient.requests == [.input])
         nativeClient.values[.input] = .allowed;await native.refresh()
         precondition(!native.running && nativeClient.requests == [.input,.camera])
-        print("PASS: 29 production permission-flow checks; read-only refresh, stable ordering, granted/restricted skips, manual approval/resume, retry, decline, cancellation and no overlapping prompts; no OS permissions requested")
+        // A completed native API with a delayed OS grant must remain visible.
+        let lagClient=PermissionFixtureClient(),lag=IslandPermissionSetup(client:lagClient)
+        lagClient.unconfirmed=[.input]
+        await lag.refresh();await lag.begin([.input,.camera])
+        precondition(lag.running && lag.waiting && lag.current == .input && lagClient.requests == [.input])
+        lagClient.values[.input] = .allowed;await lag.refresh()
+        precondition(!lag.running && lagClient.requests == [.input,.camera])
+
+        let unknownClient=PermissionFixtureClient(),unknown=IslandPermissionSetup(client:unknownClient)
+        unknownClient.checking=[.accessibility]
+        await unknown.refresh();await unknown.begin([.accessibility,.camera])
+        precondition(unknown.running && unknown.waiting && unknown.current == .accessibility)
+        unknownClient.values[.accessibility] = .allowed;await unknown.refresh()
+        precondition(!unknown.running && unknownClient.requests == [.accessibility,.camera])
+
+        // A poll captured before approval must not overwrite the new grant.
+        let staleClient=PermissionFixtureClient(),stale=IslandPermissionSetup(client:staleClient)
+        staleClient.hold = .camera;await stale.refresh()
+        let approval=Task { await stale.begin([.camera]) }
+        while staleClient.continuation == nil { await Task.yield() }
+        staleClient.holdNextSnapshot=true
+        let oldPoll=Task { await stale.refresh() }
+        while staleClient.snapshotContinuation == nil { await Task.yield() }
+        staleClient.release();await approval.value
+        precondition(stale.status(.camera) == .allowed)
+        staleClient.releaseSnapshot();await oldPoll.value
+        precondition(stale.status(.camera) == .allowed && !stale.running)
+
+        // Returning from Settings while a poll is underway forces a fresh read.
+        let coalescedClient=PermissionFixtureClient(),coalesced=IslandPermissionSetup(client:coalescedClient)
+        await coalesced.refresh();coalescedClient.holdNextSnapshot=true
+        let firstPoll=Task { await coalesced.refresh() }
+        while coalescedClient.snapshotContinuation == nil { await Task.yield() }
+        coalescedClient.values[.input] = .allowed;await coalesced.refresh()
+        coalescedClient.releaseSnapshot();await firstPoll.value
+        precondition(coalesced.status(.input) == .allowed && !coalesced.refreshing)
+
+        // Keep prompt ownership until the post-request status check finishes.
+        let confirmClient=PermissionFixtureClient(),confirm=IslandPermissionSetup(client:confirmClient)
+        await confirm.refresh();confirmClient.holdSnapshotAfterRequest=true
+        let confirmation=Task { await confirm.begin([.camera]) }
+        while confirmClient.snapshotContinuation == nil { await Task.yield() }
+        precondition(confirm.prompting)
+        await confirm.begin([.notifications]);await confirm.skip()
+        precondition(confirmClient.requests == [.camera])
+        confirmClient.releaseSnapshot();await confirmation.value
+        precondition(!confirm.prompting && !confirm.running)
+
+        var foreground=false
+        let backgroundClient=PermissionFixtureClient(),background=IslandPermissionSetup(client:backgroundClient,canPresentNext:{ foreground })
+        await background.refresh();await background.begin([.camera,.notifications])
+        precondition(background.waiting && background.current == .camera && background.status(.camera) == .allowed && backgroundClient.requests == [.camera])
+        foreground=true;await background.refresh()
+        precondition(!background.running && backgroundClient.requests == [.camera,.notifications])
+        background.selected=[.camera,.notifications];precondition(background.readyCount == 2)
+        backgroundClient.values[.camera] = .settings;await background.refresh()
+        precondition(background.readyCount == 1 && backgroundClient.requests == [.camera,.notifications])
+        precondition(background.message.contains("Some features still need access"))
+        let lightClient=PermissionFixtureClient(),light=IslandPermissionSetup(client:lightClient)
+        lightClient.values[.camera] = .allowed;await light.refresh()
+        lightClient.values[.input] = .allowed;await light.refresh(controlsOnly:true)
+        precondition(light.status(.camera) == .allowed && light.status(.input) == .allowed)
+        precondition(lightClient.fullReads == 1 && lightClient.controlReads == 1)
+        precondition(lightClient.requests.isEmpty)
+        lightClient.values[.mediaControls] = .allowed;lightClient.values[.input] = .settings;await light.refresh(controlsOnly:true)
+        precondition(light.status(.mediaControls) == .allowed && light.status(.input) == .settings)
+        precondition(light.status(.accessibility) == .ask)
+        PermissionProbeFixture.checkBoth()
+        print("PASS: 57 production permission-flow and app/helper access-probe checks; delayed grants, stale polls, refresh coalescing, foreground resume, revocation, request serialization and cancellation; no OS permissions requested")
     }
 }

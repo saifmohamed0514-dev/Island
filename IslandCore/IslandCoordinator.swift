@@ -178,8 +178,8 @@ class IslandCoordinator: ObservableObject {
     
     @objc func sneakPeekEvent(_ notification: Notification) {
         let decoder = JSONDecoder()
-        if let decodedData = try? decoder.decode(
-            SharedSneakPeek.self, from: notification.userInfo?.first?.value as! Data)
+        guard let data=notification.userInfo?.values.compactMap({ $0 as? Data }).first else { return }
+        if let decodedData = try? decoder.decode(SharedSneakPeek.self,from:data)
         {
             let contentType =
                 decodedData.type == "brightness"

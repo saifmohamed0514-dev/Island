@@ -48,7 +48,6 @@ struct IslandModulePreview:View {
                             if slots.indices.contains(index),let module=slots[index] {
                                 Button { onSelect(module) } label: { block(module,index:index) }.buttonStyle(.plain)
                                     .draggable(IslandModuleTransfer(module:module)) { Label(module.title,systemImage:module.icon).padding(12).background(.regularMaterial,in:RoundedRectangle(cornerRadius:12)) }
-                                    .simultaneousGesture(TapGesture().onEnded { onSelect(module) })
                                     .help(IslandCanvasPreferences.title(index)+" · drag this block to another position, or click for settings")
                                     .accessibilityLabel(module.title+" in "+IslandCanvasPreferences.title(index)+". Click for settings or drag to move.")
                             } else {

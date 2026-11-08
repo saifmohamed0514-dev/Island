@@ -83,6 +83,8 @@ struct IslandHealthView: View {
         loading = true; defer { loading = false }
         calendarConnected = EKEventStore.authorizationStatus(for:.event) == .fullAccess
         remindersConnected = EKEventStore.authorizationStatus(for:.reminder) == .fullAccess
+        if !calendarConnected { events=[] }
+        if !remindersConnected { reminders=[] }
         if calendarConnected {
             let now = Calendar.current.startOfDay(for:Date())
             events = store.events(matching:store.predicateForEvents(withStart:now,end:now.addingTimeInterval(7*86400),calendars:nil)).sorted { $0.startDate < $1.startDate }
@@ -90,6 +92,8 @@ struct IslandHealthView: View {
         if remindersConnected {
             let predicate = store.predicateForReminders(in:nil)
             reminders = await withCheckedContinuation { continuation in store.fetchReminders(matching:predicate) { continuation.resume(returning:$0 ?? []) } }
+            // Authorization can be revoked while the asynchronous fetch runs.
+            if EKEventStore.authorizationStatus(for:.reminder) != .fullAccess { reminders=[];remindersConnected=false }
             reminders.sort { ($0.dueDateComponents?.date ?? .distantFuture) < ($1.dueDateComponents?.date ?? .distantFuture) }
         }
     }

@@ -57,15 +57,17 @@ final class XPCHelperClient: NSObject {
         
         let conn = NSXPCConnection(serviceName: serviceName)
         
-        conn.interruptionHandler = { [weak self] in
+        conn.interruptionHandler = { [weak self,weak conn] in
             Task { @MainActor in
+                guard self?.connection === conn else { return }
                 self?.connection = nil
                 self?.remoteService = nil
             }
         }
         
-        conn.invalidationHandler = { [weak self] in
+        conn.invalidationHandler = { [weak self,weak conn] in
             Task { @MainActor in
+                guard self?.connection === conn else { return }
                 self?.connection = nil
                 self?.remoteService = nil
             }
@@ -139,24 +141,33 @@ final class XPCHelperClient: NSObject {
     }
     
     nonisolated func isAccessibilityAuthorized() async -> Bool {
-        do {
-            let service = await MainActor.run {
-                ensureRemoteService()
+        await accessibilityAuthorizationStatus() ?? false
+    }
+
+    // nil is a service problem, not a denial. A dead helper must not leave the
+    // entire Permissions page spinning or erase a grant with a stale reply.
+    @MainActor func accessibilityAuthorizationStatus() async -> Bool? {
+        _ = ensureRemoteService()
+        guard let conn=connection else { return nil }
+        return await withCheckedContinuation { continuation in
+            var finished=false
+            var timeout:Task<Void,Never>?
+            @MainActor func finish(_ value:Bool?) {
+                guard !finished else { return };finished=true;timeout?.cancel()
+                if let value { self.notifyAuthorizationChange(value) }
+                else if self.connection === conn { self.connection=nil;self.remoteService=nil;conn.invalidate() }
+                continuation.resume(returning:value)
             }
-            let result: Bool = try await service.withContinuation { service, continuation in
-                service.isAccessibilityAuthorized { authorized in
-                    continuation.resume(returning: authorized)
-                }
+            let proxy=conn.remoteObjectProxyWithErrorHandler { _ in Task { @MainActor in finish(nil) } } as? IslandControlsProtocol
+            guard let proxy else { finish(nil);return }
+            proxy.isAccessibilityAuthorized { value in Task { @MainActor in finish(value) } }
+            timeout=Task { @MainActor in
+                do { try await Task.sleep(for:.seconds(2)) } catch { return }
+                finish(nil)
             }
-            await MainActor.run {
-                notifyAuthorizationChange(result)
-            }
-            return result
-        } catch {
-            return false
         }
     }
-    
+
     nonisolated func ensureAccessibilityAuthorization(promptIfNeeded: Bool) async -> Bool {
         do {
             let service = await MainActor.run {

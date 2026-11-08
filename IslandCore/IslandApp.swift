@@ -312,6 +312,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         IslandProfileSchedule.shared.start()
         IslandLiveActivityClock.shared.configure()
         if UserDefaults.standard.bool(forKey:"island.awake.restore") { IslandQuickActions.shared.setAwake(true) }
+        IslandPermissionMonitor.shared.start()
         IslandWindowSnapping.shared.configure()
         IslandUsageTracker.shared.setEnabled(IslandModuleStore.shared.enabled.contains(.usage))
         IslandDevices.shared.configure(IslandModuleStore.shared.enabled.contains(.devices))
@@ -452,10 +453,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
-        if !Defaults[.showOnAllDisplays] {
+        if !Defaults[.showOnAllDisplays],let screen=NSScreen.main ?? NSScreen.screens.first {
             let viewModel = self.vm
-            let window = createIslandLegacyWindow(
-                for: NSScreen.main ?? NSScreen.screens.first!, with: viewModel)
+            let window = createIslandLegacyWindow(for:screen,with:viewModel)
             self.window = window
             adjustWindowPosition(changeAlpha: true)
         } else {

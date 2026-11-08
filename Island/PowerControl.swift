@@ -16,27 +16,50 @@ import Security
     private var operation:UUID?
     private var observer:NSObjectProtocol?
     private var setupObserver:NSObjectProtocol?
+    private var setupApplication:NSRunningApplication?
+    private var setupWatch:Task<Void,Never>?
+    private var installation:UUID?
+    private var installationFinishing=false
+    private var availabilityTask:Task<Bool,Never>?
+    private var availabilityID=UUID()
     init() {
         setupObserver=DistributedNotificationCenter.default().addObserver(forName:Notification.Name("org.islandapp.Island.PowerSetupFinished"),object:nil,queue:.main) { [weak self] note in
-            let success=note.object as? String == "ok"
+            // This notification is only a hint. Trust the authenticated service
+            // probe, never a success string broadcast by another process.
             Task { @MainActor in
-                guard let self,self.busy else { return };self.busy=false;self.message=success ? "Setup finished. Checking power controls…" : "Setup wasn’t completed. You can retry or use Battery Settings.";self.connection?.invalidate();self.connection=nil;self.refresh()
+                guard let self,self.setupApplication?.isTerminated == true else { return }
+                self.finishInstallation()
             }
         }
         observer=NotificationCenter.default.addObserver(forName:.NSProcessInfoPowerStateDidChange,object:nil,queue:.main) { [weak self] _ in Task { @MainActor in self?.refresh() } }
     }
     func refresh() { if !busy { enabled=ProcessInfo.processInfo.isLowPowerModeEnabled };probe() }
     func checkAvailability() async -> Bool {
+        if let availabilityTask { return await availabilityTask.value }
+        let id=UUID();availabilityID=id
+        let task=Task { @MainActor in await self.probeAvailability() }
+        availabilityTask=task
+        let result=await task.value
+        if availabilityID == id { availabilityTask=nil }
+        return result
+    }
+    private func probeAvailability() async -> Bool {
         await withCheckedContinuation { continuation in
             var finished=false
+            var checkedConnection:NSXPCConnection?
+            var timeout:Task<Void,Never>?
             @MainActor func finish(_ result:Bool) {
-                guard !finished else { return };finished=true;self.available=result
-                if !result { self.connection?.invalidate();self.connection=nil }
+                guard !finished else { return };finished=true;timeout?.cancel()
+                if checkedConnection === self.connection {
+                    self.available=result
+                    if !result { self.connection?.invalidate();self.connection=nil }
+                }
                 continuation.resume(returning:result)
             }
             guard let service=proxy(onError:{ Task { @MainActor in finish(false) } }) else { finish(false);return }
+            checkedConnection=connection
             service.ping { result in Task { @MainActor in finish(result) } }
-            Task { try? await Task.sleep(for:.seconds(2));finish(false) }
+            timeout=Task { @MainActor in do { try await Task.sleep(for:.seconds(2)) } catch { return };finish(false) }
         }
     }
     private func proxy(onError:@escaping()->Void)->IslandPowerControl? {
@@ -48,14 +71,42 @@ import Security
     }
     private func probe() {
         guard !busy else { return }
-        proxy { [weak self] in self?.available=false;self?.connection?.invalidate();self?.connection=nil }?.ping { [weak self] result in Task { @MainActor in self?.available=result;if result,self?.message.hasPrefix("Setup finished") == true { self?.message="" } } }
+        Task { @MainActor in _ = await checkAvailability() }
     }
     func install() {
         guard !busy else { return };busy=true;message="Approve the one-time macOS setup if prompted."
+        installation=UUID();installationFinishing=false
         let helper=Bundle.main.bundleURL.appendingPathComponent("Contents/Library/LoginItems/IslandPowerSetup.app")
         let config=NSWorkspace.OpenConfiguration();config.activates=true
-        NSWorkspace.shared.openApplication(at:helper,configuration:config) { [weak self] _,error in
-            Task { @MainActor in if error != nil { self?.busy=false;self?.message="Couldn’t open Island’s setup helper. Reinstall this build or use Battery Settings." } }
+        NSWorkspace.shared.openApplication(at:helper,configuration:config) { [weak self] application,error in
+            Task { @MainActor in
+                guard let self,self.installation != nil else { return }
+                guard error == nil,let application else { self.installation=nil;self.busy=false;self.message="Couldn’t open Island’s setup helper. Reinstall this build or use Battery Settings.";return }
+                self.setupApplication=application
+                self.setupWatch=Task { @MainActor [weak self,weak application] in
+                    // Distributed notifications can be dropped. Watch only our
+                    // own setup process so completion/cancel always clears busy.
+                    while let application,!application.isTerminated {
+                        do { try await Task.sleep(for:.seconds(1)) } catch { return }
+                    }
+                    self?.finishInstallation()
+                }
+            }
+        }
+    }
+    private func finishInstallation() {
+        guard let id=installation,operation == nil,!installationFinishing else { return }
+        installationFinishing=true
+        setupWatch?.cancel();setupWatch=nil;setupApplication=nil
+        Task { @MainActor in
+            // Finish any older read before reconnecting to the newly installed service.
+            if let availabilityTask { _ = await availabilityTask.value }
+            availabilityTask=nil;availabilityID=UUID()
+            connection?.invalidate();connection=nil
+            let ready=await checkAvailability()
+            guard installation == id else { return }
+            installation=nil;busy=false;enabled=ProcessInfo.processInfo.isLowPowerModeEnabled
+            message=ready ? "Power controls are ready." : "Setup wasn’t completed. Choose Set up to try again, or use Battery Settings."
         }
     }
     func setEnabled(_ desired:Bool) {

@@ -12,7 +12,7 @@ import AVFoundation
 
 private let kSystemDefinedEventType = CGEventType(rawValue: 14)!
 
-final class MediaKeyInterceptor {
+@MainActor final class MediaKeyInterceptor {
     static let shared = MediaKeyInterceptor()
     
     private enum NXKeyType: Int {
@@ -25,6 +25,9 @@ final class MediaKeyInterceptor {
         case keyboardBrightnessDown = 22
     }
     
+    private var suspendedByUser=false
+    private var starting=false
+    private var generation=0
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private let step: Float = 1.0 / 16.0
@@ -45,37 +48,43 @@ final class MediaKeyInterceptor {
     // MARK: - Event Tap
     
     func start(promptIfNeeded: Bool = false) async {
-        guard eventTap == nil else { return }
-        
         // Ensure HUD replacement is enabled
         guard Defaults[.hudReplacement] else {
             stop()
             return
         }
         
-        // Check accessibility authorization
-        let authorized = await XPCHelperClient.shared.isAccessibilityAuthorized()
+        guard !suspendedByUser,!starting else { return };starting=true;defer { starting=false }
+        let captured=generation
+        // The event tap runs in Island, not in its window helper.
+        let authorized = IslandSystemPermissionClient.mainAccessibilityAuthorized()
         if !authorized {
             if promptIfNeeded {
                 let granted = await ensureAccessibilityAuthorization(promptIfNeeded: true)
                 guard granted else { return }
             } else {
-                return
+                stop();return
             }
         }
         
         // Permission setup owns prompts; starting an enabled feature only checks.
-        guard CGPreflightListenEventAccess() else { return }
+        guard captured == generation,Defaults[.hudReplacement],CGPreflightListenEventAccess() else { stop();return }
+        if let eventTap,CFMachPortIsValid(eventTap) {
+            if !CGEvent.tapIsEnabled(tap:eventTap) { CGEvent.tapEnable(tap:eventTap,enable:true) }
+            return
+        }
+        stop()
         let mask = CGEventMask(1 << kSystemDefinedEventType.rawValue)
         eventTap = CGEvent.tapCreate(
             tap: .cghidEventTap,
             place: .headInsertEventTap,
             options: .defaultTap,
             eventsOfInterest: mask,
-            callback: { _, _, cgEvent, userInfo in
-                guard let userInfo else { return Unmanaged.passRetained(cgEvent) }
+            callback: { _, type, cgEvent, userInfo in
+                guard let userInfo else { return Unmanaged.passUnretained(cgEvent) }
                 let interceptor = Unmanaged<MediaKeyInterceptor>.fromOpaque(userInfo).takeUnretainedValue()
-                return interceptor.handleEvent(cgEvent)
+                // This port's source is installed only on CFRunLoopGetMain().
+                return MainActor.assumeIsolated { interceptor.handleEvent(type:type,event:cgEvent) }
             },
             userInfo: UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
         )
@@ -90,8 +99,10 @@ final class MediaKeyInterceptor {
     }
     
     func stop() {
+        generation+=1;suspendedByUser=false
         if let eventTap {
             CGEvent.tapEnable(tap: eventTap, enable: false)
+            CFMachPortInvalidate(eventTap)
         }
         if let runLoopSource {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
@@ -102,15 +113,22 @@ final class MediaKeyInterceptor {
     
     // MARK: - Event Handling
     
-    private func handleEvent(_ cgEvent: CGEvent) -> Unmanaged<CGEvent>? {
+    private func handleEvent(type:CGEventType,event cgEvent: CGEvent) -> Unmanaged<CGEvent>? {
+        if type == .tapDisabledByTimeout {
+            if Defaults[.hudReplacement],let eventTap { CGEvent.tapEnable(tap:eventTap,enable:true) }
+            return Unmanaged.passUnretained(cgEvent)
+        }
+        // Respect an explicit suspension until the feature is toggled off/on
+        // or Island is reopened.
+        if type == .tapDisabledByUserInput { suspendedByUser=true;return Unmanaged.passUnretained(cgEvent) }
         // Ensure the CGEvent has a valid type before converting to NSEvent
         guard cgEvent.type != .null else {
-            return Unmanaged.passRetained(cgEvent)
+            return Unmanaged.passUnretained(cgEvent)
         }
         guard let nsEvent = NSEvent(cgEvent: cgEvent),
               nsEvent.type == .systemDefined,
               nsEvent.subtype.rawValue == 8 else {
-            return Unmanaged.passRetained(cgEvent)
+            return Unmanaged.passUnretained(cgEvent)
         }
         
         let data1 = nsEvent.data1
@@ -120,7 +138,7 @@ final class MediaKeyInterceptor {
         // 0xA = key down, 0xB = key up. Only handle key down.
         guard stateByte == 0xA,
               let keyType = NXKeyType(rawValue: keyCode) else {
-            return Unmanaged.passRetained(cgEvent)
+            return Unmanaged.passUnretained(cgEvent)
         }
         
         let flags = nsEvent.modifierFlags

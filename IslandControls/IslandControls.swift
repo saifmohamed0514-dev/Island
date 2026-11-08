@@ -11,6 +11,18 @@ import IOKit
 import CoreGraphics
 
 class IslandControls: NSObject, IslandControlsProtocol {
+    // A real, read-only AX operation detects grants/revocations even when the
+    // process-trust flag has not caught up after the Settings switch changes.
+    private func accessibilityAllowed()->Bool {
+        let system=AXUIElementCreateSystemWide()
+        AXUIElementSetMessagingTimeout(system,0.2)
+        var focused:CFTypeRef?
+        let result=AXUIElementCopyAttributeValue(system,kAXFocusedApplicationAttribute as CFString,&focused)
+        if result == .success { return true }
+        if result == .apiDisabled { return false }
+        return AXIsProcessTrusted()
+    }
+
     // Hold the actual clicked window throughout a drag, even if focus changes.
     private var snapWindows:[String:AXUIElement]=[:]
     private let snapLock=NSLock()
@@ -32,13 +44,13 @@ class IslandControls: NSObject, IslandControlsProtocol {
     }
     private func numbers(_ rect:CGRect?)->[NSNumber]? { rect.map { [$0.minX,$0.minY,$0.width,$0.height].map { NSNumber(value:Double($0)) } } }
     private func mainWindow(_ pid:Int32)->AXUIElement? {
-        guard AXIsProcessTrusted(),pid>0 else { return nil }
+        guard accessibilityAllowed(),pid>0 else { return nil }
         let app=AXUIElementCreateApplication(pid);AXUIElementSetMessagingTimeout(app,0.3)
         return elementAttribute(app,kAXFocusedWindowAttribute) ?? elementAttribute(app,kAXMainWindowAttribute)
     }
     @objc func windowBounds(_ pid:Int32,with reply:@escaping([NSNumber]?)->Void) { reply(mainWindow(pid).flatMap { numbers(windowRect($0)) }) }
     @objc func captureSnapWindow(_ x:Double,y:Double,with reply:@escaping(String?,Int32,[NSNumber]?)->Void) {
-        guard AXIsProcessTrusted(),x.isFinite,y.isFinite,abs(x)<100000,abs(y)<100000 else { reply(nil,0,nil);return }
+        guard accessibilityAllowed(),x.isFinite,y.isFinite,abs(x)<100000,abs(y)<100000 else { reply(nil,0,nil);return }
         let system=AXUIElementCreateSystemWide();AXUIElementSetMessagingTimeout(system,0.3)
         var hit:AXUIElement?
         guard AXUIElementCopyElementAtPosition(system,Float(x),Float(y),&hit) == .success,let hit else { reply(nil,0,nil);return }
@@ -52,11 +64,11 @@ class IslandControls: NSObject, IslandControlsProtocol {
     }
     private func snapWindow(_ token:String)->AXUIElement? { snapLock.lock();defer { snapLock.unlock() };return snapWindows[token] }
     @objc func snapWindowBounds(_ token:String,with reply:@escaping([NSNumber]?)->Void) {
-        guard AXIsProcessTrusted(),let window=snapWindow(token) else { reply(nil);return };reply(numbers(windowRect(window)))
+        guard accessibilityAllowed(),let window=snapWindow(token) else { reply(nil);return };reply(numbers(windowRect(window)))
     }
     @objc func releaseSnapWindow(_ token:String) { snapLock.lock();snapWindows.removeValue(forKey:token);snapLock.unlock() }
     private func tile(_ window:AXUIElement,x:Double,y:Double,width:Double,height:Double)->Bool {
-        guard AXIsProcessTrusted(),[x,y,width,height].allSatisfy({ $0.isFinite && abs($0)<100000 }),width>100,height>100,attribute(window,"AXFullScreen") as? Bool != true else { return false }
+        guard accessibilityAllowed(),[x,y,width,height].allSatisfy({ $0.isFinite && abs($0)<100000 }),width>100,height>100,attribute(window,"AXFullScreen") as? Bool != true else { return false }
         AXUIElementSetMessagingTimeout(window,0.5)
         var size=CGSize(width:width,height:height),point=CGPoint(x:x,y:y)
         guard let sizeValue=AXValueCreate(.cgSize,&size),let pointValue=AXValueCreate(.cgPoint,&point) else { return false }
@@ -75,7 +87,7 @@ class IslandControls: NSObject, IslandControlsProtocol {
     }
 
     @objc func isAccessibilityAuthorized(with reply: @escaping (Bool) -> Void) {
-        reply(AXIsProcessTrusted())
+        reply(accessibilityAllowed())
     }
 
     @objc func requestAccessibilityAuthorization() {
@@ -84,7 +96,7 @@ class IslandControls: NSObject, IslandControlsProtocol {
     }
 
     @objc func ensureAccessibilityAuthorization(_ promptIfNeeded: Bool, with reply: @escaping (Bool) -> Void) {
-        if AXIsProcessTrusted() {
+        if accessibilityAllowed() {
             reply(true)
             return
         }
@@ -94,7 +106,7 @@ class IslandControls: NSObject, IslandControlsProtocol {
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            reply(AXIsProcessTrusted())
+            reply(self.accessibilityAllowed())
         }
     }
     

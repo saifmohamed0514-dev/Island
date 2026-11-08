@@ -82,6 +82,13 @@ class WebcamManager: NSObject, ObservableObject {
 
     // MARK: - Camera Management
     
+    /// Refresh the status without opening a second prompt or starting capture.
+    func refreshAuthorization() {
+        authorizationStatus=AVCaptureDevice.authorizationStatus(for:.video)
+        checkCameraAvailability()
+        if authorizationStatus != .authorized { stopSession() }
+    }
+
     /// Checks current authorization status and requests access if needed
     func checkAndRequestVideoAuthorization() {
         let status = AVCaptureDevice.authorizationStatus(for: .video)

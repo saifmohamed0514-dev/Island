@@ -10,6 +10,7 @@ scripts/test-timer.sh
 scripts/test-completion.sh
 scripts/test-transition.sh
 scripts/test-permissions.sh
+scripts/test-media-keys.sh
 scripts/test-designer.sh
 scripts/test-files.sh
 scripts/test-bridge.sh
