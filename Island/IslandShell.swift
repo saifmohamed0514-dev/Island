@@ -38,15 +38,15 @@ struct IslandHeader:View {
             Color.clear.frame(width:min(130,vm.closedNotchSize.width * 0.65)).allowsHitTesting(false)
             HStack(spacing:8) {
                 if canvas.preferences.enabled && (coordinator.currentView != .dashboard || coordinator.showingCanvasDetail) {
-                    Button { coordinator.showingCanvasDetail=false;coordinator.currentView = .dashboard } label: { Image(systemName:"square.grid.2x2") }.help("Back to your layout").accessibilityLabel("Back to your layout")
+                    Button { coordinator.showingCanvasDetail=false;coordinator.currentView = .dashboard } label: { Image(systemName:"square.grid.2x2").frame(width:28,height:26) }.help("Back to your layout").accessibilityLabel("Back to your layout")
                 }
-                Button { vm.isPinned.toggle() } label: { Image(systemName:vm.isPinned ? "pin.fill" : "pin").foregroundStyle(vm.isPinned ? .cyan : .secondary) }.help(vm.isPinned ? "Unpin Island" : "Keep Island open").accessibilityLabel(vm.isPinned ? "Unpin Island" : "Pin Island")
-                Button { IslandSettingsController.shared.showWindow() } label: { Image(systemName:"slider.horizontal.3") }.help("Customize Island").accessibilityLabel("Island settings")
+                Button { vm.isPinned.toggle() } label: { Image(systemName:vm.isPinned ? "pin.fill" : "pin").foregroundStyle(vm.isPinned ? .cyan : .secondary).frame(width:28,height:26) }.help(vm.isPinned ? "Unpin Island" : "Keep Island open").accessibilityLabel(vm.isPinned ? "Unpin Island" : "Pin Island")
+                Button { IslandSettingsController.shared.showWindow() } label: { Image(systemName:"slider.horizontal.3").frame(width:28,height:26) }.help("Customize Island").accessibilityLabel("Island settings")
                 if Defaults[.showBatteryIndicator] {
                     IslandBatteryButton(batteryWidth:29,isCharging:battery.isCharging,isInLowPowerMode:battery.isInLowPowerMode,isPluggedIn:battery.isPluggedIn,levelBattery:battery.levelBattery,maxCapacity:battery.maxCapacity,timeToFullCharge:battery.timeToFullCharge,isForNotification:false)
                 }
             }.font(.system(size:13,weight:.medium)).buttonStyle(.plain).foregroundStyle(.secondary).frame(maxWidth:.infinity,alignment:.trailing)
-        }.frame(height:34)
+        }.frame(height:34).font(.system(size:13,weight:.medium))
     }
 }
 struct IslandCompactActivity:View {
@@ -116,8 +116,10 @@ struct IslandNowPlayingView:View {
         HStack(spacing:22) {
             Group {
                 if music.isPlayerIdle { RoundedRectangle(cornerRadius:22).fill(.white.opacity(0.055)).overlay { Image(systemName:"music.note").font(.system(size:34)).foregroundStyle(.secondary) } }
-                else { Image(nsImage:music.albumArt).resizable().scaledToFill().clipShape(RoundedRectangle(cornerRadius:22)) }
+                else { Image(nsImage:music.albumArt).resizable().scaledToFill() }
             }.frame(width:112,height:112)
+                .clipped()
+                .clipShape(RoundedRectangle(cornerRadius:22))
             VStack(alignment:.leading,spacing:8) {
                 if music.isPlayerIdle {
                     Text("Not Playing").font(.system(size:22,weight:.semibold))
@@ -125,21 +127,21 @@ struct IslandNowPlayingView:View {
                     Button("Open Music") { music.openMusicApp() }.buttonStyle(.bordered).padding(.top,5)
                     if Defaults[.mediaController] == .appleMusic || Defaults[.mediaController] == .spotify { Button("Set up player…") { IslandSettingsController.shared.showPermissions(Defaults[.mediaController] == .spotify ? .spotify : .music) }.buttonStyle(.borderless) }
                 } else {
-                    Text(music.songTitle).font(.system(size:17,weight:.semibold)).lineLimit(1)
-                    Text(music.artistName).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                    Text(music.songTitle).font(.system(size:17,weight:.semibold)).lineLimit(1).truncationMode(.tail).frame(maxWidth:.infinity,alignment:.leading)
+                    Text(music.artistName).font(.subheadline).foregroundStyle(.secondary).lineLimit(1).truncationMode(.tail).frame(maxWidth:.infinity,alignment:.leading)
                     TimelineView(.periodic(from:.now,by:0.5)) { context in
                         Slider(value:Binding(get:{ seeking ? seek : min(max(0,music.estimatedPlaybackPosition(at:context.date)),max(1,music.songDuration)) },set:{ seek = $0 }),in:0...max(1,music.songDuration),onEditingChanged:{ editing in seeking = editing; if !editing { music.seek(to:seek);IslandHaptics.play(.placement) } }).tint(.white).disabled(music.songDuration <= 0).accessibilityLabel("Playback position")
                     }
                     HStack(spacing:25) {
-                        Button { IslandHaptics.play(.selection);music.previousTrack() } label: { Image(systemName:"backward.fill") }.accessibilityLabel("Previous track")
-                        Button { IslandHaptics.play(.confirmation);music.togglePlay() } label: { Image(systemName:music.isPlaying ? "pause.fill" : "play.fill").font(.system(size:23)) }.accessibilityLabel(music.isPlaying ? "Pause" : "Play")
-                        Button { IslandHaptics.play(.selection);music.nextTrack() } label: { Image(systemName:"forward.fill") }.accessibilityLabel("Next track")
+                        Button { IslandHaptics.play(.selection);music.previousTrack() } label: { Image(systemName:"backward.fill") }.frame(width:28,height:32).accessibilityLabel("Previous track")
+                        Button { IslandHaptics.play(.confirmation);music.togglePlay() } label: { Image(systemName:music.isPlaying ? "pause.fill" : "play.fill").font(.system(size:23)) }.frame(width:34,height:32).accessibilityLabel(music.isPlaying ? "Pause" : "Play")
+                        Button { IslandHaptics.play(.selection);music.nextTrack() } label: { Image(systemName:"forward.fill") }.frame(width:28,height:32).accessibilityLabel("Next track")
                         Spacer()
                         if music.volumeControlSupported { Slider(value:Binding(get:{ music.volume },set:{ music.setVolume(to:$0) }),in:0...1).frame(width:70).tint(.white).accessibilityLabel("Player volume") }
-                        Button { music.openMusicApp() } label: { Image(systemName:"arrow.up.right.square") }.help("Open player")
+                        Button { music.openMusicApp() } label: { Image(systemName:"arrow.up.right.square") }.frame(width:28,height:32).help("Open player")
                     }.buttonStyle(.plain).font(.system(size:15))
                 }
-            }.frame(maxWidth:.infinity,alignment:.leading)
+            }.frame(minWidth:0,maxWidth:.infinity,alignment:.leading)
         }.frame(height:134).padding(.horizontal,12)
         .onChange(of:music.songTitle) { seeking = false; seek = music.elapsedTime }
     }
