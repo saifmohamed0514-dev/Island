@@ -14,6 +14,7 @@ import Defaults
 enum IslandPermission:String,CaseIterable,Identifiable {
     case accessibility,input,mediaControls,bluetooth,camera,calendar,reminders,notifications,music,spotify,focus,power
     var id:String { rawValue }
+    static var visibleCases:[Self] { allCases.filter { $0 != .input } }
     var title:String {
         switch self {
         case .accessibility:return "Window and system controls"
@@ -68,7 +69,7 @@ enum IslandPermission:String,CaseIterable,Identifiable {
         case .calendar:destination="com.apple.preference.security?Privacy_Calendars"
         case .reminders:destination="com.apple.preference.security?Privacy_Reminders"
         case .accessibility,.mediaControls:destination="com.apple.preference.security?Privacy_Accessibility"
-        case .input:destination="com.apple.preference.security?Privacy_ListenEvent"
+        case .input:destination="com.apple.preference.security?Privacy_Accessibility"
         case .bluetooth:destination="com.apple.preference.security?Privacy_BluetoothAlways"
         case .notifications:destination="com.apple.Notifications-Settings.extension"
         case .music,.spotify:destination="com.apple.preference.security?Privacy_Automation"
@@ -79,9 +80,9 @@ enum IslandPermission:String,CaseIterable,Identifiable {
     }
     var approvalHelp:String {
         switch self {
-        case .accessibility:return "For window layouts and snapping, enable Island (or Island Controls, if listed) under Privacy & Security → Accessibility. This permission uses a switch in System Settings."
+        case .accessibility:return "For window layouts and snapping, enable Island under Privacy & Security → Device Control and Data Access (called Accessibility on older macOS versions). Approve the Mac’s Touch ID or password request if it appears."
         case .mediaControls:return "Allow Island to control media-key events. Enable Island in Privacy & Security → Accessibility (called Device Control and Data Access on newer macOS versions). Window access and media-key filtering are checked separately."
-        case .input:return "Media keys use Privacy & Security → Input Monitoring. Allow Island in the prompt or enable its switch there."
+        case .input:return IslandPermission.mediaControls.approvalHelp
         case .power:return "Island Power Setup asks for administrator approval once. Approve its own dialog; the ordinary privacy switches can’t enable power controls."
         case .music,.spotify:return "Allow Island to control your player. If you previously declined, enable the player under Island in Privacy & Security → Automation."
         case .notifications:return "Choose Allow in the notification request. If you previously declined, enable Island under Notifications in System Settings."
@@ -115,7 +116,7 @@ enum IslandPermissionRecommendations {
     static func selected(modules:[NotchViews],snapping:Bool,hud:Bool,deviceAlerts:Bool,healthAlerts:Bool,player:String,useFocus:Bool)->Set<IslandPermission> {
         var wanted=Set<IslandPermission>()
         if snapping || hud || modules.contains(.windows) { wanted.insert(.accessibility) }
-        if hud { wanted.formUnion([.input,.mediaControls]) }
+        if hud { wanted.insert(.mediaControls) }
         if modules.contains(.devices) { wanted.insert(.bluetooth) }
         if modules.contains(.mirror) { wanted.insert(.camera) }
         if modules.contains(.calendar) || modules.contains(.day) { wanted.insert(.calendar) }
@@ -125,6 +126,18 @@ enum IslandPermissionRecommendations {
         if player == "spotify" { wanted.insert(.spotify) }
         if useFocus { wanted.insert(.focus) }
         return wanted
+    }
+}
+// Active media-key filtering uses the control grant. A separate passive
+// Input Monitoring check can stay false despite that grant and must not block
+// an already-authorized filter. The old input key remains a compatibility alias.
+struct IslandControlAccess {
+    let window:Bool?
+    let media:Bool
+    var statuses:[IslandPermission:IslandPermissionStatus] {
+        [.accessibility:window.map { $0 ? .allowed : .ask } ?? .checking,
+         .mediaControls:media ? .allowed : .ask,
+         .input:media ? .allowed : .ask]
     }
 }
 enum IslandPermissionAttempt { case finished,waitingInSettings,waitingForApproval }
@@ -312,19 +325,16 @@ extension IslandPermissionClient {
         return result
     }
     func controlsSnapshot() async -> [IslandPermission:IslandPermissionStatus] {
-        var result:[IslandPermission:IslandPermissionStatus]=[:]
-        let helperAccess=await XPCHelperClient.shared.accessibilityAuthorizationStatus(),input=CGPreflightListenEventAccess(),mainAccess=Self.mainAccessibilityAuthorized()
-        result[.accessibility] = helperAccess.map { $0 ? .allowed : .ask } ?? .checking
-        result[.input] = input ? .allowed : .ask
-        result[.mediaControls] = mainAccess ? .allowed : .ask
+        let helperAccess=await XPCHelperClient.shared.accessibilityAuthorizationStatus(),mainAccess=Self.mainAccessibilityAuthorized()
+        let result=IslandControlAccess(window:helperAccess,media:mainAccess).statuses
         let accessibility=result[.accessibility] == .allowed
-        let report="main=\(mainAccess) helper=\(helperAccess.map(String.init) ?? "checking") input=\(input)"
+        let report="mediaControl=\(mainAccess) windowHelper=\(helperAccess.map(String.init) ?? "checking")"
         if report != lastControlReport { log.notice("System access: \(report,privacy:.public)");lastControlReport=report }
         if helperAccess != nil {
             if lastAccessibility != accessibility { IslandWindowSnapping.shared.configure() }
             lastAccessibility=accessibility
         }
-        let mediaReady=input && mainAccess
+        let mediaReady=mainAccess
         if mediaReady { await MediaKeyInterceptor.shared.start(promptIfNeeded:false) }
         else if lastInput != mediaReady { MediaKeyInterceptor.shared.stop() }
         lastInput=mediaReady
@@ -355,11 +365,8 @@ extension IslandPermissionClient {
         case .accessibility:
             XPCHelperClient.shared.requestAccessibilityAuthorization()
             return .waitingForApproval
-        case .mediaControls:
+        case .mediaControls,.input:
             _ = CGRequestPostEventAccess()
-            return .waitingForApproval
-        case .input:
-            _ = CGRequestListenEventAccess()
             return .waitingForApproval
         case .power:
             IslandPowerController.shared.install();return .waitingForApproval
@@ -423,7 +430,7 @@ struct IslandPermissionsView:View {
     var guidedSetup=false
     @State private var showAll=false
     @State private var recommendations=Set<IslandPermission>()
-    private var visiblePermissions:[IslandPermission] { IslandPermission.allCases.filter { !guidedSetup || showAll || recommendations.contains($0) || setup.selected.contains($0) } }
+    private var visiblePermissions:[IslandPermission] { IslandPermission.visibleCases.filter { !guidedSetup || showAll || recommendations.contains($0) || setup.selected.contains($0) } }
     @ObservedObject private var setup=IslandPermissionSetup.shared
     @ObservedObject private var power=IslandPowerController.shared
     @ObservedObject private var bridge=IslandAgentBridge.shared
@@ -436,10 +443,10 @@ struct IslandPermissionsView:View {
                 Text(guidedSetup ? "These permissions support the features you chose. Set them up now, or continue and finish later. Approvals happen one at a time." : "Choose the features you want. Island will guide you through one approval at a time and skip anything already allowed.").foregroundStyle(.secondary)
                 HStack {
                     Button("Set up selected") { Task { await setup.begin() } }.buttonStyle(.borderedProminent).disabled(setup.running || setup.prompting || setup.refreshing || setup.remaining.isEmpty)
-                    if !guidedSetup || showAll { Button("Select all") { setup.selected=Set(IslandPermission.allCases.filter { setup.status($0).canSetUp }) }.disabled(setup.running || setup.prompting) }
+                    if !guidedSetup || showAll { Button("Select all") { setup.selected=Set(IslandPermission.visibleCases.filter { setup.status($0).canSetUp }) }.disabled(setup.running || setup.prompting) }
                     Button("Clear selection") { setup.selected=[] }.disabled(setup.running || setup.prompting)
                     Spacer()
-                    Button("Check access",systemImage:"arrow.clockwise") { Task { await setup.refresh(mayContinue:NSApp.isActive) } }.disabled(setup.refreshing || setup.prompting)
+                    Button("Check access",systemImage:"arrow.clockwise") { Task { await setup.refresh(mayContinue:NSApp.isActive) } }.accessibilityLabel("Refresh all permission statuses").disabled(setup.refreshing || setup.prompting)
                 }
                 if setup.refreshing { HStack { ProgressView().controlSize(.mini);Text("Checking access on this Mac…").font(.caption).foregroundStyle(.secondary) } }
                 else { Text("\(setup.readyCount) of \(setup.selected.count) selected features ready. Access refreshes automatically when you return to Island.").font(.caption).foregroundStyle(.secondary) }
@@ -454,13 +461,13 @@ struct IslandPermissionsView:View {
                         if current == .power,!power.message.isEmpty { Text(power.message).font(.caption).foregroundStyle(.secondary) }
                         if current != .power { Button("Open System Settings…") { IslandSystemPermissionClient.openSettings(current) } }
                         HStack {
-                            Button("Check access") { Task { await setup.refresh(mayContinue:NSApp.isActive) } }
+                            Button("Check access") { Task { await setup.refresh(mayContinue:NSApp.isActive) } }.accessibilityLabel("Check access for "+current.title)
                             if !setup.waitingInSettings { Button("Show prompt again") { Task { await setup.retry() } }.disabled(current == .power && power.busy) }
                             Button("Skip for now") { Task { await setup.skip() } }
                         }
                         if current == .input || current == .accessibility || current == .mediaControls {
                             Text("Already enabled in System Settings? macOS may need Island to reopen before the new access takes effect. Your settings will be kept.").font(.caption).foregroundStyle(.secondary)
-                            Button("Restart Island…") { ApplicationRelauncher.restart() }.disabled(setup.prompting)
+                            Button("Restart Island…") { ApplicationRelauncher.restart(showPermissions:true) }.disabled(setup.prompting)
                         }
                     } else { HStack { ProgressView().controlSize(.small);Text("Follow the macOS prompt.") } }
                     Button("Finish later") { setup.stop() }
@@ -489,7 +496,7 @@ struct IslandPermissionsView:View {
             if !setup.hasSuggestedSelection { setup.selected=recommendations;setup.hasSuggestedSelection=true }
             if let requested=navigation.requestedPermission,!guidedSetup {
                 setup.selected.insert(requested)
-                if Defaults[.hudReplacement],requested == .accessibility || requested == .input || requested == .mediaControls { setup.selected.formUnion([.accessibility,.input,.mediaControls]) }
+                if Defaults[.hudReplacement],requested == .accessibility || requested == .input || requested == .mediaControls { setup.selected.formUnion([.accessibility,.mediaControls]) }
             }
             await setup.refresh(mayContinue:NSApp.isActive)
             while !Task.isCancelled { do { try await Task.sleep(for:.seconds(setup.running ? 1 : 5)) } catch { return };await setup.refresh(mayContinue:NSApp.isActive) }
@@ -505,8 +512,8 @@ struct IslandPermissionsView:View {
             Image(systemName:key.icon).frame(width:20).foregroundStyle(.secondary)
             VStack(alignment:.leading,spacing:4) { Text(key.title).fontWeight(.medium);Text(key.detail).font(.caption).foregroundStyle(.secondary);Label(state.label,systemImage:state == .allowed ? "checkmark.circle.fill" : "circle").font(.caption).foregroundStyle(state == .allowed ? .green : .secondary) }
             Spacer(minLength:8)
-            if state.canSetUp { Button(state == .settings ? "Review…" : "Set up") { Task { await setup.begin([key]) } }.disabled(setup.running || setup.prompting || setup.refreshing) }
-            else if state == .allowed { Button("Manage…") { IslandSystemPermissionClient.openSettings(key) }.disabled(setup.running || setup.prompting) }
+            if state.canSetUp { Button(state == .settings ? "Review…" : "Set up") { Task { await setup.begin([key]) } }.accessibilityLabel((state == .settings ? "Review " : "Set up ")+key.title).disabled(setup.running || setup.prompting || setup.refreshing) }
+            else if state == .allowed { Button("Manage…") { IslandSystemPermissionClient.openSettings(key) }.accessibilityLabel("Manage "+key.title+" access").disabled(setup.running || setup.prompting) }
         }.padding(.vertical,6).accessibilityElement(children:.contain)
     }
 }

@@ -68,7 +68,7 @@ private let kSystemDefinedEventType = CGEventType(rawValue: 14)!
         }
         
         // Permission setup owns prompts; starting an enabled feature only checks.
-        guard captured == generation,Defaults[.hudReplacement],CGPreflightListenEventAccess() else { stop();return }
+        guard captured == generation,Defaults[.hudReplacement] else { stop();return }
         if let eventTap,CFMachPortIsValid(eventTap) {
             if !CGEvent.tapIsEnabled(tap:eventTap) { CGEvent.tapEnable(tap:eventTap,enable:true) }
             return
@@ -76,7 +76,7 @@ private let kSystemDefinedEventType = CGEventType(rawValue: 14)!
         stop()
         let mask = CGEventMask(1 << kSystemDefinedEventType.rawValue)
         eventTap = CGEvent.tapCreate(
-            tap: .cghidEventTap,
+            tap: .cgSessionEventTap,
             place: .headInsertEventTap,
             options: .defaultTap,
             eventsOfInterest: mask,

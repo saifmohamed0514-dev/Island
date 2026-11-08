@@ -1,6 +1,6 @@
 import AppKit
 @main struct MediaKeysSmoke {
-    @MainActor static func main() {
+    @MainActor static func main() async {
         let fixture=MediaFixture(),empty=CGEvent(source:nil)!
         func event(_ code:Int,_ state:Int=0xA,_ flags:NSEvent.ModifierFlags=[])->CGEvent {
             NSEvent.otherEvent(with:.systemDefined,location:.zero,modifierFlags:flags,timestamp:0,windowNumber:0,context:nil,subtype:8,data1:(code<<16)|(state<<8),data2:-1)!.cgEvent!
@@ -19,6 +19,15 @@ import AppKit
         let mouse=CGEvent(mouseEventSource:nil,mouseType:.mouseMoved,mouseCursorPosition:.zero,mouseButton:.left)!
         precondition(fixture.handleEvent(type:mouse.type,event:mouse)?.takeUnretainedValue() === mouse)
         precondition(fixture.handleEvent(type:.tapDisabledByTimeout,event:empty)?.takeUnretainedValue() === empty && fixture.keys == [1])
-        print("PASS: 8 production media-key handler checks; callback suspension/timeout types, unrelated events, key-up, supported keys and Option routing; events allocated in memory only, no input posted")
+        fixture.stop();Defaults.enabled=true;IslandSystemPermissionClient.allowed=false
+        await fixture.start()
+        precondition(fixture.fixtureTapStarts == 0)
+        IslandSystemPermissionClient.allowed=true;await fixture.start()
+        precondition(fixture.fixtureTapStarts == 1 && fixture.passiveInputChecks == 0)
+        Defaults.enabled=false;await fixture.start()
+        precondition(fixture.fixtureTapStarts == 1)
+        Defaults.enabled=true;IslandSystemPermissionClient.allowed=false;await fixture.start()
+        precondition(fixture.fixtureTapStarts == 1)
+        print("PASS: 12 production media-key handler/startup checks; authorized filter with no passive-input grant, opt-out/revocation, callback suspension/timeout types, unrelated events, key-up, supported keys and Option routing; events allocated in memory only, no input posted")
     }
 }

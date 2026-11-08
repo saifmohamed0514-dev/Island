@@ -91,7 +91,7 @@ import Foundation
         let snapOnly=IslandPermissionRecommendations.selected(modules:[.home],snapping:true,hud:false,deviceAlerts:false,healthAlerts:false,player:"nowPlaying",useFocus:false)
         precondition(snapOnly == [.accessibility])
         let chosen=IslandPermissionRecommendations.selected(modules:[.day,.tasks,.devices,.mirror],snapping:false,hud:true,deviceAlerts:true,healthAlerts:false,player:"spotify",useFocus:true)
-        precondition(chosen == [.calendar,.reminders,.bluetooth,.camera,.accessibility,.input,.mediaControls,.notifications,.spotify,.focus])
+        precondition(chosen == [.calendar,.reminders,.bluetooth,.camera,.accessibility,.mediaControls,.notifications,.spotify,.focus])
         precondition(!chosen.contains(.power) && !chosen.contains(.music))
         let music=IslandPermissionRecommendations.selected(modules:[],snapping:false,hud:false,deviceAlerts:false,healthAlerts:true,player:"appleMusic",useFocus:false)
         precondition(music == [.music,.notifications])
@@ -179,7 +179,19 @@ import Foundation
         lightClient.values[.mediaControls] = .allowed;lightClient.values[.input] = .settings;await light.refresh(controlsOnly:true)
         precondition(light.status(.mediaControls) == .allowed && light.status(.input) == .settings)
         precondition(light.status(.accessibility) == .ask)
+        let approved=IslandControlAccess(window:true,media:true).statuses
+        precondition(approved[.accessibility] == .allowed)
+        precondition(approved[.mediaControls] == .allowed && approved[.input] == .allowed)
+        let windowOnly=IslandControlAccess(window:true,media:false).statuses
+        precondition(windowOnly[.accessibility] == .allowed && windowOnly[.mediaControls] == .ask)
+        let mediaOnly=IslandControlAccess(window:false,media:true).statuses
+        precondition(mediaOnly[.accessibility] == .ask && mediaOnly[.mediaControls] == .allowed)
+        let unavailableHelper=IslandControlAccess(window:nil,media:true).statuses
+        precondition(unavailableHelper[.accessibility] == .checking && unavailableHelper[.mediaControls] == .allowed)
+        precondition(!IslandPermission.visibleCases.contains(.input))
+        precondition(IslandPermission.visibleCases.contains(.mediaControls))
+        precondition(chosen.contains(.mediaControls) && !chosen.contains(.input))
         PermissionProbeFixture.checkBoth()
-        print("PASS: 57 production permission-flow and app/helper access-probe checks; delayed grants, stale polls, refresh coalescing, foreground resume, revocation, request serialization and cancellation; no OS permissions requested")
+        print("PASS: 65 production permission-flow and app/helper access-probe checks; delayed grants, stale polls, refresh coalescing, foreground resume, revocation, request serialization and cancellation; no OS permissions requested")
     }
 }

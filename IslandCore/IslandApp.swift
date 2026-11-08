@@ -470,7 +470,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             } else { self.adjustWindowPosition(changeAlpha:true);self.window?.orderFrontRegardless();self.windows.values.forEach { $0.orderFrontRegardless() };self.setupDragDetectors() }
         }
 
-        if coordinator.firstLaunch {
+        if CommandLine.arguments.contains("--show-permissions") {
+            DispatchQueue.main.async { IslandSettingsController.shared.showPermissions() }
+        } else if coordinator.firstLaunch {
             DispatchQueue.main.async {
                 self.showOnboardingWindow()
             }
