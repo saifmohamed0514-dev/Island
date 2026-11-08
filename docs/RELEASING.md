@@ -1,14 +1,16 @@
 # Island signed updates
 
-The app uses Sparkle, already linked by the Xcode project. At present both the feed and public key are absent, and starting the updater is gated on valid configuration. It cannot update from Boring Notch's feed.
+The app uses Sparkle, already linked by the Xcode project. A public signing key is included; the release feed is still unconnected. Starting the updater is gated on valid configuration and completion of first-run setup. Automatic checks/downloads start off, with explicit consent, cadence and installation-time choices. It cannot update from Boring Notch's feed.
 
 Official reference: https://sparkle-project.org/documentation/ and https://sparkle-project.org/documentation/publishing/
+
+For an interactive setup, double-click `Set Up Updates.command` in the Source folder. Nothing is published by that command.
 
 ## One-time setup
 
 1. Create your own public GitHub repository. Decide its URL before distributing an auto-updating app. The configured bundle ID is `org.islandapp.Island`; choose a permanent ID before a public release if you want a namespace you own. Changing it later affects preferences, permissions and update identity.
 2. Build once. Find Sparkle's tools under `.build/SourcePackages/artifacts/sparkle/Sparkle/bin/`.
-3. Run `generate_keys --account IslandUpdates`. It stores the private update key in your macOS Keychain and prints the public key. Follow any macOS Keychain prompt yourself. Do not commit an exported private key.
+3. Run `generate_keys --account Island-org.islandapp.Island`. It stores the private update key in your macOS Keychain and prints the public key. Follow any macOS Keychain prompt yourself. Do not commit an exported private key.
 4. Configure the project with the public key:
 
    ```sh
@@ -23,7 +25,7 @@ Official reference: https://sparkle-project.org/documentation/ and https://spark
 
 1. Increase `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in both main-target build configurations in `Island.xcodeproj/project.pbxproj`. Example: version `2.0.1`, build `201`. Keep increasing the build number.
 2. Run `scripts/build.sh` and extract `dist/Island.zip` to a temporary folder. Verify the extracted app with `codesign --verify --deep --strict`.
-3. Export your Sparkle key to a protected file using `generate_keys --account IslandUpdates -x PRIVATE-PATH`. Keep it outside the repository. Set `SPARKLE_PRIVATE_KEY` from that file in your own shell; do not paste the value into chats, source or logs. The release script passes it to Sparkle using an owner-only temporary file, not a command-line argument.
+3. Local signing uses the `Island-org.islandapp.Island` key in Keychain automatically. Run the release command from your own Terminal session and approve a macOS Keychain request if one appears. No export is needed. Only for CI, export a protected key and place it in the `SPARKLE_PRIVATE_KEY` Actions secret; never put it in source or logs.
 4. Run:
 
    ```sh

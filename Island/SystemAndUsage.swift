@@ -64,12 +64,18 @@ struct IslandSystemView: View {
         observer = NSWorkspace.shared.notificationCenter.addObserver(forName:NSWorkspace.didActivateApplicationNotification,object:nil,queue:.main) { [weak self] notice in
             guard let app = notice.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication, let id = app.bundleIdentifier else { return }
             Task { @MainActor in
-                guard let self else { return }; self.record();self.activeApp=(id,app.localizedName ?? id);self.loadDay(); var entry = self.entries[id] ?? Entry(name:app.localizedName ?? id,seconds:0,switches:0); entry.switches += 1; self.entries[id] = entry; self.persist()
+                guard let self else { return }; self.record();self.activeApp=(id,app.localizedName ?? id);self.loadDay();guard !self.excluded.contains(id) else { return }; var entry = self.entries[id] ?? Entry(name:app.localizedName ?? id,seconds:0,switches:0); entry.switches += 1; self.entries[id] = entry; self.persist()
             }
         }
     }
+    private var resetHour:Int { min(23,max(0,UserDefaults.standard.integer(forKey:"island.usage.resetHour"))) }
+    private func dayStart(_ date:Date)->Date {
+        let shifted=Calendar.current.date(byAdding:.hour,value:-resetHour,to:date) ?? date
+        return Calendar.current.date(byAdding:.hour,value:resetHour,to:Calendar.current.startOfDay(for:shifted)) ?? Calendar.current.startOfDay(for:date)
+    }
+    private var excluded:Set<String> { Set((UserDefaults.standard.string(forKey:"island.usage.excluded") ?? "").split(separator:",").map { $0.trimmingCharacters(in:.whitespacesAndNewlines) }) }
     private func loadDay() {
-        let today = String(Int(Calendar.current.startOfDay(for:Date()).timeIntervalSince1970))
+        let today = String(Int(dayStart(Date()).timeIntervalSince1970))
         if day != today { undoEntries=nil;day = today; entries = (UserDefaults.standard.data(forKey:"island.usage."+day).flatMap { try? JSONDecoder().decode([String:Entry].self,from:$0) }) ?? [:] }
     }
     private func record() {
@@ -77,8 +83,9 @@ struct IslandSystemView: View {
         guard CGEventSource.secondsSinceLastEventType(.combinedSessionState,eventType:CGEventType(rawValue:UInt32.max)!) < 120,
               let activeApp,now.timeIntervalSince(last) >= 0,now.timeIntervalSince(last) <= 20 else { return }
         let id=activeApp.id
+        guard !excluded.contains(id) else { return }
         var entry = entries[id] ?? Entry(name:activeApp.name,seconds:0,switches:0)
-        entry.seconds += max(0,now.timeIntervalSince(max(last,Calendar.current.startOfDay(for:now)))); entries[id] = entry; persist()
+        entry.seconds += max(0,now.timeIntervalSince(max(last,dayStart(now)))); entries[id] = entry; persist()
     }
     private func persist() { UserDefaults.standard.set(try? JSONEncoder().encode(entries),forKey:"island.usage."+day) }
     func clearToday() { undoEntries=entries;entries=[:];persist() }
@@ -87,7 +94,7 @@ struct IslandSystemView: View {
     }
     func history(daysAgo:Int)->[String:Entry] {
         guard daysAgo != 0 else { return entries }
-        let date=Calendar.current.date(byAdding:.day,value:-daysAgo,to:Date()) ?? Date(),key=String(Int(Calendar.current.startOfDay(for:date).timeIntervalSince1970))
+        let date=Calendar.current.date(byAdding:.day,value:-daysAgo,to:Date()) ?? Date(),key=String(Int(dayStart(date).timeIntervalSince1970))
         return UserDefaults.standard.data(forKey:"island.usage."+key).flatMap { try? JSONDecoder().decode([String:Entry].self,from:$0) } ?? [:]
     }
 }
@@ -116,4 +123,15 @@ struct IslandUsageView:View {
             HStack { Button("Clear today’s counters",role:.destructive) { usage.clearToday() }.font(.caption);if usage.undoEntries != nil { Button("Undo clear") { usage.undoClear() }.font(.caption) };Spacer();Text("Local counters · idle time excluded").font(.caption2).foregroundStyle(.secondary) }
         }.onAppear { usage.setEnabled(true) }
     }
+}
+
+struct IslandUsageSettings:View {
+    @AppStorage("island.usage.resetHour") private var resetHour=0
+    @AppStorage("island.usage.excluded") private var excluded=""
+    @ObservedObject private var modules=IslandModuleStore.shared
+    var body:some View { Form {
+        Section("Local app counters") { Toggle("Record app usage",isOn:Binding(get:{ modules.enabled.contains(.usage) },set:{ modules.setEnabled(.usage,$0) }));Text("App names, active minutes and switch counts stay on this Mac. Idle time is excluded.").font(.caption).foregroundStyle(.secondary) }
+        Section("Your day") { Picker("Start a new day at",selection:$resetHour) { ForEach(0..<24,id:\.self) { Text(String(format:"%02d:00",$0)).tag($0) } };Text("Changing the day boundary selects a separate daily bucket. Existing history is kept.").font(.caption).foregroundStyle(.secondary) }
+        Section("Excluded apps") { TextField("Bundle IDs, separated by commas",text:$excluded);Text("For example: com.apple.finder, com.apple.Terminal. These apps won’t add time or switch counts while excluded.").font(.caption).foregroundStyle(.secondary) }
+    }.formStyle(.grouped) }
 }

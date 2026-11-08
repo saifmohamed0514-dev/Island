@@ -3,11 +3,11 @@ import Combine
 import Intents
 
 enum IslandWidget:String,CaseIterable,Identifiable {
-    case clock,focus,music,notes,battery,day,files
+    case clock,focus,music,notes,battery,day,files,weather,launcher,quote,awake
     var id:String { rawValue }
-    var title:String { switch self { case .clock:return "Clock";case .focus:return "Focus";case .music:return "Now Playing";case .notes:return "Notes";case .battery:return "Battery";case .day:return "Day Progress";case .files:return "File Tray" } }
-    var icon:String { switch self { case .clock:return "clock";case .focus:return "timer";case .music:return "music.note";case .notes:return "note.text";case .battery:return "battery.100";case .day:return "sun.horizon";case .files:return "tray" } }
-    var module:NotchViews? { switch self { case .focus:return .focus;case .music:return .home;case .notes:return .notes;case .files:return .shelf;default:return nil } }
+    var title:String { switch self { case .clock:return "Clock";case .focus:return "Focus";case .music:return "Now Playing";case .notes:return "Notes";case .battery:return "Battery";case .day:return "Day Progress";case .files:return "File Tray";case .weather:return "Weather";case .launcher:return "Launcher";case .quote:return "Your words";case .awake:return "Keep Awake" } }
+    var icon:String { switch self { case .clock:return "clock";case .focus:return "timer";case .music:return "music.note";case .notes:return "note.text";case .battery:return "battery.100";case .day:return "sun.horizon";case .files:return "tray";case .weather:return "cloud.sun";case .launcher:return "square.grid.3x3";case .quote:return "quote.opening";case .awake:return "cup.and.saucer" } }
+    var module:NotchViews? { switch self { case .focus:return .focus;case .music:return .home;case .notes:return .notes;case .files:return .shelf;case .weather:return .weather;case .launcher,.awake:return .launcher;default:return nil } }
     static func slots(_ raw:String)->[IslandWidget] {
         let parsed = raw.split(separator:",").compactMap { IslandWidget(rawValue:String($0)) }
         return Array((parsed + [.clock,.focus,.music,.notes]).prefix(4))
@@ -47,6 +47,7 @@ enum IslandScheduleRules {
     }
 }
 struct IslandDashboardSettings:View {
+    @AppStorage("island.dashboard.quote") private var quote="Make room for what matters."
     @AppStorage("island.dashboard.slots") var slots = "clock,focus,music,notes"
     @AppStorage("island.schedule.enabled") var scheduled = false
     @AppStorage("island.schedule.useFocus") var useFocus=false
@@ -65,6 +66,7 @@ struct IslandDashboardSettings:View {
                 Text("Widgets open their module when it is enabled. Your widget choices stay the same when you change layouts.").foregroundStyle(.secondary)
                 Text("Arrange full module blocks in Settings → Modules. These classic widgets are also available by adding Dashboard as a block.").font(.caption).foregroundStyle(.secondary)
             }
+            Section("Your words") { TextField("A line to keep close",text:$quote);Text("Choose Your words in a widget slot to see this on your Dashboard.").font(.caption).foregroundStyle(.secondary) }
             Section("System Focus") {
                 Toggle("Follow shared Focus status",isOn:$useFocus)
                 Text("Applies Work while a shared system Focus is on and Minimal when it is off. Requires Focus sharing permission. Focus takes priority over the daily schedule; macOS shares an on/off state, not the Focus name.").font(.caption).foregroundStyle(.secondary)
@@ -85,6 +87,9 @@ struct IslandDashboardSettings:View {
     }
 }
 struct IslandDashboardView:View {
+    @AppStorage("island.dashboard.quote") private var quote="Make room for what matters."
+    @ObservedObject private var weather=IslandWeather.shared
+    @ObservedObject private var awake=IslandQuickActions.shared
     @AppStorage("island.dashboard.slots") var slots = "clock,focus,music,notes"
     @ObservedObject var timer = IslandFocusTimer.shared
     @ObservedObject var music = MusicManager.shared
@@ -113,7 +118,11 @@ struct IslandDashboardView:View {
         case .focus:return timer.state.deadline != nil || (!timer.state.finished && timer.state.remaining < timer.state.duration) ? timer.label : "Ready when you are"
         case .music:return music.isPlayerIdle ? "Not Playing" : music.songTitle
         case .notes:return "Capture a thought"
-        case .files:return "Drop something here"
+        case .files:return ShelfStateViewModel.shared.items.isEmpty ? "Drop something here" : "\(ShelfStateViewModel.shared.items.count) items"
+        case .weather:if let value=weather.forecast?.current.temperature_2m,value.isFinite,abs(value)<1000 { let degrees=UserDefaults.standard.bool(forKey:"island.weather.fahrenheit") ? value*9/5+32 : value;return "\(Int(degrees.rounded()))° · "+(weather.place?.name ?? "Weather") };return "Choose a city"
+        case .launcher:return "Apps, folders & actions"
+        case .quote:return quote
+        case .awake:return awake.keepingAwake ? "This Mac stays awake" : "Idle sleep allowed"
         case .battery:return "\(islandBatteryPercent(battery.levelBattery))%"+(battery.isCharging ? " · Charging" : "")
         case .day:
             let beginning=Calendar.current.startOfDay(for:date), end=Calendar.current.date(byAdding:.day,value:1,to:beginning) ?? beginning.addingTimeInterval(86400)

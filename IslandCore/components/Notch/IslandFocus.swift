@@ -68,12 +68,15 @@ struct CustomSlider: View {
 // Island additions. GPL-3.0; upstream notices remain in their original files.
 
 struct IslandUpdateConfiguration {
-    static var isConfigured: Bool {
-        guard let feed = Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String,
-              let url = URL(string: feed), url.scheme == "https",
-              let key = Bundle.main.object(forInfoDictionaryKey: "SUPublicEDKey") as? String,
-              let bytes = Data(base64Encoded: key), bytes.count == 32 else { return false }
-        return url.host != nil && !feed.contains("TheBoredTeam")
+    static var feedURL:URL? {
+        let configured=Bundle.main.object(forInfoDictionaryKey:"SUFeedURL") as? String
+        let dynamic=UserDefaults.standard.string(forKey:"island.updates.feed")
+        guard let feed=configured ?? dynamic,let url=URL(string:feed),url.scheme == "https",url.host != nil,!feed.lowercased().contains("theboredteam") else { return nil }
+        return url
+    }
+    static var isConfigured:Bool {
+        guard feedURL != nil,let key=Bundle.main.object(forInfoDictionaryKey:"SUPublicEDKey") as? String,let bytes=Data(base64Encoded:key),bytes.count == 32 else { return false }
+        return true
     }
 }
 
@@ -198,9 +201,9 @@ struct IslandFocusView: View {
             .frame(width: 102, height: 102).padding(8).contentShape(Circle())
             .gesture(DragGesture(minimumDistance: 0).onChanged { event in
                 guard editable else { return }
-                if let minutes = dialDrag.value(x: event.location.x - 59, y: event.location.y - 59, current: timer.state.duration / 60, maximum: dialMax) { timer.reset(minutes: Double(minutes)) }
+                if let minutes = dialDrag.value(x: event.location.x - 59, y: event.location.y - 59, current: timer.state.duration / 60, maximum: dialMax) { if minutes % 5 == 0 && Int(timer.state.duration / 60) != minutes { IslandHaptics.play(.boundary) };timer.reset(minutes: Double(minutes)) }
 
-            }.onEnded { _ in dialDrag = IslandDialDrag() })
+            }.onEnded { _ in if editable { IslandHaptics.play(.placement) };dialDrag = IslandDialDrag() })
             .accessibilityElement(children: .ignore).accessibilityLabel("Timer duration")
             .accessibilityValue("\(Int(timer.state.duration / 60)) minutes")
             .accessibilityHint(editable ? "Adjust to set a custom duration" : "Pause the timer to change its duration")
@@ -213,7 +216,7 @@ struct IslandFocusView: View {
                 Text(editable ? "Drag the ring to set time" : "One thing at a time.").font(.caption).foregroundStyle(.secondary)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 5) {
-                        ForEach(timer.presets, id: \.self) { minute in Button("\(minute)m") { timer.reset(minutes: Double(minute)) }.buttonStyle(.bordered).accessibilityLabel("\(minute) minute preset") }
+                        ForEach(timer.presets, id: \.self) { minute in Button("\(minute)m") { IslandHaptics.play(.selection);timer.reset(minutes: Double(minute)) }.buttonStyle(.bordered).accessibilityLabel("\(minute) minute preset") }
                         Button { showingPresets = true } label: { Image(systemName: "plus") }.buttonStyle(.bordered).help("Add a preset")
                     }
                 }.frame(maxWidth: 280)
@@ -221,8 +224,8 @@ struct IslandFocusView: View {
             Spacer(minLength: 0)
             VStack(spacing: 10) {
                 if timer.ringing { Button("Stop ringing", systemImage: "bell.slash") { timer.dismissCompletion() }.tint(.orange) }
-                Button(action: timer.toggle) { Image(systemName: editable ? "play.fill" : "pause.fill").font(.title2).frame(width: 44,height: 40) }.buttonStyle(.bordered).tint(.orange).accessibilityLabel(editable ? "Start timer" : "Pause timer")
-                Button("Reset") { timer.reset(minutes: timer.state.duration / 60) }.buttonStyle(.plain).foregroundStyle(.secondary)
+                Button(action: { IslandHaptics.play(.confirmation);timer.toggle() }) { Image(systemName: editable ? "play.fill" : "pause.fill").font(.title2).frame(width: 44,height: 40) }.buttonStyle(.bordered).tint(.orange).accessibilityLabel(editable ? "Start timer" : "Pause timer")
+                Button("Reset") { IslandHaptics.play(.selection);timer.reset(minutes: timer.state.duration / 60) }.buttonStyle(.plain).foregroundStyle(.secondary)
             }
         }.padding(.horizontal, 12).frame(height: 134)
         .popover(isPresented: $showingPresets) { IslandAddPresetView(timer: timer).padding(20).frame(width: 250) }

@@ -3,6 +3,7 @@ import Foundation
     var values=Dictionary(uniqueKeysWithValues:IslandPermission.allCases.map { ($0,IslandPermissionStatus.ask) })
     var requests:[IslandPermission]=[]
     var waiting:Set<IslandPermission>=[]
+    var nativeWaiting:Set<IslandPermission>=[]
     var declining:Set<IslandPermission>=[]
     var hold:IslandPermission?
     var continuation:CheckedContinuation<Void,Never>?
@@ -12,6 +13,7 @@ import Foundation
         requests.append(key);inFlight+=1;maxInFlight=max(maxInFlight,inFlight);defer { inFlight-=1 }
         if hold == key { await withCheckedContinuation { continuation=$0 } }
         if waiting.contains(key) { return .waitingInSettings }
+        if nativeWaiting.contains(key) { return .waitingForApproval }
         values[key] = declining.contains(key) ? .settings : .allowed
         return .finished
     }
@@ -79,6 +81,23 @@ import Foundation
         precondition(!chosen.contains(.power) && !chosen.contains(.music))
         let music=IslandPermissionRecommendations.selected(modules:[],snapping:false,hud:false,deviceAlerts:false,healthAlerts:true,player:"appleMusic",useFocus:false)
         precondition(music == [.music,.notifications])
-        print("PASS: 22 production permission-flow checks; read-only refresh, stable ordering, granted/restricted skips, manual approval/resume, retry, decline, cancellation and no overlapping prompts; no OS permissions requested")
+        let inactiveClient=PermissionFixtureClient(),inactive=IslandPermissionSetup(client:inactiveClient)
+        inactiveClient.waiting=[.accessibility]
+        await inactive.refresh();await inactive.begin([.accessibility,.calendar])
+        precondition(inactive.waitingInSettings)
+        inactiveClient.values[.accessibility] = .allowed
+        await inactive.refresh(mayContinue:false)
+        precondition(inactive.running && inactive.current == .accessibility && inactiveClient.requests == [.accessibility])
+        await inactive.refresh(mayContinue:true)
+        precondition(!inactive.running && inactiveClient.requests == [.accessibility,.calendar])
+        precondition(IslandPermission.allCases.allSatisfy { !$0.approvalHelp.isEmpty })
+        let nativeClient=PermissionFixtureClient(),native=IslandPermissionSetup(client:nativeClient)
+        nativeClient.nativeWaiting=[.input]
+        await native.refresh();await native.begin([.input,.camera])
+        precondition(native.waiting && !native.waitingInSettings && native.current == .input)
+        await native.refresh();precondition(nativeClient.requests == [.input])
+        nativeClient.values[.input] = .allowed;await native.refresh()
+        precondition(!native.running && nativeClient.requests == [.input,.camera])
+        print("PASS: 29 production permission-flow checks; read-only refresh, stable ordering, granted/restricted skips, manual approval/resume, retry, decline, cancellation and no overlapping prompts; no OS permissions requested")
     }
 }

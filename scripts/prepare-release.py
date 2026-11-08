@@ -10,11 +10,16 @@ def prepare(app, archive, output, sign_tool):
     match = re.fullmatch(r'https://github.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/releases/latest/download/appcast.xml',feed)
     if not match or not info.get('SUPublicEDKey'): raise ValueError('Configure your update feed and public key, then rebuild first.')
     secret = os.environ.get('SPARKLE_PRIVATE_KEY','').strip()
-    if not secret: raise ValueError('Set SPARKLE_PRIVATE_KEY to your exported Sparkle private key (never commit it).')
-    # Keep signing material out of process arguments and source; temporary file is owner-only.
-    with tempfile.NamedTemporaryFile(mode='w') as key:
-        os.chmod(key.name,0o600); key.write(secret); key.flush()
-        signed = subprocess.check_output([str(sign_tool),'--ed-key-file',key.name,str(archive)],text=True)
+    if secret:
+        # CI can use an owner-only temporary file; never place a key in argv.
+        with tempfile.NamedTemporaryFile(mode='w') as key:
+            os.chmod(key.name,0o600);key.write(secret);key.flush()
+            signed=subprocess.check_output([str(sign_tool),'--ed-key-file',key.name,str(archive)],text=True)
+    else:
+        # Local publishing uses the Sparkle key already stored in Keychain.
+        account=info.get('IslandUpdateKeyAccount','Island-org.islandapp.Island')
+        signed=subprocess.check_output([str(sign_tool),'--account',account,str(archive)],text=True)
+
     signature = re.search(r'sparkle:edSignature="([^"]+)"',signed)
     if not signature: raise ValueError('Sparkle did not return an archive signature.')
     subprocess.run(['/usr/bin/xcrun', 'swift', str(Path(__file__).with_name('VerifyUpdate.swift')), str(archive), info['SUPublicEDKey'], signature[1]], check=True)

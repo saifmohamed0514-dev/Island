@@ -3,8 +3,8 @@ import Defaults
 import LaunchAtLogin
 
 enum OnboardingStep:Int,CaseIterable {
-    case welcome,preferences,modules,permissions,finished
-    var title:String { switch self { case .welcome:return "Welcome";case .preferences:return "Your preferences";case .modules:return "Your modules";case .permissions:return "Your permissions";case .finished:return "Ready" } }
+    case welcome,startup,preferences,permissions,tutorial,modules,finished
+    var title:String { switch self { case .welcome:return "Welcome";case .startup:return "Startup & updates";case .preferences:return "Your preferences";case .modules:return "Your modules";case .permissions:return "Your permissions";case .tutorial:return "A quick tour";case .finished:return "Ready" } }
     var next:OnboardingStep { OnboardingStep(rawValue:rawValue+1) ?? .finished }
     var previous:OnboardingStep { OnboardingStep(rawValue:rawValue-1) ?? .welcome }
 }
@@ -27,8 +27,21 @@ struct OnboardingView:View {
             HStack(spacing:5) { ForEach(OnboardingStep.allCases,id:\.rawValue) { item in Capsule().fill(item.rawValue<=step.rawValue ? Color.accentColor : Color.secondary.opacity(0.15)).frame(height:3) } }.padding(.horizontal,24)
             Group {
                 switch step {
-                case .welcome:WelcomeView { step = .preferences }
+                case .welcome:WelcomeView { step = .startup }
+                case .startup:
+                    Form {
+                        Section("Ready when you sign in") {
+                            Text("Would you like Island to open when you log in to your Mac?").font(.title2.weight(.semibold))
+                            LaunchAtLogin.Toggle("Open Island at login")
+                            Text("You can change this later in Settings → Behavior.").font(.caption).foregroundStyle(.secondary)
+                        }
+                        Section("Keep getting improvements") {
+                            Text("Would you like Island to check for updates? You choose when it checks and when it can install them.").foregroundStyle(.secondary)
+                            IslandUpdateOptions()
+                        }
+                    }.formStyle(.grouped)
                 case .preferences:preferences
+                case .tutorial:IslandTutorialView { step = .modules }
                 case .modules:
                     VStack(alignment:.leading,spacing:0) {
                         Text("Drag modules into the black preview. Click a module for its settings. Your changes apply to the real Island.").font(.callout).foregroundStyle(.secondary).padding(.horizontal,18).padding(.top,14)
@@ -50,11 +63,12 @@ struct OnboardingView:View {
                 if step != .welcome { Button("Back") { step=step.previous }.disabled(setup.prompting) }
                 Button(step == .finished ? "Close setup" : "Finish later") { finish() }.disabled(setup.prompting)
                 Spacer()
-                if step == .modules { Button("Choose modules later") { step = .permissions } }
+                if step == .modules { Button("Choose modules later") { step = .finished } }
+                if step == .tutorial { Button("Skip tutorial") { step = .modules } }
                 if step == .permissions {
-                    Button("Continue") { setup.stop();step = .finished }.buttonStyle(.borderedProminent).disabled(setup.prompting)
+                    Button("Continue") { setup.stop();step = .tutorial }.buttonStyle(.borderedProminent).disabled(setup.prompting)
                 } else if step == .finished { Button("Start using Island") { finish() }.buttonStyle(.borderedProminent) }
-                else if step != .welcome { Button("Continue") { step=step.next }.buttonStyle(.borderedProminent) }
+                else if step != .welcome && step != .tutorial { Button("Continue") { step=step.next }.buttonStyle(.borderedProminent) }
             }.controlSize(.large).padding(18)
         }.frame(minWidth:720,minHeight:680)
     }
@@ -65,7 +79,6 @@ struct OnboardingView:View {
                 Text("Pick what suits you. Every choice can be changed in Settings.").foregroundStyle(.secondary)
             }
             Section("Everyday") {
-                LaunchAtLogin.Toggle("Open Island at login")
                 Toggle("Open when the pointer rests on Island",isOn:$hover)
                 Toggle("Show Island on every display",isOn:$allDisplays).onChange(of:allDisplays) { NotificationCenter.default.post(name:.showOnAllDisplaysChanged,object:nil) }
             }

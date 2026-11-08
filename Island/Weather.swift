@@ -8,9 +8,9 @@ import UniformTypeIdentifiers
     struct Place: Codable { var name: String; var latitude: Double; var longitude: Double; var country: String? }
     struct Search: Codable { var results: [Place]? }
     struct Forecast: Codable {
-        struct Current: Codable { var temperature_2m: Double; var relative_humidity_2m: Double; var apparent_temperature: Double; var weather_code: Int; var wind_speed_10m: Double }
+        struct Current: Codable { var temperature_2m: Double; var relative_humidity_2m: Double; var apparent_temperature: Double; var weather_code: Int; var wind_speed_10m: Double;var surface_pressure:Double? }
         struct Hourly:Codable { var time:[String];var temperature_2m:[Double];var precipitation_probability:[Double]? }
-        struct Daily: Codable { var time: [String]; var temperature_2m_max: [Double]; var temperature_2m_min: [Double] }
+        struct Daily: Codable { var time: [String]; var temperature_2m_max: [Double]; var temperature_2m_min: [Double];var sunrise:[String]?;var sunset:[String]?;var uv_index_max:[Double]? }
         var current: Current; var daily: Daily;var hourly:Hourly?;var timezone:String?
     }
     @Published var forecast: Forecast?
@@ -27,7 +27,7 @@ import UniformTypeIdentifiers
             let result: Search = try await fetch(components.url!)
             guard let found = result.results?.first else { error = "No matching city found."; return }
             var request = URLComponents(string: "https://api.open-meteo.com/v1/forecast")!
-            request.queryItems = ["latitude": String(found.latitude), "longitude": String(found.longitude), "current": "temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m", "daily": "temperature_2m_max,temperature_2m_min", "hourly":"temperature_2m,precipitation_probability", "temperature_unit": "celsius", "timezone": "auto"].map { URLQueryItem(name: $0.key, value: $0.value) }
+            request.queryItems = ["latitude": String(found.latitude), "longitude": String(found.longitude), "current": "temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,surface_pressure", "daily": "temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max", "hourly":"temperature_2m,precipitation_probability", "temperature_unit": "celsius", "timezone": "auto"].map { URLQueryItem(name: $0.key, value: $0.value) }
             let data: Forecast = try await fetch(request.url!)
             forecast = data; place = found; updated = Date()
         } catch { self.error = "Weather unavailable. Check your connection and try again." }
@@ -82,6 +82,14 @@ struct IslandWeatherView: View {
                     if let url=photoURL,let image=NSImage(contentsOf:url) { Image(nsImage:image).resizable().scaledToFill().overlay(.black.opacity(0.45)) }
                     else { LinearGradient(colors:[Color.blue.opacity(0.4),Color.cyan.opacity(0.08)],startPoint:.topLeading,endPoint:.bottomTrailing) }
                 }.clipShape(RoundedRectangle(cornerRadius:16))
+                if let daily=weather.forecast?.daily {
+                    HStack(spacing:14) {
+                        if let uv=daily.uv_index_max?.first,uv.isFinite { Label(String(format:"UV %.0f",uv),systemImage:"sun.max") }
+                        if let pressure=current.surface_pressure,pressure.isFinite { Text(String(format:"%.0f hPa",pressure)) }
+                        if let sunrise=daily.sunrise?.first { Label(String(sunrise.suffix(5)),systemImage:"sunrise") }
+                        if let sunset=daily.sunset?.first { Label(String(sunset.suffix(5)),systemImage:"sunset") }
+                    }.font(.caption).foregroundStyle(.secondary)
+                }
                 if !weather.hours.isEmpty {
                     Text("Next 24 hours").font(.caption).foregroundStyle(.secondary)
                     Chart(weather.hours) { hour in LineMark(x:.value("Time",hour.date),y:.value("Temperature",Double(temperature(hour.temperature)))).interpolationMethod(.monotone).foregroundStyle(.cyan);AreaMark(x:.value("Time",hour.date),y:.value("Temperature",Double(temperature(hour.temperature)))).foregroundStyle(.cyan.opacity(0.07)) }.frame(height:85).chartXAxis { AxisMarks(values:.stride(by:.hour,count:6)) { _ in AxisValueLabel(format:.dateTime.hour()) } }

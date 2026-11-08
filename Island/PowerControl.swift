@@ -85,7 +85,7 @@ struct IslandPowerSwitch:View {
                 HStack {
                     Text("Low Power Mode").accessibilityHidden(true);Spacer()
                     if power.busy { ProgressView().controlSize(.mini).accessibilityLabel("Updating power mode") }
-                    Toggle("Low Power Mode",isOn:Binding(get:{ power.enabled },set:{ power.setEnabled($0) })).labelsHidden().toggleStyle(.switch).tint(.yellow).allowsHitTesting(!power.busy)
+                    Toggle("Low Power Mode",isOn:Binding(get:{ power.enabled },set:{ IslandHaptics.play(.selection);power.setEnabled($0) })).labelsHidden().toggleStyle(.switch).tint(.yellow).allowsHitTesting(!power.busy)
                 }
             } else { Button(power.busy ? "Setting up…" : "Set up power controls…") { IslandSettingsController.shared.showPermissions(.power) }.disabled(power.busy) }
             if !power.message.isEmpty { Text(power.message).font(.caption).foregroundStyle(.secondary) }

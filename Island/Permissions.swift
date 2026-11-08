@@ -72,6 +72,20 @@ enum IslandPermission:String,CaseIterable,Identifiable {
         }
         return URL(string:"x-apple.systempreferences:"+destination)!
     }
+    var approvalHelp:String {
+        switch self {
+        case .accessibility:return "For window layouts and snapping, enable Island (or Island Controls, if listed) under Privacy & Security → Accessibility. This permission uses a switch in System Settings."
+        case .input:return "Media keys use Privacy & Security → Input Monitoring. Allow Island in the prompt or enable its switch there."
+        case .power:return "Island Power Setup asks for administrator approval once. Approve its own dialog; the ordinary privacy switches can’t enable power controls."
+        case .music,.spotify:return "Allow Island to control your player. If you previously declined, enable the player under Island in Privacy & Security → Automation."
+        case .notifications:return "Choose Allow in the notification request. If you previously declined, enable Island under Notifications in System Settings."
+        case .camera:return "Choose Allow in the Camera request. If you previously declined, enable Island under Privacy & Security → Camera. Access alone never starts your camera."
+        case .calendar:return "Allow full Calendar access in the request. If you previously declined, review Island under Privacy & Security → Calendars."
+        case .reminders:return "Allow Reminders access in the request. If you previously declined, review Island under Privacy & Security → Reminders."
+        case .bluetooth:return "Allow Bluetooth in the request. If you previously declined, review Island under Privacy & Security → Bluetooth."
+        case .focus:return "Allow Focus status sharing in the request. If this Mac doesn’t share a status, time-based profiles still work."
+        }
+    }
     var playerID:String? { self == .music ? "com.apple.Music" : self == .spotify ? "com.spotify.client" : nil }
 }
 enum IslandPermissionStatus:Equatable {
@@ -107,7 +121,7 @@ enum IslandPermissionRecommendations {
         return wanted
     }
 }
-enum IslandPermissionAttempt { case finished,waitingInSettings }
+enum IslandPermissionAttempt { case finished,waitingInSettings,waitingForApproval }
 @MainActor protocol IslandPermissionClient {
     func snapshot() async -> [IslandPermission:IslandPermissionStatus]
     func request(_ permission:IslandPermission) async -> IslandPermissionAttempt
@@ -122,6 +136,7 @@ enum IslandPermissionAttempt { case finished,waitingInSettings }
     @Published private(set) var running=false
     @Published private(set) var prompting=false
     @Published private(set) var waiting=false
+    @Published private(set) var waitingInSettings=false
     @Published private(set) var refreshing=false
     @Published private(set) var message=""
     var hasSuggestedSelection=false
@@ -131,10 +146,10 @@ enum IslandPermissionAttempt { case finished,waitingInSettings }
     init(client:any IslandPermissionClient) { self.client=client }
     func status(_ key:IslandPermission)->IslandPermissionStatus { statuses[key] ?? .checking }
     var remaining:[IslandPermission] { IslandPermission.allCases.filter { selected.contains($0) && status($0).canSetUp } }
-    func refresh() async {
+    func refresh(mayContinue:Bool=true) async {
         guard !refreshing else { return };refreshing=true
         statuses=await client.snapshot();refreshing=false
-        if running,waiting,!prompting,let current,status(current) != .checking,!status(current).canSetUp { await advance(id:runID) }
+        if mayContinue,running,waiting,!prompting,let current,status(current) != .checking,!status(current).canSetUp { await advance(id:runID) }
     }
     func begin(_ permissions:[IslandPermission]?=nil) async {
         guard !running,!prompting,!refreshing else { return }
@@ -144,7 +159,7 @@ enum IslandPermissionAttempt { case finished,waitingInSettings }
     }
     private func advance(id:UUID) async {
         guard running,runID == id,!prompting else { return }
-        waiting=false;current=nil
+        waiting=false;waitingInSettings=false;current=nil
         while !queue.isEmpty {
             let next=queue.removeFirst()
             guard status(next).canSetUp else { continue }
@@ -154,7 +169,9 @@ enum IslandPermissionAttempt { case finished,waitingInSettings }
             guard running,runID == id else { message="You can finish setup whenever you’re ready.";return }
             statuses=await client.snapshot()
             guard running,runID == id else { return }
-            if result == .waitingInSettings,status(next) != .allowed { waiting=true;return }
+            if result != .finished,status(next).canSetUp {
+                waiting=true;waitingInSettings = result == .waitingInSettings;return
+            }
         }
         running=false;current=nil
         message="Setup finished. Anything you skipped can be set up here later."
@@ -165,7 +182,7 @@ enum IslandPermissionAttempt { case finished,waitingInSettings }
         queue.insert(current,at:0);await advance(id:runID)
     }
     func stop() {
-        runID=UUID();queue=[];running=false;waiting=false;current=nil
+        runID=UUID();queue=[];running=false;waiting=false;waitingInSettings=false;current=nil
         message=prompting ? "Finish the macOS prompt to continue." : "You can finish setup whenever you’re ready."
     }
 }
@@ -240,7 +257,9 @@ enum IslandPermissionAttempt { case finished,waitingInSettings }
     func request(_ key:IslandPermission) async -> IslandPermissionAttempt {
         let current=await snapshot()[key] ?? .unavailable
         guard current.canSetUp else { return .finished }
-        if current == .settings { Self.openSettings(key);return .waitingInSettings }
+        // A denied privacy grant can only be changed manually. Explain that in
+        // Island; opening Settings is a separate, explicit user action.
+        if current == .settings { return .waitingInSettings }
         NSApp.activate(ignoringOtherApps:true)
         switch key {
         case .bluetooth:await bluetooth.request()
@@ -255,11 +274,13 @@ enum IslandPermissionAttempt { case finished,waitingInSettings }
             await IslandAgenda.shared.refresh()
         case .notifications:_ = await IslandNotices.shared.requestPermission()
         case .accessibility:
-            if !(await XPCHelperClient.shared.ensureAccessibilityAuthorization(promptIfNeeded:true)) { Self.openSettings(key);return .waitingInSettings }
+            XPCHelperClient.shared.requestAccessibilityAuthorization()
+            return .waitingForApproval
         case .input:
-            if !CGRequestListenEventAccess() { Self.openSettings(key);return .waitingInSettings }
+            _ = CGRequestListenEventAccess()
+            return .waitingForApproval
         case .power:
-            IslandPowerController.shared.install();return .waitingInSettings
+            IslandPowerController.shared.install();return .waitingForApproval
         case .focus:
             await withCheckedContinuation { continuation in INFocusStatusCenter.default.requestAuthorization { _ in continuation.resume() } }
         case .music,.spotify:
@@ -321,9 +342,16 @@ struct IslandPermissionsView:View {
             if let current=setup.current {
                 Section("Setting up "+current.title) {
                     if setup.waiting {
-                        Text(current == .power ? "Approve Island Power Setup if your Mac asks. This page will continue when the controls are ready." : "Allow Island’s access in System Settings, then return here. This page checks automatically.")
+                        Text(setup.waitingInSettings ? "macOS requires you to change this access in System Settings. Open it when you’re ready, enable access, then return to Island." : "Follow the macOS approval prompt. Island will keep this step open and won’t switch apps for you.")
+                        Text(current.approvalHelp).font(.callout).foregroundStyle(.secondary)
                         if current == .power,!power.message.isEmpty { Text(power.message).font(.caption).foregroundStyle(.secondary) }
-                        HStack { Button("Check again") { Task { await setup.refresh() } };Button("Try again") { Task { await setup.retry() } }.disabled(current == .power && power.busy);Button("Not now") { Task { await setup.skip() } } }
+                        if current != .power { Button("Open System Settings…") { IslandSystemPermissionClient.openSettings(current) } }
+                        HStack {
+                            Button("Check access") { Task { await setup.refresh(mayContinue:NSApp.isActive) } }
+                            Button("Show prompt again") { Task { await setup.retry() } }.disabled(current == .power && power.busy)
+                            Button("Skip for now") { Task { await setup.skip() } }
+                        }
+                        if current == .input { Text("If macOS asks you to quit and reopen Island, use Restart Island in its menu after approving access.").font(.caption).foregroundStyle(.secondary) }
                     } else { HStack { ProgressView().controlSize(.small);Text("Follow the macOS prompt.") } }
                     Button("Finish later") { setup.stop() }
                 }
@@ -342,7 +370,6 @@ struct IslandPermissionsView:View {
             }
         }.formStyle(.grouped)
         .task {
-            await setup.refresh()
             if !setup.hasSuggestedSelection || guidedSetup {
                 setup.selected=IslandPermissionRecommendations.selected(
                     modules:IslandModuleStore.shared.enabled,
@@ -354,8 +381,9 @@ struct IslandPermissionsView:View {
                 if let requested=navigation.requestedPermission,!guidedSetup { setup.selected.insert(requested) }
                 setup.hasSuggestedSelection=true
             }
-            while !Task.isCancelled { try? await Task.sleep(for:.seconds(1));guard !Task.isCancelled else { return };await setup.refresh() }
-        }.onChange(of:navigation.requestedPermission) { if let key=navigation.requestedPermission { setup.selected.insert(key) } }
+            await setup.refresh(mayContinue:NSApp.isActive)
+            while !Task.isCancelled { try? await Task.sleep(for:.seconds(1));guard !Task.isCancelled else { return };await setup.refresh(mayContinue:NSApp.isActive) }
+        }.onReceive(NotificationCenter.default.publisher(for:NSApplication.didBecomeActiveNotification)) { _ in Task { await setup.refresh(mayContinue:true) } }.onChange(of:navigation.requestedPermission) { if let key=navigation.requestedPermission { setup.selected.insert(key) } }
         .onChange(of:setup.current) { if setup.current != nil { withAnimation(.easeInOut(duration:0.18)) { scroll.scrollTo("permission-progress",anchor:.top) } } }
         .onDisappear { setup.stop() }
         }

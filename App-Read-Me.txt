@@ -1,4 +1,4 @@
-Island 2.7.0 (270) — development preview
+Island 2.8.0 (280) — development preview
 
 INSTALL
 Run Island.app on an Apple silicon Mac with macOS 15 or newer. Keep one copy in Applications and quit other notch utilities to avoid overlapping overlays. This build is locally signed, not Apple-notarized; macOS may block it after downloading to another Mac.
@@ -10,13 +10,13 @@ YOUR TIMER
 Choose Focus. Drag the ring while paused. Use + to enter a duration and save a preset. Settings → Focus & Sounds manages presets, work/break cycles and ringtones. Timer state persists across relaunch.
 
 FIRST START
-Island guides new users through everyday preferences, an interactive module preview, and permission setup for the features they chose. Drag modules into the black preview; click them for settings. Finish later keeps your choices and starts Island without requesting the remaining access. Reopen the guide with Set up Island in the menu or Settings → Overview. Existing settings are kept when you update.
+Island first asks about opening at login and automatic updates, then everyday preferences and permission setup. A hands-on tutorial teaches opening Island, File Tray, the focus ring, module dragging and optional tools, before real module customization. Drag modules into the black preview; click them for settings. Finish later keeps your choices and starts Island without requesting the remaining access. Reopen the guide with Set up Island in the menu or Settings → Overview. Existing settings are kept when you update.
 
 WINDOW SNAPPING
 Turn on Snap windows in setup or Settings → Window Snapping, then allow Window and system controls in Permissions. Drag a window’s title bar to the actual left, right, top, bottom or corners of the display and release. Preview frames leave room for the menu bar and Dock. Some apps enforce minimum sizes; full-screen windows need to leave full screen first. The Window Layouts module also offers manual buttons and an app picker.
 
 PERMISSIONS, TOGETHER
-Settings → Permissions is the home for access setup. Select the features you want, then choose Set up selected. Existing approvals are skipped; manual System Settings steps are checked when you return. Not now and Finish later keep setup optional. macOS requires separate privacy approvals; one Touch ID check cannot grant them all. Camera access alone never starts the mirror. Files are approved when selected, and client hooks remain subject to their own review.
+Settings → Permissions is the home for access setup. Native requests keep their approval prompt in focus; Island opens System Settings only when you click its explicit button. Some access, including Accessibility, must be enabled using a switch there. Select the features you want, then choose Set up selected. Existing approvals are skipped; manual System Settings steps are checked when you return. Not now and Finish later keep setup optional. macOS requires separate privacy approvals; one Touch ID check cannot grant them all. Camera access alone never starts the mirror. Files are approved when selected, and client hooks remain subject to their own review.
 
 YOUR MODULES
 Settings → Modules is a four-position module canvas. Drag a card into a space INSIDE the black preview. Drag an existing block between spaces to swap; a new card replaces the block you drop onto. Click a block or top navigation icon for settings. More opens settings for the remaining enabled modules. The Module settings picker and Open settings button reach every section directly, including File Tray. Each module opens in a full-height settings panel, with its own module picker and Done button. The first drop applies this arrangement to the real Island as its Dashboard. Click a real block for full controls; the grid button returns to your layout. Remove a block with Drop to remove or Show in layout. Enable module separately controls whether its feature remains active. Undo restores the previous arrangement. Turning off Use this layout in Island restores the classic Dashboard, and keeps your custom arrangement. Preview contents are illustrative and do not start cameras, timers or connections. Settings → Dashboard chooses four widget slots and an optional daily Work/Minimal schedule. More contains overflow modules. Pin keeps Island open. Displays chooses screens; Behavior configures keyboard shortcuts; System Controls has HUD replacement and permission connections. Language & Help includes core Arabic labels, an in-app guide and a private diagnostic summary.
@@ -35,3 +35,6 @@ Island.app, corresponding source and local Git history in Source, licenses, buil
 
 STATUS
 This remains a development preview, not verified full MacNotch parity. FEATURE-STATUS.md lists remaining scope and VERIFICATION.md records actual checks, including what has not been tested live.
+
+UPDATES AND CURRENT LIMITS
+Settings → Updates controls consent, check frequency and installation timing. A release signing key is ready in the owner’s Keychain; its private half is never in this download. The release repository still needs to be chosen and published before automatic delivery can work. The source includes Set Up Updates.command and a publishing guide. MACNOTCH-COMPARISON.md records the current feature audit and missing details. This preview does not yet have full MacNotch parity or Apple notarization.

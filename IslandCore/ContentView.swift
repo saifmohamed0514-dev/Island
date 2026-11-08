@@ -22,6 +22,11 @@ struct ContentView: View {
 
     @ObservedObject var coordinator = IslandCoordinator.shared
     @ObservedObject var canvas = IslandCanvasStore.shared
+    @ObservedObject var snooze=IslandSnooze.shared
+    @ObservedObject var activityClock=IslandLiveActivityClock.shared
+    @ObservedObject var liveAgenda=IslandAgenda.shared
+    @ObservedObject var liveDevices=IslandDevices.shared
+    @ObservedObject var liveNotices=IslandNotices.shared
     @ObservedObject var focusTimer = IslandFocusTimer.shared
     @ObservedObject var agentBridge = IslandAgentBridge.shared
     @ObservedObject var musicManager = MusicManager.shared
@@ -53,9 +58,16 @@ struct ContentView: View {
         if coordinator.sneakPeek.show && [.volume,.brightness,.backlight,.mic].contains(coordinator.sneakPeek.type) { return .hud }
         if coordinator.expandingView.show && coordinator.expandingView.type == .battery && Defaults[.showPowerStatusNotifications] { return .battery }
         if !agentBridge.pending.isEmpty && IslandModuleStore.shared.enabled.contains(.agents) { return .agent }
-        if (focusTimer.state.deadline != nil || focusTimer.showCompletion) && IslandModuleStore.shared.enabled.contains(.focus) { return .timer }
-        if !musicManager.isPlayerIdle && coordinator.musicLiveActivityEnabled && IslandModuleStore.shared.enabled.contains(.home) { return .music }
-        return .idle
+        let defaults=UserDefaults.standard,modules=IslandModuleStore.shared.enabled
+        let timerActive=(focusTimer.state.deadline != nil || focusTimer.showCompletion) && modules.contains(.focus)
+        if timerActive && defaults.object(forKey:"island.live.timerPriority") as? Bool != false { return .timer }
+        var available:[IslandCompactKind]=[]
+        if timerActive { available.append(.timer) }
+        if !musicManager.isPlayerIdle && coordinator.musicLiveActivityEnabled && modules.contains(.home) && !IslandActivityRules.excluded(musicManager.bundleIdentifier,from:defaults.string(forKey:"island.live.excludedPlayers") ?? "") { available.append(.music) }
+        if defaults.bool(forKey:"island.live.calendar"),(modules.contains(.calendar) || modules.contains(.day)),liveAgenda.events.contains(where:{ $0.endDate>Date() && $0.startDate.timeIntervalSinceNow<1800 }) { available.append(.event) }
+        if defaults.bool(forKey:"island.live.devices"),modules.contains(.devices),!liveDevices.devices.isEmpty { available.append(.device) }
+        if defaults.bool(forKey:"island.live.notices"),modules.contains(.inbox),liveNotices.items.contains(where:{ !$0.read }) { available.append(.notice) }
+        return IslandActivityRules.choose(available,rotate:defaults.bool(forKey:"island.live.rotate"),phase:activityClock.phase)
     }
     private var topCornerRadius: CGFloat { 0 }
     private var currentNotchShape: IslandSurface { IslandSurface(radius:vm.notchState == .open ? 30 : 14) }
@@ -90,7 +102,7 @@ struct ContentView: View {
                     .clipShape(currentNotchShape)
                     .shadow(color:vm.notchState == .open ? .black.opacity(0.25) : .clear,radius:12,y:6)
 
-                mainLayout
+                mainLayout.opacity(snooze.active ? 0 : 1).allowsHitTesting(!snooze.active)
                     .environment(\.colorScheme, .dark)
                     .animation(surfaceAnimation,value:vm.notchState)
                     .animation(surfaceAnimation,value:computedChinWidth)
@@ -255,6 +267,7 @@ struct ContentView: View {
     // MARK: - Hover Management
 
     private func handleHover(_ hovering: Bool) {
+        if snooze.active { return }
         if coordinator.firstLaunch { return }
         hoverTask?.cancel()
         

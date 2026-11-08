@@ -22,7 +22,7 @@ struct IslandHealthView: View {
                 healthRing("Breaks",current:breaks,goal:max(1,breakGoal),color:.green)
                 healthRing("Mindful",current:mindful,goal:max(1,mindfulGoal),color:.purple)
                 VStack(alignment:.leading,spacing:7) {
-                    HStack { Button("− Water") { water = max(0,water-1) }; Button("+ Water") { water += 1 } }
+                    HStack { Button("− Water") { IslandHaptics.play(.selection);water = max(0,water-1) }; Button("+ Water") { IslandHaptics.play(.confirmation);water += 1 } }
                     HStack { Button("Stretch break") { stretchSince=Date() }; Button("Eye break") { eyeBreakSince = Date() } }
                     Button(breathingSince == nil ? "Start breathing" : "Finish breathing") { if breathingSince == nil { breathingSince = Date() } else { mindful += 1; breathingSince = nil } }
                 }.buttonStyle(.bordered)
@@ -41,7 +41,7 @@ struct IslandHealthView: View {
             }
             if let start = eyeBreakSince {
                 TimelineView(.periodic(from:.now,by:1)) { context in
-                    HStack { Text("Look about 20 feet away · \(max(0,20-Int(context.date.timeIntervalSince(start)))) seconds"); Button("Done / Skip") { eyeBreakSince = nil; breaks += 1 } }
+                    HStack { Text("Look about 20 feet away · \(max(0,20-Int(context.date.timeIntervalSince(start)))) seconds"); Button(Date().timeIntervalSince(start)>=20 ? "Done" : "Skip") { guard eyeBreakSince != nil else { return };eyeBreakSince = nil;if Date().timeIntervalSince(start)>=20 { breaks += 1 };IslandHaptics.play(.selection) } }
                 }
             }
         }.onAppear {
@@ -79,6 +79,7 @@ struct IslandHealthView: View {
         } catch { self.error = "Access wasn’t granted. You can review permissions in System Settings." }
     }
     func refresh() async {
+        guard !loading else { return }
         loading = true; defer { loading = false }
         calendarConnected = EKEventStore.authorizationStatus(for:.event) == .fullAccess
         remindersConnected = EKEventStore.authorizationStatus(for:.reminder) == .fullAccess
@@ -155,33 +156,68 @@ struct IslandTasksView: View {
     }
     func add() { let title = text; text = ""; Task { await agenda.add(title) } }
 }
-struct IslandDayView: View {
-    @ObservedObject var agenda = IslandAgenda.shared
-    var body: some View {
+struct IslandDayView:View {
+    @ObservedObject var agenda=IslandAgenda.shared
+    @AppStorage("island.day.events") private var showEvents=true
+    @AppStorage("island.day.tasks") private var showTasks=true
+    @AppStorage("island.day.bedtime") private var bedtime=false
+    @AppStorage("island.day.bedtimeMinute") private var bedtimeMinute=1320
+    var body:some View {
         TimelineView(.periodic(from:.now,by:60)) { context in
-            let start = Calendar.current.startOfDay(for:context.date)
-            let next = Calendar.current.date(byAdding:.day,value:1,to:start) ?? start.addingTimeInterval(86400)
-            let progress = context.date.timeIntervalSince(start)/next.timeIntervalSince(start)
+            let start=Calendar.current.startOfDay(for:context.date),next=Calendar.current.date(byAdding:.day,value:1,to:start) ?? start.addingTimeInterval(86400)
+            let progress=min(1,max(0,context.date.timeIntervalSince(start)/next.timeIntervalSince(start)))
             VStack(alignment:.leading,spacing:10) {
-                HStack { Text("Today").font(.headline); Spacer(); Text("\(Int(progress*100))% of the day").foregroundStyle(.secondary) }
+                HStack { Text("Today").font(.headline);Spacer();Text("\(Int(progress*100))% of the day").foregroundStyle(.secondary) }
                 ProgressView(value:progress).tint(.orange)
-                ForEach(agenda.events.filter { Calendar.current.isDateInToday($0.startDate) },id:\.calendarItemIdentifier) { event in HStack { Text(event.startDate,style:.time); Text(event.title ?? "Event").foregroundStyle(.secondary) } }
-                if !agenda.calendarConnected { Text("Connect Calendar in its module to add your schedule to this timeline.").font(.caption).foregroundStyle(.secondary) }
+                if showEvents {
+                    ForEach(agenda.events.filter { Calendar.current.isDate($0.startDate,inSameDayAs:context.date) },id:\.calendarItemIdentifier) { event in HStack { Image(systemName:"calendar").foregroundStyle(.cyan);Text(event.startDate,style:.time).monospacedDigit();Text(event.title ?? "Event");Spacer();if event.startDate<=context.date && event.endDate>context.date { Text("Now").font(.caption).foregroundStyle(.cyan) } }.font(.callout) }
+                    if !agenda.calendarConnected { Button("Connect Calendar…") { IslandSettingsController.shared.showPermissions(.calendar) } }
+                }
+                if showTasks {
+                    ForEach(agenda.reminders.filter { !$0.isCompleted && $0.dueDateComponents.flatMap { Calendar.current.date(from:$0) }.map { $0<next } == true },id:\.calendarItemIdentifier) { reminder in HStack { Button { IslandHaptics.play(.confirmation);Task { await agenda.toggle(reminder) } } label: { Image(systemName:"circle") }.buttonStyle(.plain).accessibilityLabel("Complete "+(reminder.title ?? "task"));Text(reminder.title ?? "Task");Spacer();if let due=reminder.dueDateComponents.flatMap({ Calendar.current.date(from:$0) }) { Text(due<start ? "Overdue" : due.formatted(date:.omitted,time:.shortened)).font(.caption).foregroundStyle(due<start ? .orange : .secondary) } } }
+                    if !agenda.remindersConnected { Button("Connect Reminders…") { IslandSettingsController.shared.showPermissions(.reminders) } }
+                }
+                if bedtime { Label("Wind down at "+String(format:"%02d:%02d",bedtimeMinute/60,bedtimeMinute%60),systemImage:"moon").font(.caption).foregroundStyle(.secondary) }
+                if !showEvents && !showTasks { Text("Choose timeline sources in this module’s settings.").font(.caption).foregroundStyle(.secondary) }
             }
         }.task { await agenda.refresh() }
     }
+}
+struct IslandDaySettings:View {
+    @AppStorage("island.day.events") private var events=true
+    @AppStorage("island.day.tasks") private var tasks=true
+    @AppStorage("island.day.bedtime") private var bedtime=false
+    @AppStorage("island.day.bedtimeMinute") private var minute=1320
+    var body:some View { Form {
+        Section("Today’s timeline") { Toggle("Show calendar events",isOn:$events);Toggle("Show due and overdue tasks",isOn:$tasks);Button("Manage Calendar and Reminders access…") { IslandSettingsController.shared.showPermissions(events ? .calendar : .reminders) } }
+        Section("Evening") { Toggle("Show a wind-down marker",isOn:$bedtime);DatePicker("Wind down",selection:Binding(get:{ Calendar.current.date(bySettingHour:minute/60,minute:minute%60,second:0,of:Date()) ?? Date() },set:{ minute=Calendar.current.component(.hour,from:$0)*60+Calendar.current.component(.minute,from:$0) }),displayedComponents:.hourAndMinute).disabled(!bedtime) }
+    }.formStyle(.grouped) }
 }
 
 struct IslandLauncherView: View {
     struct Item: Codable,Identifiable { var id: String; var title: String; var bookmark: Data }
     @State var items: [Item] = []
     @State var error: String?
+    @AppStorage("island.launcher.style") private var style="grid"
+    @AppStorage("island.launcher.shortcuts") private var shortcutData=Data()
+    @State private var shortcutName=""
+    private var shortcutNames:[String] { (try? JSONDecoder().decode([String].self,from:shortcutData)) ?? [] }
+    private func runShortcut(_ name:String) {
+        var url=URLComponents();url.scheme="shortcuts";url.host="run-shortcut";url.queryItems=[URLQueryItem(name:"name",value:name)]
+        if let url=url.url { IslandHaptics.play(.confirmation);NSWorkspace.shared.open(url) }
+    }
     var body: some View {
         VStack(alignment:.leading,spacing:10) {
             HStack { Text("Launcher").font(.headline); Spacer(); Button("Add app or folder…") { add() } }
-            HStack { ForEach(items) { item in
-                VStack { Button(item.title) { open(item) }.buttonStyle(.bordered); Button("Remove") { items.removeAll { $0.id == item.id }; save() }.font(.caption2).buttonStyle(.plain).foregroundStyle(.secondary) }
+            Picker("Layout",selection:$style) { Text("Grid").tag("grid");Text("List").tag("list") }.pickerStyle(.segmented).frame(width:180)
+            LazyVGrid(columns:style == "list" ? [GridItem(.flexible())] : [GridItem(.adaptive(minimum:110))],alignment:.leading,spacing:8) { ForEach(items) { item in
+                Button { IslandHaptics.play(.selection);open(item) } label: { Label(item.title,systemImage:"arrow.up.right.square").frame(maxWidth:.infinity,alignment:.leading).padding(10).background(.white.opacity(0.05),in:RoundedRectangle(cornerRadius:10)) }.buttonStyle(.plain).contextMenu { Button("Remove shortcut",role:.destructive) { items.removeAll { $0.id == item.id };save() } }
             } }
+            DisclosureGroup("Your Shortcuts") {
+                HStack { TextField("Name of a shortcut on this Mac",text:$shortcutName).textFieldStyle(.roundedBorder);Button("Add") { let name=shortcutName.trimmingCharacters(in:.whitespacesAndNewlines);guard !name.isEmpty,name.count<=200,!shortcutNames.contains(name),shortcutNames.count<50 else { return };shortcutData=(try? JSONEncoder().encode(shortcutNames+[name])) ?? Data();shortcutName="";IslandHaptics.play(.placement) }.disabled(shortcutName.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty) }
+                ForEach(shortcutNames,id:\.self) { name in HStack { Button(name) { runShortcut(name) }.buttonStyle(.bordered);Spacer();Button("Remove") { shortcutData=(try? JSONEncoder().encode(shortcutNames.filter { $0 != name })) ?? Data() }.font(.caption).buttonStyle(.plain) } }
+            }
+            IslandQuickActionsView()
             if items.isEmpty { Text("Keep apps and folders you use close by.").foregroundStyle(.secondary) }
             if let error { Text(error).foregroundStyle(.orange) }
         }.onAppear { if let data = UserDefaults.standard.data(forKey:"island.launcher"), let saved = try? JSONDecoder().decode([Item].self,from:data) { items = saved } }

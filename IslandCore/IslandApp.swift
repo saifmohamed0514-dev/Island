@@ -16,13 +16,13 @@ import SwiftUI
 struct IslandApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @Default(.menubarIcon) var showMenuBarIcon
+    @ObservedObject private var snooze=IslandSnooze.shared
     @Environment(\.openWindow) var openWindow
 
     let updaterController: SPUStandardUpdaterController
 
     init() {
-        updaterController = SPUStandardUpdaterController(
-            startingUpdater: IslandUpdateConfiguration.isConfigured, updaterDelegate: nil, userDriverDelegate: nil)
+        updaterController = IslandUpdates.shared.controller
 
         // Initialize the settings window controller with the updater controller
         IslandSettingsController.shared.setUpdaterController(updaterController)
@@ -36,6 +36,7 @@ struct IslandApp: App {
                 }
             }
             .keyboardShortcut(KeyEquivalent(","), modifiers: .command)
+            Button(snooze.active ? "Resume Island" : "Snooze Island") { snooze.toggle() }
             Button("Set up Island…") { appDelegate.showOnboardingWindow() }
             CheckForUpdatesView(updater: updaterController.updater)
                 .disabled(!IslandUpdateConfiguration.isConfigured)
@@ -48,7 +49,7 @@ struct IslandApp: App {
             }
             .keyboardShortcut(KeyEquivalent("Q"), modifiers: .command)
         }.commands {
-            CommandGroup(after:.appInfo) { Button("Open Island") { appDelegate.openIslandFromMenu() } }
+            CommandGroup(after:.appInfo) { Button("Open Island") { appDelegate.openIslandFromMenu() };Button("Set up Island…") { appDelegate.showOnboardingWindow() } }
             CommandGroup(replacing:.appSettings) {
                 Button("Island Settings…") { IslandSettingsController.shared.showWindow() }
                     .keyboardShortcut(",",modifiers:.command)
@@ -70,6 +71,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var closeNotchTask: Task<Void, Never>?
     private var previousScreens: [NSScreen]?
     private var onboardingWindowController: NSWindowController?
+    private var snoozeObserver:AnyCancellable?
+    private var setupObserver:NSObjectProtocol?
     private var screenLockedObserver: Any?
     private var screenUnlockedObserver: Any?
     private var isScreenLocked: Bool = false
@@ -77,6 +80,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var dragDetectors: [String: DragDetector] = [:] // UUID -> DragDetector
 
     func openIslandFromMenu() {
+        IslandSnooze.shared.resume()
         closeNotchTask?.cancel(); closeNotchTask = nil
         let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) }
         let selected = screen?.displayUUID.flatMap { viewModels[$0] } ?? vm
@@ -89,6 +93,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         NotificationCenter.default.removeObserver(self)
+        if let setupObserver { NotificationCenter.default.removeObserver(setupObserver) }
         if let observer = screenLockedObserver {
             DistributedNotificationCenter.default().removeObserver(observer)
             screenLockedObserver = nil
@@ -188,6 +193,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func setupDragDetectors() {
+        guard !IslandSnooze.shared.active else { return }
         cleanupDragDetectors()
 
         guard Defaults[.expandedDragDetection] else { return }
@@ -301,8 +307,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if let id = Bundle.main.bundleIdentifier, let existing = NSRunningApplication.runningApplications(withBundleIdentifier: id).first(where: { $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }) {
             existing.activate(options: []); NSApp.terminate(nil); return
         }
+        setupObserver=NotificationCenter.default.addObserver(forName:.islandShowSetup,object:nil,queue:.main) { [weak self] _ in Task { @MainActor in self?.showOnboardingWindow() } }
         _ = IslandFocusTimer.shared
         IslandProfileSchedule.shared.start()
+        IslandLiveActivityClock.shared.configure()
+        if UserDefaults.standard.bool(forKey:"island.awake.restore") { IslandQuickActions.shared.setAwake(true) }
         IslandWindowSnapping.shared.configure()
         IslandUsageTracker.shared.setEnabled(IslandModuleStore.shared.enabled.contains(.usage))
         IslandDevices.shared.configure(IslandModuleStore.shared.enabled.contains(.devices))
@@ -394,9 +403,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        KeyboardShortcuts.onKeyDown(for:.islandSnooze) { IslandSnooze.shared.toggle() }
+        KeyboardShortcuts.onKeyDown(for:.islandNextModule) { [weak self] in self?.navigateModule(1) }
+        KeyboardShortcuts.onKeyDown(for:.islandPreviousModule) { [weak self] in self?.navigateModule(-1) }
         KeyboardShortcuts.onKeyDown(for: .toggleNotchOpen) { [weak self] in
             Task { [weak self] in
                 guard let self = self else { return }
+                IslandSnooze.shared.resume()
 
                 let mouseLocation = NSEvent.mouseLocation
 
@@ -450,6 +463,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         setupDragDetectors()
+        snoozeObserver=IslandSnooze.shared.$active.dropFirst().receive(on:DispatchQueue.main).sink { [weak self] active in
+            guard let self else { return }
+            if active {
+                self.window?.orderOut(nil);self.windows.values.forEach { $0.orderOut(nil) };self.cleanupDragDetectors()
+            } else { self.adjustWindowPosition(changeAlpha:true);self.window?.orderFrontRegardless();self.windows.values.forEach { $0.orderFrontRegardless() };self.setupDragDetectors() }
+        }
 
         if coordinator.firstLaunch {
             DispatchQueue.main.async {
@@ -464,6 +483,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         previousScreens = NSScreen.screens
+    }
+
+    private func navigateModule(_ direction:Int) {
+        let open=vm.notchState == .open || viewModels.values.contains { $0.notchState == .open }
+        guard !IslandSnooze.shared.active,!UserDefaults.standard.bool(forKey:"island.shortcuts.openOnly") || open else { return }
+        let modules=IslandModuleStore.shared.enabled
+        guard !modules.isEmpty else { return }
+        let index=modules.firstIndex(of:coordinator.currentView) ?? 0
+        coordinator.currentView=modules[(index+direction+modules.count)%modules.count]
+        coordinator.showingCanvasDetail=coordinator.currentView != .dashboard
+        IslandHaptics.play(.selection)
     }
 
     func deviceHasNotch() -> Bool {
@@ -498,6 +528,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func adjustWindowPosition(changeAlpha: Bool = false) {
+        guard !IslandSnooze.shared.active else { return }
         if Defaults[.showOnAllDisplays] {
             let currentScreenUUIDs = Set(NSScreen.screens.compactMap { $0.displayUUID })
 
@@ -582,6 +613,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func showOnboardingWindow(step:OnboardingStep = .welcome) {
+        guard !IslandPermissionSetup.shared.prompting else { IslandSettingsController.shared.showWindow();return }
+        if IslandPermissionSetup.shared.running { IslandPermissionSetup.shared.stop() }
+        IslandSettingsController.shared.window?.orderOut(nil)
+        IslandUpdates.shared.suspendForSetup()
         if let window=onboardingWindowController?.window {
             NSApp.setActivationPolicy(.regular);NSApp.activate(ignoringOtherApps:true);window.makeKeyAndOrderFront(nil);return
         }
@@ -590,6 +625,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.identifier=NSUserInterfaceItemIdentifier("OnboardingWindow")
         window.contentView=NSHostingView(rootView:OnboardingView(step:step,onFinish:{ [weak self,weak window] in
             window?.orderOut(nil);window?.close();self?.onboardingWindowController=nil
+            IslandUpdates.shared.resumeAfterSetup()
             NSApp.setActivationPolicy(.accessory)
         }))
         onboardingWindowController=NSWindowController(window:window)
@@ -599,6 +635,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 extension Notification.Name {
+    static let islandShowSetup=Notification.Name("IslandShowSetup")
     static let selectedScreenChanged = Notification.Name("SelectedScreenChanged")
     static let notchHeightChanged = Notification.Name("NotchHeightChanged")
     static let showOnAllDisplaysChanged = Notification.Name("showOnAllDisplaysChanged")

@@ -35,7 +35,7 @@ struct IslandTrayView:View {
                     ScrollView(.horizontal,showsIndicators:false) { HStack(spacing:10) { ForEach(tray.items) { item in IslandTrayTile(item:item,preview:preview).environmentObject(vm) } } }
                 }
             }.overlay { RoundedRectangle(cornerRadius:20).stroke(vm.dragDetectorTargeting ? .cyan.opacity(0.7) : .white.opacity(0.08),lineWidth:1) }
-            .onDrop(of:[.fileURL,.url,.utf8PlainText,.plainText],isTargeted:$vm.dragDetectorTargeting) { providers in vm.dropEvent = true; tray.load(providers); return true }
+            .onDrop(of:[.fileURL,.url,.utf8PlainText,.plainText],isTargeted:$vm.dragDetectorTargeting) { providers in vm.dropEvent = true; tray.load(providers);IslandHaptics.play(.placement); return true }
         }.frame(height:134).padding(.horizontal,12).quickLookPresenter(using:preview)
         .onChange(of:airDrop.active) { vm.isBatteryPopoverActive = airDrop.active || preview.isQuickLookOpen }
         .onChange(of:preview.isQuickLookOpen) { vm.isBatteryPopoverActive = airDrop.active || preview.isQuickLookOpen }
@@ -44,7 +44,7 @@ struct IslandTrayView:View {
     func add() {
         let panel = NSOpenPanel(); panel.allowsMultipleSelection = true; panel.canChooseDirectories = true
         guard panel.runModal() == .OK else { return }
-        tray.load(panel.urls.map { NSItemProvider(object:$0 as NSURL) })
+        tray.load(panel.urls.map { NSItemProvider(object:$0 as NSURL) });IslandHaptics.play(.placement)
     }
 }
 struct IslandTrayTile:View {
@@ -54,7 +54,7 @@ struct IslandTrayTile:View {
     @StateObject private var model:ShelfItemViewModel
     init(item:ShelfItem,preview:QuickLookService) { self.item = item; self.preview = preview; _model = StateObject(wrappedValue:ShelfItemViewModel(item:item)) }
     var body:some View {
-        Button { ShelfActionService.open(item) } label: {
+        Button { IslandHaptics.play(.selection);ShelfActionService.open(item) } label: {
             VStack(spacing:7) {
                 Image(nsImage:model.thumbnail ?? item.icon).resizable().scaledToFit().frame(width:40,height:40)
                 Text(item.displayName.isEmpty ? "Item" : item.displayName).font(.system(size:10,weight:.medium)).lineLimit(1).truncationMode(.middle)
@@ -68,5 +68,5 @@ struct IslandTrayTile:View {
             Divider(); Button("Remove from tray",role:.destructive) { trayRemove() }
         }
     }
-    func trayRemove() { ShelfActionService.remove(item) }
+    func trayRemove() { IslandHaptics.play(.selection);ShelfActionService.remove(item) }
 }

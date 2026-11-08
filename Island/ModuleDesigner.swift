@@ -27,7 +27,7 @@ struct IslandModuleDesigner:View {
             HStack {
                 Text("Build your Island").font(.title2.weight(.semibold));Spacer()
                 Menu("Layouts") { ForEach(["Music & focus","Work","Simple"],id:\.self) { name in Button(name) { change { canvas.template(name) };feedback=name+" layout applied to Island." } } }
-                Button("Undo") { if let previousLayout { modules.restore(previousLayout.modules);canvas.restore(previousLayout.canvas);self.previousLayout=nil;feedback="Previous layout restored." } }.disabled(previousLayout == nil)
+                Button("Undo") { if let previousLayout { IslandHaptics.play(.selection);modules.restore(previousLayout.modules);canvas.restore(previousLayout.canvas);self.previousLayout=nil;feedback="Previous layout restored." } }.disabled(previousLayout == nil)
             }
             HStack(spacing:14) { Label("Drop into a space",systemImage:"hand.draw");Label("Drag blocks to swap",systemImage:"arrow.left.arrow.right");Label("Click for settings",systemImage:"cursorarrow.click") }.font(.caption).foregroundStyle(.secondary)
             IslandModulePreview(modules:modules.enabled,slots:canvas.preferences.slots,selected:selected,focusMinutes:workMinutes,weatherCity:city,fahrenheit:fahrenheit,onSelect:inspect,onDrop:drop)
@@ -93,7 +93,7 @@ struct IslandModuleDesigner:View {
             HStack {
                 Toggle("Show in layout",isOn:Binding(get:{ inLayout },set:{ wanted in if wanted { _=drop(selected,canvas.preferences.slots.firstIndex(of:nil) ?? 0) } else { _=remove(selected) } })).toggleStyle(.switch)
                 Spacer()
-                Toggle("Enable module",isOn:Binding(get:{ moduleEnabled },set:{ value in change { modules.setEnabled(selected,value) } })).toggleStyle(.switch).disabled(moduleEnabled && modules.enabled.count == 1)
+                Toggle("Enable module",isOn:Binding(get:{ moduleEnabled },set:{ value in IslandHaptics.play(.confirmation);change { modules.setEnabled(selected,value) } })).toggleStyle(.switch).disabled(moduleEnabled && modules.enabled.count == 1)
             }.font(.caption)
             HStack {
                 Text("Position").font(.caption).foregroundStyle(.secondary)
@@ -102,7 +102,7 @@ struct IslandModuleDesigner:View {
             IslandModuleInspector(module:selected).id(selected).frame(maxWidth:.infinity,maxHeight:.infinity)
         }
     }
-    private func inspect(_ module:NotchViews) { selectedID=module.rawValue;inspecting=true }
+    private func inspect(_ module:NotchViews) { IslandHaptics.play(.selection);selectedID=module.rawValue;inspecting=true }
     private func change(_ action:()->Void) {
         let before=IslandDesignerSnapshot(modules:modules.preferences,canvas:canvas.preferences);action()
         if before.modules != modules.preferences || before.canvas != canvas.preferences { previousLayout=before }
@@ -110,7 +110,7 @@ struct IslandModuleDesigner:View {
     private func drop(_ module:NotchViews,_ index:Int)->Bool {
         guard (0..<4).contains(index) else { return false }
         let previous=canvas.preferences.slots[index],wasInLayout=canvas.preferences.modules.contains(module),wasEnabled=modules.enabled.contains(module)
-        change { canvas.place(module,at:index) };selectedID=module.rawValue
+        change { canvas.place(module,at:index) };IslandHaptics.play(.placement);selectedID=module.rawValue
         feedback=module.title+" placed "+IslandCanvasPreferences.title(index).lowercased()+". Layout applied to Island."
         if !wasInLayout,let previous,previous != module { feedback=module.title+" replaced "+previous.title+" in this layout. Both modules keep their data." }
         if module == .usage && !wasEnabled && modules.enabled.contains(module) { feedback += " Local app-use recording is now on." }
@@ -118,7 +118,7 @@ struct IslandModuleDesigner:View {
     }
     private func remove(_ module:NotchViews)->Bool {
         guard canvas.preferences.modules.contains(module) else { return false }
-        change { canvas.remove(module) };feedback=module.title+" removed from this layout. Its module and data are kept.";return true
+        change { canvas.remove(module) };IslandHaptics.play(.selection);feedback=module.title+" removed from this layout. Its module and data are kept.";return true
     }
 }
 
@@ -151,6 +151,8 @@ struct IslandModuleInspector:View {
             case .health:IslandWellbeingSettings()
             case .windows:IslandWindowSettings()
             case .agents:IslandBridgeSettings()
+            case .day:IslandDaySettings()
+            case .usage:IslandUsageSettings()
             default:options
             }
         }.sheet(item:$sheet) { destination in

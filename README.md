@@ -1,4 +1,4 @@
-# Island 2.7.0
+# Island 2.8.0
 
 An independent, open-source macOS notch utility, based on [Boring Notch](https://github.com/TheBoredTeam/boring.notch). GPL-3.0; original copyright notices and third-party licenses are retained.
 

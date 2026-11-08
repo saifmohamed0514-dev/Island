@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>IslandUpdateKeyAccount</key>
+	<string>Island-org.islandapp.Island</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
@@ -15,24 +17,34 @@
 	<string>Switch your Island module layout when you choose to share system Focus status.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
 	<string>Show, add and complete tasks you choose in Island.</string>
+	<key>SUAutomaticallyUpdate</key>
+	<false/>
+	<key>SUEnableAutomaticChecks</key>
+	<false/>
 	<key>SUEnableDownloaderService</key>
 	<true/>
 	<key>SUEnableInstallerLauncherService</key>
 	<true/>
-	<key>UTImportedTypeDeclarations</key>
-	<array>
-		<dict/>
-	</array>
+	<key>SUPublicEDKey</key>
+	<string>+oxbwXw10AGnNM2Dj0kbuZ4d4M+emfI/NyWx8huVs4M=</string>
+	<key>SUSendProfileInfo</key>
+	<false/>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>
-			<key>UTTypeIdentifier</key>
-			<string>org.islandapp.module</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
 			<key>UTTypeDescription</key>
 			<string>Island module</string>
-			<key>UTTypeConformsTo</key>
-			<array><string>public.data</string></array>
+			<key>UTTypeIdentifier</key>
+			<string>org.islandapp.module</string>
 		</dict>
+	</array>
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict/>
 	</array>
 </dict>
 </plist>

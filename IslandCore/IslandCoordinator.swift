@@ -152,7 +152,7 @@ class IslandCoordinator: ObservableObject {
 
                             if granted {
                                 await MediaKeyInterceptor.shared.start()
-                            } else {
+                            } else if !self.firstLaunch {
                                 IslandSettingsController.shared.showPermissions(.accessibility)
                             }
                         }

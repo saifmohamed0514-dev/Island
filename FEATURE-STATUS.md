@@ -1,6 +1,6 @@
-# Island 2.6 development status
+# Island 2.8 development status
 
-Updated November 7, 2026. This is an implementation inventory, not a claim of full MacNotch parity or zero bugs.
+Updated November 8, 2026. This is an implementation inventory, not a claim of full MacNotch parity or zero bugs.
 
 ## Island interface
 
@@ -31,7 +31,13 @@ A running timer appears in two bounded wings beside the physical camera. Complet
 - ChatGPT draft handoff and connected chat links, an English/Arabic language picker with core Arabic labels, in-app help and a diagnostic summary containing no note text, tokens or user paths. Some detailed messages retain English.
 - Dedicated, source-included Low Power Mode service and one-time GUI setup helper; narrow fixed-command interface, immediate yellow switch state and macOS reconciliation. Live setup/authorization remains a separate verification step. Ad-hoc updates may require setup again; normal toggles do not. See Power/README.md.
 - Central Permissions page for Accessibility, media-key monitoring, Bluetooth, camera, calendar, reminders, notifications, Music/Spotify automation, shared Focus and Low Power Mode. Select features, request one at a time, skip or finish later, and resume after manual System Settings approval. Checks do not request grants. Existing media polling checks automation permission before scripting; setup owns the consent prompt. No Touch ID shortcut bypasses macOS or client hook review.
-- GPL source, local Git repository, signed Sparkle release tooling, build/release workflows and beginner publishing guide. Automatic updates remain unconfigured and off; nothing has been uploaded.
+- GPL source, local Git repository, signed Sparkle release tooling, build/release workflows and beginner publishing guide. Update consent, hourly/daily/weekly checks and quit/idle/night installation choices are implemented. A signing key is stored in the owner’s Keychain; only its public key is bundled. Checks/downloads start off. The GitHub release feed remains unconnected and nothing has been uploaded.
+
+## Refinement in 2.8
+
+Settings has grouped sections, keyboard focus, page/module search and direct File Tray options. First launch asks about login and update choices, then other preferences, permissions, a hands-on practice tutorial and real module customization. Native approval requests no longer jump to System Settings automatically; explicit manual steps explain the correct switch and resume only after returning to Island. Trackpad haptics mark useful interactions with a global rate limit and an off switch.
+
+New options include Live Activities rotation/source filters, module and snooze shortcuts, due-task day timelines, usage exclusions/day boundaries, weather pressure/UV/sun times, launcher grid/list and named Shortcuts, Keep Awake, extra Dashboard widgets and an editable quote. A skipped eye break no longer credits a completed break. Read [the complete comparison](MACNOTCH-COMPARISON.md) for remaining subfeature gaps.
 
 ## Remaining reference scope
 

@@ -7,13 +7,13 @@ Everything is local right now. You do not need to create a website or pay for ho
 3. Use GitHub Desktop: **File → Add local repository**, choose this project folder (the `Source` folder if you extracted the complete ZIP), and publish it to the empty repository. If needed, use GitHub Desktop's existing-repository instructions. Keep the GPL license and third-party notices.
 4. Read `App-Read-Me.txt` in the package and `FEATURE-STATUS.md`. Describe the app as a development preview until the missing features and verification are finished.
 5. Keep one installed copy at Applications → Island. To share a manual download, build with `scripts/build.sh`, create a GitHub Release and attach `dist/Island.zip`. Users can download the ZIP. The local preview is not Apple-notarized, so macOS may block it on another Mac; explain that clearly.
-6. Automatic in-app updates need a one-time signing-key and feed setup. Follow `docs/RELEASING.md` before your first auto-updating public build.
+6. Automatic in-app updates have consent and scheduling controls. Double-click `Set Up Updates.command` in Source, paste your own GitHub repository URL and rebuild before your first public auto-updating release. The setup keeps the private signing key in Keychain. This Mac already has the Island signing key prepared; other developers create their own. Follow `docs/RELEASING.md` for publishing.
 
 The complete download also contains Source/Integrations/README.md for local ChatGPT/Codex/Claude/Cursor setup and Source/Power/README.md for the optional Low Power Mode service. Never include your private bridge folder or client settings in a release.
 
 ## Every later update
 
-Make and test changes, increase both version and build number, build a new ZIP, prepare its signed `appcast.xml`, and attach both to a GitHub Release. Your app checks your own feed for newer builds. Do not reuse a build number.
+Make and test changes, increase both version and build number, build a new ZIP, prepare its signed `appcast.xml` with `scripts/prepare-release.py` (the local command reads the signing key from Keychain), and attach both to a GitHub Release. Your app checks your own feed for newer builds. Do not reuse a build number.
 
 ## What not to upload
 

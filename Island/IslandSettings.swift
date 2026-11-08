@@ -9,37 +9,69 @@ import KeyboardShortcuts
     @Published var selected="Overview"
     @Published var requestedPermission:IslandPermission?
 }
+struct IslandSettingsPage:Identifiable {
+    let route:String;let icon:String;let keywords:String
+    var id:String { route }
+}
+struct IslandSettingsGroup:Identifiable {
+    let title:String;let pages:[IslandSettingsPage]
+    var id:String { title }
+}
+enum IslandSettingsCatalog {
+    static let groups:[IslandSettingsGroup]=[
+        .init(title:"Get started",pages:[.init(route:"Overview",icon:"capsule",keywords:"welcome setup help start"),.init(route:"Permissions",icon:"checkmark.shield",keywords:"privacy access allow approval camera bluetooth calendar reminders touch id")]),
+        .init(title:"Make it yours",pages:[.init(route:"Modules",icon:"square.grid.2x2",keywords:"layout notch preview drag arrange sections"),.init(route:"Dashboard",icon:"rectangle.grid.2x2",keywords:"widgets profiles schedule focus"),.init(route:"Live Activities",icon:"waveform",keywords:"compact collapsed rotate calendar bluetooth timer source"),.init(route:"Displays",icon:"display.2",keywords:"screen external monitor location"),.init(route:"Behavior",icon:"cursorarrow.rays",keywords:"login startup shortcuts haptics hover snooze")]),
+        .init(title:"Daily tools",pages:[.init(route:"Focus & Sounds",icon:"timer",keywords:"timer pomodoro ringtone preset"),.init(route:"Media",icon:"music.note",keywords:"music spotify apple player artwork"),.init(route:"Window Snapping",icon:"macwindow",keywords:"windows tile resize halves corners"),.init(route:"Wellbeing & Alerts",icon:"heart",keywords:"health water breaks breathing notifications")]),
+        .init(title:"Connections",pages:[.init(route:"System Controls",icon:"switch.2",keywords:"battery power hud volume brightness"),.init(route:"Connections",icon:"network",keywords:"api token key account github jira openai ollama"),.init(route:"Agents & Inbox",icon:"terminal",keywords:"chatgpt codex claude cursor hooks coding messages")]),
+        .init(title:"Island",pages:[.init(route:"Updates",icon:"arrow.down.circle",keywords:"automatic update version release install schedule"),.init(route:"Language",icon:"globe",keywords:"arabic english translation"),.init(route:"About Island",icon:"info.circle",keywords:"help guide license credits version")])
+    ]
+    static func matches(_ page:IslandSettingsPage,query:String)->Bool { query.isEmpty || (page.route+" "+page.keywords).localizedCaseInsensitiveContains(query) }
+}
 struct IslandSettingsView:View {
     @ObservedObject private var navigation=IslandSettingsNavigation.shared
+    @State private var query=""
+    @FocusState private var searchFocused:Bool
     let updaterController:SPUStandardUpdaterController?
-    let pages:[(String,String)] = [("Overview","capsule"),("Permissions","checkmark.shield"),("Modules","square.grid.2x2"),("Dashboard","rectangle.grid.2x2"),("Focus & Sounds","timer"),("Displays","display.2"),("Window Snapping","macwindow"),("Media","music.note"),("Behavior","cursorarrow.rays"),("System Controls","switch.2"),("Wellbeing & Alerts","heart"),("Connections","network"),("Agents & Inbox","terminal"),("Language","globe"),("About Island","info.circle")]
+    private var moduleMatches:[NotchViews] { query.isEmpty ? [] : NotchViews.allCases.filter { $0.title.localizedCaseInsensitiveContains(query) } }
     var body:some View {
         NavigationSplitView {
-            VStack(alignment:.leading,spacing:18) {
-                HStack(spacing:10) { IslandMark(size:36); VStack(alignment:.leading,spacing:2) { Text("Island").font(.system(size:18,weight:.semibold,design:.rounded)); Text("Make space.").font(.caption).foregroundStyle(.secondary) } }.padding(.horizontal,16).padding(.top,20)
-                List(selection:$navigation.selected) { ForEach(pages,id:\.0) { page in Label(LocalizedStringKey(page.0),systemImage:page.1).tag(page.0).padding(.vertical,3) } }.listStyle(.sidebar)
-            }.navigationSplitViewColumnWidth(200)
+            VStack(alignment:.leading,spacing:12) {
+                HStack(spacing:10) { IslandMark(size:36);VStack(alignment:.leading,spacing:2) { Text("Island").font(.system(size:18,weight:.semibold,design:.rounded));Text("Make space.").font(.caption).foregroundStyle(.secondary) } }.padding(.horizontal,16).padding(.top,20)
+                TextField("Search settings",text:$query).textFieldStyle(.roundedBorder).focused($searchFocused).accessibilityLabel("Search Island settings and modules").padding(.horizontal,12)
+                List(selection:$navigation.selected) {
+                    ForEach(IslandSettingsCatalog.groups) { group in
+                        let pages=group.pages.filter { IslandSettingsCatalog.matches($0,query:query) }
+                        if !pages.isEmpty { Section(group.title) { ForEach(pages) { page in Label(LocalizedStringKey(page.route),systemImage:page.icon).tag(page.route).padding(.vertical,3) } } }
+                    }
+                    if !moduleMatches.isEmpty { Section("Module settings") { ForEach(moduleMatches) { module in Button { IslandSettingsController.shared.showModuleDesigner(module) } label: { Label(module.title,systemImage:module.icon).frame(maxWidth:.infinity,alignment:.leading) }.buttonStyle(.plain).padding(.vertical,4).accessibilityHint("Open settings for this module") } } }
+                    if !query.isEmpty,moduleMatches.isEmpty,!IslandSettingsCatalog.groups.flatMap(\.pages).contains(where:{ IslandSettingsCatalog.matches($0,query:query) }) { Text("No matching settings").foregroundStyle(.secondary);Button("Clear search") { query="" } }
+                }.listStyle(.sidebar).accessibilityLabel("Settings sections")
+            }.navigationSplitViewColumnWidth(min:220,ideal:230,max:280)
         } detail: {
             Group {
                 switch navigation.selected {
-                case "Permissions": IslandPermissionsView()
-                case "Modules": IslandModulesSettings()
-                case "Dashboard": IslandDashboardSettings()
-                case "Focus & Sounds": IslandFocusSettings()
-                case "Displays": IslandDisplaySettings()
-                case "Window Snapping": IslandWindowSettings()
-                case "Media": IslandMediaSettings()
-                case "Behavior": IslandBehaviorSettings()
-                case "System Controls": IslandSystemSettings()
-                case "Wellbeing & Alerts": IslandWellbeingSettings()
-                case "Connections": IslandConnectionsSettings()
-                case "Agents & Inbox": IslandBridgeSettings()
-                case "Language": IslandLanguageSettings()
-                case "About Island": IslandAboutSettings(updater:updaterController)
-                default: IslandOverviewSettings { navigation.selected = $0 }
+                case "Permissions":IslandPermissionsView()
+                case "Modules":IslandModulesSettings()
+                case "Dashboard":IslandDashboardSettings()
+                case "Live Activities":IslandLiveActivitySettings()
+                case "Focus & Sounds":IslandFocusSettings()
+                case "Displays":IslandDisplaySettings()
+                case "Window Snapping":IslandWindowSettings()
+                case "Media":IslandMediaSettings()
+                case "Behavior":IslandBehaviorSettings()
+                case "System Controls":IslandSystemSettings()
+                case "Wellbeing & Alerts":IslandWellbeingSettings()
+                case "Connections":IslandConnectionsSettings()
+                case "Agents & Inbox":IslandBridgeSettings()
+                case "Updates":IslandUpdatesSettings()
+                case "Language":IslandLanguageSettings()
+                case "About Island":IslandAboutSettings(updater:updaterController)
+                default:IslandOverviewSettings { navigation.selected=$0 }
                 }
             }.navigationTitle(LocalizedStringKey(navigation.selected)).frame(maxWidth:.infinity,maxHeight:.infinity)
-        }.frame(minWidth:760,minHeight:610).navigationSplitViewStyle(.balanced).tint(.blue)
+        }.frame(minWidth:800,minHeight:650).navigationSplitViewStyle(.balanced).tint(.blue)
+        .onChange(of:navigation.selected) { IslandHaptics.play(.selection) }
+        .background { Button("Find settings") { searchFocused=true }.keyboardShortcut("f",modifiers:.command).hidden() }
     }
 }
 struct IslandOverviewSettings:View {
@@ -55,7 +87,8 @@ struct IslandOverviewSettings:View {
                 LabeledContent("Opens with",value:modules.defaultModule.title)
                 HStack { Button("Set up permissions") { navigate("Permissions") };Button("Choose modules") { navigate("Modules") }; Button("Set up focus") { navigate("Focus & Sounds") } }
             }
-            Section("Guided setup") { Button("Set up Island…") { (NSApp.delegate as? AppDelegate)?.showOnboardingWindow() };Text("Review preferences, customize your modules and set up access one step at a time.").foregroundStyle(.secondary) }
+            Section("Guided setup") { Button("Set up Island…") { NotificationCenter.default.post(name:.islandShowSetup,object:nil) };Text("Review preferences, customize your modules and set up access one step at a time.").foregroundStyle(.secondary) }
+            Section("Quick access") { HStack { Button("File Tray") { IslandSettingsController.shared.showModuleDesigner(.shelf) };Button("Window Snapping") { navigate("Window Snapping") };Button("Updates") { navigate("Updates") } } }
             Section("Start small") { Text("Enable only what you use. Optional data connections and permissions are requested when you choose them, and your notes and timer stay on this Mac.").foregroundStyle(.secondary) }
             Section("Release channel") { Label(IslandUpdateConfiguration.isConfigured ? "Signed update channel connected" : "Local preview · update channel not connected",systemImage:"arrow.down.circle").foregroundStyle(.secondary) }
         }.formStyle(.grouped)
@@ -99,6 +132,8 @@ struct IslandMediaSettings:View {
     }
 }
 struct IslandBehaviorSettings:View {
+    @AppStorage("island.snooze.minutes") private var snoozeMinutes=15
+    @AppStorage("island.shortcuts.openOnly") private var openOnly=false
     @Default(.menubarIcon) var menuIcon
     @Default(.openNotchOnHover) var hover
     @Default(.minimumHoverDuration) var delay
@@ -120,6 +155,11 @@ struct IslandBehaviorSettings:View {
             Section("Keyboard shortcuts") {
                 KeyboardShortcuts.Recorder("Open Island",name:.toggleNotchOpen)
                 KeyboardShortcuts.Recorder("Quick peek",name:.toggleSneakPeek)
+                KeyboardShortcuts.Recorder("Next module",name:.islandNextModule)
+                KeyboardShortcuts.Recorder("Previous module",name:.islandPreviousModule)
+                KeyboardShortcuts.Recorder("Snooze or resume Island",name:.islandSnooze)
+                Toggle("Change modules only while Island is open",isOn:$openOnly)
+                Stepper("Snooze for \(snoozeMinutes) minutes",value:$snoozeMinutes,in:1...120)
                 KeyboardShortcuts.Recorder("Microphone",name:.toggleMicrophone)
             }
             Section("Privacy") {
@@ -152,7 +192,7 @@ struct IslandAboutSettings:View {
                 HStack(spacing:16) { IslandMark(size:58); VStack(alignment:.leading,spacing:5) { Text("Island").font(.largeTitle.weight(.semibold)); Text("Version \(Bundle.main.releaseVersionNumber ?? "") · Build \(Bundle.main.buildVersionNumber ?? "")").foregroundStyle(.secondary) } }.padding(.vertical,12)
                 Text("An independent, open-source workspace for the top of your Mac.")
             }
-            Section("Help") { Button("Island guide") { help=true } }
+            Section("Help") { Button("Island guide") { help=true };Button("Updates & installation preferences") { IslandSettingsNavigation.shared.selected="Updates" } }
             Section("Updates") {
                 if let updater, IslandUpdateConfiguration.isConfigured { CheckForUpdatesView(updater:updater.updater) }
                 else { Text("Updates are not connected for this local preview.").foregroundStyle(.secondary) }

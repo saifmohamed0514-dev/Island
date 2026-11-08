@@ -2,10 +2,10 @@ import SwiftUI
 import Defaults
 
 // Island's own bounded surface and physical-camera-safe activity layout.
-enum IslandCompactKind { case idle, music, timer, hud, battery, agent }
+enum IslandCompactKind { case idle, music, timer, hud, battery, agent, event, device, notice }
 struct IslandCompactLayout {
     static func wing(for kind:IslandCompactKind) -> CGFloat {
-        switch kind { case .idle: return 0; case .music: return 34; case .timer,.hud,.battery,.agent: return 64 }
+        switch kind { case .idle: return 0; case .music: return 34; case .timer,.hud,.battery,.agent,.event,.device,.notice: return 64 }
     }
     static func width(camera:CGFloat,kind:IslandCompactKind) -> CGFloat { max(0,camera) + 2 * wing(for:kind) }
 }
@@ -57,6 +57,9 @@ struct IslandCompactActivity:View {
     @ObservedObject var coordinator = IslandCoordinator.shared
     @ObservedObject var battery = BatteryStatusViewModel.shared
     @ObservedObject var bridge = IslandAgentBridge.shared
+    @ObservedObject var agenda=IslandAgenda.shared
+    @ObservedObject var devices=IslandDevices.shared
+    @ObservedObject var notices=IslandNotices.shared
     var body:some View {
         let wing = IslandCompactLayout.wing(for:kind)
         HStack(spacing:0) {
@@ -68,7 +71,10 @@ struct IslandCompactActivity:View {
         .font(.system(size:11,weight:.semibold,design:.rounded)).lineLimit(1)
         .contentShape(Rectangle())
         .onTapGesture {
-            if kind == .timer { coordinator.currentView = .focus }
+            if kind == .event { coordinator.currentView = IslandModuleStore.shared.enabled.contains(.calendar) ? .calendar : .day }
+            else if kind == .device { coordinator.currentView = .devices }
+            else if kind == .notice { coordinator.currentView = .inbox }
+            else if kind == .timer { coordinator.currentView = .focus }
             else if kind == .agent { coordinator.currentView = .agents }
             else if kind == .music { coordinator.currentView = .home }
             vm.open()
@@ -77,6 +83,9 @@ struct IslandCompactActivity:View {
     @ViewBuilder var leading:some View {
         switch kind {
         case .idle: Color.clear
+        case .event:Image(systemName:"calendar").foregroundStyle(.orange)
+        case .device:Image(systemName:"headphones").foregroundStyle(.cyan)
+        case .notice:Image(systemName:"bell.badge.fill").foregroundStyle(.cyan)
         case .agent: Image(systemName:"hand.raised.fill").foregroundStyle(.cyan)
         case .timer: Image(systemName:focus.showCompletion ? "checkmark.circle.fill" : "timer").foregroundStyle(.orange)
         case .music: Image(nsImage:music.albumArt).resizable().scaledToFill().frame(width:18,height:18).clipShape(RoundedRectangle(cornerRadius:5))
@@ -87,6 +96,10 @@ struct IslandCompactActivity:View {
     @ViewBuilder var trailing:some View {
         switch kind {
         case .idle: Color.clear
+        case .event:
+            if let event=agenda.events.first(where:{ $0.endDate>Date() && $0.startDate.timeIntervalSinceNow<1800 }) { Text(event.startDate<=Date() ? "Now" : "\(max(1,Int(event.startDate.timeIntervalSinceNow/60))) min").monospacedDigit().foregroundStyle(.orange) }
+        case .device:Text(devices.devices.compactMap(\.battery).min().map { "\($0)%" } ?? "Connected").foregroundStyle(.cyan)
+        case .notice:Text("\(notices.items.filter { !$0.read }.count) unread").foregroundStyle(.cyan)
         case .agent: Text("\(bridge.pending.count) waiting").foregroundStyle(.cyan)
         case .timer: Text(focus.showCompletion ? "Done" : focus.label).monospacedDigit().foregroundStyle(.orange)
         case .music: Image(systemName:music.isPlaying ? "waveform" : "pause.fill").foregroundStyle(.cyan)
@@ -115,12 +128,12 @@ struct IslandNowPlayingView:View {
                     Text(music.songTitle).font(.system(size:17,weight:.semibold)).lineLimit(1)
                     Text(music.artistName).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                     TimelineView(.periodic(from:.now,by:0.5)) { context in
-                        Slider(value:Binding(get:{ seeking ? seek : min(max(0,music.estimatedPlaybackPosition(at:context.date)),max(1,music.songDuration)) },set:{ seek = $0 }),in:0...max(1,music.songDuration),onEditingChanged:{ editing in seeking = editing; if !editing { music.seek(to:seek) } }).tint(.white).disabled(music.songDuration <= 0).accessibilityLabel("Playback position")
+                        Slider(value:Binding(get:{ seeking ? seek : min(max(0,music.estimatedPlaybackPosition(at:context.date)),max(1,music.songDuration)) },set:{ seek = $0 }),in:0...max(1,music.songDuration),onEditingChanged:{ editing in seeking = editing; if !editing { music.seek(to:seek);IslandHaptics.play(.placement) } }).tint(.white).disabled(music.songDuration <= 0).accessibilityLabel("Playback position")
                     }
                     HStack(spacing:25) {
-                        Button { music.previousTrack() } label: { Image(systemName:"backward.fill") }.accessibilityLabel("Previous track")
-                        Button { music.togglePlay() } label: { Image(systemName:music.isPlaying ? "pause.fill" : "play.fill").font(.system(size:23)) }.accessibilityLabel(music.isPlaying ? "Pause" : "Play")
-                        Button { music.nextTrack() } label: { Image(systemName:"forward.fill") }.accessibilityLabel("Next track")
+                        Button { IslandHaptics.play(.selection);music.previousTrack() } label: { Image(systemName:"backward.fill") }.accessibilityLabel("Previous track")
+                        Button { IslandHaptics.play(.confirmation);music.togglePlay() } label: { Image(systemName:music.isPlaying ? "pause.fill" : "play.fill").font(.system(size:23)) }.accessibilityLabel(music.isPlaying ? "Pause" : "Play")
+                        Button { IslandHaptics.play(.selection);music.nextTrack() } label: { Image(systemName:"forward.fill") }.accessibilityLabel("Next track")
                         Spacer()
                         if music.volumeControlSupported { Slider(value:Binding(get:{ music.volume },set:{ music.setVolume(to:$0) }),in:0...1).frame(width:70).tint(.white).accessibilityLabel("Player volume") }
                         Button { music.openMusicApp() } label: { Image(systemName:"arrow.up.right.square") }.help("Open player")

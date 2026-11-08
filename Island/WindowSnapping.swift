@@ -42,6 +42,7 @@ struct IslandSnapDrag {
     private var drag:IslandSnapDrag?
     private var readID:UUID?
     private var lastPoll=Date.distantPast
+    private var lastPreview:CGRect?
     private var authorizationObserver:NSObjectProtocol?
     func configure() {
         if authorizationObserver == nil {
@@ -119,12 +120,13 @@ struct IslandSnapDrag {
         }
     }
     private func showPreview(_ rect:CGRect,title:String) {
+        if lastPreview != rect { IslandHaptics.play(.boundary);lastPreview=rect }
         if panel == nil { let value=NSPanel(contentRect:rect,styleMask:[.borderless,.nonactivatingPanel],backing:.buffered,defer:false);value.isOpaque=false;value.backgroundColor = .clear;value.ignoresMouseEvents=true;value.level = .floating;value.collectionBehavior=[.canJoinAllSpaces,.fullScreenAuxiliary,.ignoresCycle];value.sharingType=Defaults[.hideFromScreenRecording] ? .none : .readOnly;panel=value }
         panel?.contentView=NSHostingView(rootView:RoundedRectangle(cornerRadius:16).fill(.blue.opacity(0.16)).overlay { RoundedRectangle(cornerRadius:16).stroke(.blue.opacity(0.75),lineWidth:2) }.overlay { Text(title).font(.system(size:18,weight:.semibold)).padding(14).background(.regularMaterial,in:Capsule()) }.padding(4));panel?.setFrame(rect,display:true);panel?.orderFrontRegardless()
     }
     private func cancel() {
         if let token=drag?.token { Task { await XPCHelperClient.shared.releaseSnapWindow(token) } }
-        drag=nil;readID=nil;panel?.orderOut(nil)
+        drag=nil;readID=nil;lastPreview=nil;panel?.orderOut(nil)
     }
 }
 struct IslandWindowSettings:View {

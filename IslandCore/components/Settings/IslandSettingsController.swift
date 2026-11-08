@@ -16,7 +16,7 @@ class IslandSettingsController: NSWindowController {
     
     private init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 760, height: 610),
+            contentRect: NSRect(x: 0, y: 0, width: 820, height: 680),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -41,7 +41,7 @@ class IslandSettingsController: NSWindowController {
         guard let window = window else { return }
         
         window.title = "Island Settings"
-        window.contentMinSize=NSSize(width:760,height:610)
+        window.contentMinSize=NSSize(width:800,height:650)
         window.titlebarAppearsTransparent = false
         window.titleVisibility = .visible
         window.toolbarStyle = .unified

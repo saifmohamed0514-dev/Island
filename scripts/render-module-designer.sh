@@ -19,6 +19,8 @@ p=Path('Island/ModulePreview.swift').read_text()
 c=Path('Island/CanvasLayout.swift').read_text();c=c[c.index('struct IslandCanvasPreferences:'):c.index('@MainActor final class IslandCanvasStore')]
 d=Path('Island/ModuleDesigner.swift').read_text();d=d[d.index('struct IslandModuleDesigner:'):d.index('struct IslandModuleInspector:')]
 fixture='''
+enum IslandFixtureHapticEvent { case selection,placement,confirmation,boundary }
+enum IslandHaptics { static func play(_ event:IslandFixtureHapticEvent) {} }
 @MainActor final class IslandModuleStore:ObservableObject {
  static let shared=IslandModuleStore()
  @Published var preferences:IslandModulePreferences

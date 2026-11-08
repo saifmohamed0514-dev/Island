@@ -15,6 +15,7 @@ scripts/test-files.sh
 scripts/test-bridge.sh
 scripts/test-advanced.sh
 scripts/test-snapping.sh
+scripts/test-refinement.sh
 scripts/test-services.sh
 BUILD_ARGS=()
 if [[ -n "${ISLAND_PACKAGES_DIR:-}" ]]; then BUILD_ARGS+=(-clonedSourcePackagesDirPath "$ISLAND_PACKAGES_DIR"); fi
