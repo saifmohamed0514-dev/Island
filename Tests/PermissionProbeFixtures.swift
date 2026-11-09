@@ -10,8 +10,6 @@ enum PermissionProbeFixture {
     static func read(_ system:Int,_ attribute:CFString,_ output:inout CFTypeRef?)->AXError { result }
     static func trustedValue()->Bool { trusted }
     static func checkBoth() {
-        trusted=false;precondition(!MainAccessProbe.check())
-        trusted=true;precondition(MainAccessProbe.check())
         for check in [HelperAccessProbe.check] {
             trusted=false;result = .success;precondition(check())
             trusted=true;result = .apiDisabled;precondition(!check())

@@ -88,7 +88,7 @@ struct OnboardingView:View {
             }
             Section("Windows") {
                 Toggle("Snap windows when dragged to a screen edge",isOn:$snapping).onChange(of:snapping) { IslandWindowSnapping.shared.configure() }
-                Text("See a layout preview at an edge, then release to place the window. This needs Window and system controls access, which comes next.").font(.caption).foregroundStyle(.secondary)
+                Text("See a layout preview at an edge, then release to place the window. This needs Window and media controls access, which comes next.").font(.caption).foregroundStyle(.secondary)
             }
             Section("You stay in control") { Text("Music, File Tray, Focus and Notes work without broad privacy access. Other modules explain what they need before you allow it. Nothing here requires full disk access.").foregroundStyle(.secondary) }
         }.formStyle(.grouped)

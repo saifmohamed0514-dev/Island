@@ -10,8 +10,6 @@ import ApplicationServices
 import Defaults
 import AVFoundation
 
-private let kSystemDefinedEventType = CGEventType(rawValue: 14)!
-
 @MainActor final class MediaKeyInterceptor {
     static let shared = MediaKeyInterceptor()
     
@@ -25,139 +23,62 @@ private let kSystemDefinedEventType = CGEventType(rawValue: 14)!
         case keyboardBrightnessDown = 22
     }
     
-    private var suspendedByUser=false
     private var starting=false
     private var generation=0
-    private var eventTap: CFMachPort?
-    private var runLoopSource: CFRunLoopSource?
-    private let step: Float = 1.0 / 16.0
-    private var audioPlayer: AVAudioPlayer?
-    
+    private var mediaActivity:NSObjectProtocol?
+    private var heartbeat:Task<Void,Never>?
+    private var heartbeatID:UUID?
+    private var running=false
+    var isRunning:Bool { running }
+    private let step:Float=1.0/16.0
+    private var audioPlayer:AVAudioPlayer?
     private init() {}
-    
-    // MARK: - Accessibility (via XPC)
-    
-    func requestAccessibilityAuthorization() {
-        XPCHelperClient.shared.requestAccessibilityAuthorization()
+    func requestAccessibilityAuthorization() { XPCHelperClient.shared.requestAccessibilityAuthorization() }
+    func ensureAccessibilityAuthorization(promptIfNeeded:Bool=false) async -> Bool {
+        await XPCHelperClient.shared.ensureAccessibilityAuthorization(promptIfNeeded:promptIfNeeded)
     }
-    
-    func ensureAccessibilityAuthorization(promptIfNeeded: Bool = false) async -> Bool {
-        await XPCHelperClient.shared.ensureAccessibilityAuthorization(promptIfNeeded: promptIfNeeded)
-    }
-    
-    // MARK: - Event Tap
-    
-    func start(promptIfNeeded: Bool = false) async {
-        // Ensure HUD replacement is enabled
-        guard Defaults[.hudReplacement] else {
-            stop()
-            return
-        }
-        
-        guard !suspendedByUser,!starting else { return };starting=true;defer { starting=false }
+    func start(promptIfNeeded:Bool=false) async {
+        guard Defaults[.hudReplacement] else { stop();return }
+        guard !starting else { return };starting=true;defer { starting=false }
         let captured=generation
-        // The event tap runs in Island, not in its window helper.
-        let authorized = IslandSystemPermissionClient.mainAccessibilityAuthorized()
-        if !authorized {
-            if promptIfNeeded {
-                let granted = await ensureAccessibilityAuthorization(promptIfNeeded: true)
-                guard granted else { return }
-            } else {
-                stop();return
+        let allowed=await XPCHelperClient.shared.isAccessibilityAuthorized()
+        guard captured == generation,allowed,Defaults[.hudReplacement] else { stop();return }
+        // The helper also treats this as a heartbeat. No ordinary key data is
+        // read in the UI and no separate PostEvent/Input Monitoring is requested.
+        running=true
+        let started=await XPCHelperClient.shared.startMediaKeys()
+        guard captured == generation,Defaults[.hudReplacement] else { XPCHelperClient.shared.stopMediaKeys();return }
+        running=started
+        if started { ensureHeartbeat() }
+    }
+    private func ensureHeartbeat() {
+        guard heartbeat == nil else { return }
+        // Keep the opted-in controls responsive under App Nap without holding
+        // the display on or preventing the Mac from sleeping on idle.
+        if mediaActivity == nil { mediaActivity=ProcessInfo.processInfo.beginActivity(options:.userInitiatedAllowingIdleSystemSleep,reason:"Responding to media keys") }
+        let id=UUID(),captured=generation;heartbeatID=id
+        heartbeat=Task { @MainActor [weak self] in
+            defer { if self?.heartbeatID == id { self?.heartbeat=nil;self?.heartbeatID=nil;self?.endMediaActivity() } }
+            while let self,self.running,self.generation == captured,!Task.isCancelled {
+                do { try await Task.sleep(for:.seconds(2)) } catch { return }
+                guard self.running,self.generation == captured,!Task.isCancelled else { return }
+                await self.start()
             }
         }
-        
-        // Permission setup owns prompts; starting an enabled feature only checks.
-        guard captured == generation,Defaults[.hudReplacement] else { stop();return }
-        if let eventTap,CFMachPortIsValid(eventTap) {
-            if !CGEvent.tapIsEnabled(tap:eventTap) { CGEvent.tapEnable(tap:eventTap,enable:true) }
-            return
-        }
-        stop()
-        let mask = CGEventMask(1 << kSystemDefinedEventType.rawValue)
-        eventTap = CGEvent.tapCreate(
-            tap: .cgSessionEventTap,
-            place: .headInsertEventTap,
-            options: .defaultTap,
-            eventsOfInterest: mask,
-            callback: { _, type, cgEvent, userInfo in
-                guard let userInfo else { return Unmanaged.passUnretained(cgEvent) }
-                let interceptor = Unmanaged<MediaKeyInterceptor>.fromOpaque(userInfo).takeUnretainedValue()
-                // This port's source is installed only on CFRunLoopGetMain().
-                return MainActor.assumeIsolated { interceptor.handleEvent(type:type,event:cgEvent) }
-            },
-            userInfo: UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
-        )
-        
-        if let eventTap {
-            runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
-            if let runLoopSource {
-                CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
-            }
-            CGEvent.tapEnable(tap: eventTap, enable: true)
-        }
     }
-    
-    func stop() {
-        generation+=1;suspendedByUser=false
-        if let eventTap {
-            CGEvent.tapEnable(tap: eventTap, enable: false)
-            CFMachPortInvalidate(eventTap)
-        }
-        if let runLoopSource {
-            CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
-        }
-        runLoopSource = nil
-        eventTap = nil
+    func stop() { generation+=1;running=false;heartbeat?.cancel();heartbeat=nil;heartbeatID=nil;endMediaActivity();XPCHelperClient.shared.stopMediaKeys() }
+    func connectionLost() { generation+=1;running=false;heartbeat?.cancel();heartbeat=nil;heartbeatID=nil;endMediaActivity() }
+    private func endMediaActivity() { if let mediaActivity { ProcessInfo.processInfo.endActivity(mediaActivity);self.mediaActivity=nil } }
+    func receive(code:Int,modifiers:UInt64,sentAt:Double) {
+        let age=ProcessInfo.processInfo.systemUptime-sentAt
+        guard age.isFinite,age >= 0,age <= 1 else { return }
+        guard running,Defaults[.hudReplacement],let keyType=NXKeyType(rawValue:code) else { return }
+        let flags=NSEvent.ModifierFlags(rawValue:UInt(modifiers))
+        let option=flags.contains(.option),shift=flags.contains(.shift),command=flags.contains(.command)
+        if option && !shift,handleOptionAction(for:keyType,command:command) { return }
+        handleKeyPress(keyType:keyType,option:option,shift:shift,command:command)
     }
-    
-    // MARK: - Event Handling
-    
-    private func handleEvent(type:CGEventType,event cgEvent: CGEvent) -> Unmanaged<CGEvent>? {
-        if type == .tapDisabledByTimeout {
-            if Defaults[.hudReplacement],let eventTap { CGEvent.tapEnable(tap:eventTap,enable:true) }
-            return Unmanaged.passUnretained(cgEvent)
-        }
-        // Respect an explicit suspension until the feature is toggled off/on
-        // or Island is reopened.
-        if type == .tapDisabledByUserInput { suspendedByUser=true;return Unmanaged.passUnretained(cgEvent) }
-        // Ensure the CGEvent has a valid type before converting to NSEvent
-        guard cgEvent.type != .null else {
-            return Unmanaged.passUnretained(cgEvent)
-        }
-        guard let nsEvent = NSEvent(cgEvent: cgEvent),
-              nsEvent.type == .systemDefined,
-              nsEvent.subtype.rawValue == 8 else {
-            return Unmanaged.passUnretained(cgEvent)
-        }
-        
-        let data1 = nsEvent.data1
-        let keyCode = (data1 & 0xFFFF_0000) >> 16
-        let stateByte = ((data1 & 0xFF00) >> 8)
-        
-        // 0xA = key down, 0xB = key up. Only handle key down.
-        guard stateByte == 0xA,
-              let keyType = NXKeyType(rawValue: keyCode) else {
-            return Unmanaged.passUnretained(cgEvent)
-        }
-        
-        let flags = nsEvent.modifierFlags
-        let option = flags.contains(.option)
-        let shift = flags.contains(.shift)
-        let command = flags.contains(.command)
-        
-        // Handle option key action (without shift)
-        if option && !shift {
-            if handleOptionAction(for: keyType, command: command) {
-                return nil
-            }
-        }
-        
-        // Handle normal key press
-        handleKeyPress(keyType: keyType, option: option, shift: shift, command: command)
-        return nil
-    }
-    
+
     private func handleOptionAction(for keyType: NXKeyType, command: Bool) -> Bool {
         let action = Defaults[.optionKeyAction]
         

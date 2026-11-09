@@ -69,7 +69,7 @@ class IslandSettingsController: NSWindowController {
     }
     
     func showPermissions(_ permission:IslandPermission?=nil) {
-        IslandSettingsNavigation.shared.requestedPermission=permission == .input ? .mediaControls : permission
+        IslandSettingsNavigation.shared.requestedPermission=permission == .input || permission == .mediaControls ? .accessibility : permission
         IslandSettingsNavigation.shared.selected="Permissions"
         showWindow()
     }

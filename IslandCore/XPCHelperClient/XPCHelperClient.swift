@@ -2,7 +2,7 @@ import Foundation
 import Cocoa
 import AsyncXPCConnection
 
-final class XPCHelperClient: NSObject {
+final class XPCHelperClient: NSObject,IslandMediaKeyListener {
     nonisolated static let shared = XPCHelperClient()
     
     private let serviceName = "org.islandapp.Island.BoringNotchXPCHelper"
@@ -47,6 +47,28 @@ final class XPCHelperClient: NSObject {
     nonisolated func tileSnapWindow(_ token:String,x:Double,y:Double,width:Double,height:Double) async -> Bool {
         do { let service=await MainActor.run { ensureRemoteService() };return try await service.withContinuation { service,continuation in service.tileSnapWindow(token,x:x,y:y,width:width,height:height) { continuation.resume(returning:$0) } } } catch { return false }
     }
+    nonisolated func mediaKey(_ code:Int,modifiers:UInt64,sentAt:Double) {
+        Task { @MainActor in MediaKeyInterceptor.shared.receive(code:code,modifiers:modifiers,sentAt:sentAt) }
+    }
+    @MainActor func startMediaKeys() async -> Bool {
+        _ = ensureRemoteService()
+        guard let conn=connection else { return false }
+        return await withCheckedContinuation { continuation in
+            var finished=false
+            var timeout:Task<Void,Never>?
+            @MainActor func finish(_ value:Bool) {
+                guard !finished else { return };finished=true;timeout?.cancel();continuation.resume(returning:value)
+            }
+            let proxy=conn.remoteObjectProxyWithErrorHandler { _ in Task { @MainActor in finish(false) } } as? IslandControlsProtocol
+            guard let proxy else { finish(false);return }
+            proxy.startMediaKeys { value in Task { @MainActor in finish(value) } }
+            timeout=Task { @MainActor in do { try await Task.sleep(for:.seconds(2)) } catch { return };self.stopMediaKeys();finish(false) }
+        }
+    }
+    @MainActor func stopMediaKeys() {
+        guard let connection else { return }
+        (connection.remoteObjectProxyWithErrorHandler { _ in } as? IslandControlsProtocol)?.stopMediaKeys()
+    }
     // MARK: - Connection Management (Main Actor Isolated)
     
     @MainActor
@@ -62,6 +84,7 @@ final class XPCHelperClient: NSObject {
                 guard self?.connection === conn else { return }
                 self?.connection = nil
                 self?.remoteService = nil
+                MediaKeyInterceptor.shared.connectionLost()
             }
         }
         
@@ -70,9 +93,12 @@ final class XPCHelperClient: NSObject {
                 guard self?.connection === conn else { return }
                 self?.connection = nil
                 self?.remoteService = nil
+                MediaKeyInterceptor.shared.connectionLost()
             }
         }
         
+        conn.exportedInterface=NSXPCInterface(with:IslandMediaKeyListener.self)
+        conn.exportedObject=self
         conn.resume()
         
         let service = RemoteXPCService<IslandControlsProtocol>(

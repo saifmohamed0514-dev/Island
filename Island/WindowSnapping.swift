@@ -55,7 +55,7 @@ struct IslandSnapDrag {
         Task { [self] in
             let allowed=await XPCHelperClient.shared.isAccessibilityAuthorized()
             guard generation == configuration else { return }
-            guard allowed else { status="Set up Window and system controls in Permissions to enable snapping.";return }
+            guard allowed else { status="Set up Window and media controls in Permissions to enable snapping.";return }
             monitor=NSEvent.addGlobalMonitorForEvents(matching:[.leftMouseDown,.leftMouseDragged,.leftMouseUp]) { [weak self] event in
                 // Capture the event's own location before any asynchronous lookup.
                 let top=NSScreen.screens.first?.frame.maxY ?? 0

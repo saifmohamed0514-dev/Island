@@ -14,10 +14,10 @@ import Defaults
 enum IslandPermission:String,CaseIterable,Identifiable {
     case accessibility,input,mediaControls,bluetooth,camera,calendar,reminders,notifications,music,spotify,focus,power
     var id:String { rawValue }
-    static var visibleCases:[Self] { allCases.filter { $0 != .input } }
+    static var visibleCases:[Self] { allCases.filter { $0 != .input && $0 != .mediaControls } }
     var title:String {
         switch self {
-        case .accessibility:return "Window and system controls"
+        case .accessibility:return "Window and media controls"
         case .input:return "Media keys"
         case .mediaControls:return "Volume and brightness overlays"
         case .bluetooth:return "Bluetooth devices"
@@ -33,7 +33,7 @@ enum IslandPermission:String,CaseIterable,Identifiable {
     }
     var detail:String {
         switch self {
-        case .accessibility:return "Window layouts and snapping."
+        case .accessibility:return "Window snapping and optional volume and brightness overlays."
         case .input:return "Detect volume and brightness keys for Island’s overlays."
         case .mediaControls:return "Replace the system indicator when you use volume and brightness keys."
         case .bluetooth:return "Connected accessories and the battery levels your Mac shares."
@@ -80,7 +80,7 @@ enum IslandPermission:String,CaseIterable,Identifiable {
     }
     var approvalHelp:String {
         switch self {
-        case .accessibility:return "For window layouts and snapping, enable Island under Privacy & Security → Device Control and Data Access (called Accessibility on older macOS versions). Approve the Mac’s Touch ID or password request if it appears."
+        case .accessibility:return "For window snapping and media overlays, enable Island under Privacy & Security → Device Control and Data Access (called Accessibility on older macOS versions). Approve the Mac’s Touch ID or password request if it appears."
         case .mediaControls:return "Allow Island to control media-key events. Enable Island in Privacy & Security → Accessibility (called Device Control and Data Access on newer macOS versions). Window access and media-key filtering are checked separately."
         case .input:return IslandPermission.mediaControls.approvalHelp
         case .power:return "Island Power Setup asks for administrator approval once. Approve its own dialog; the ordinary privacy switches can’t enable power controls."
@@ -116,7 +116,7 @@ enum IslandPermissionRecommendations {
     static func selected(modules:[NotchViews],snapping:Bool,hud:Bool,deviceAlerts:Bool,healthAlerts:Bool,player:String,useFocus:Bool)->Set<IslandPermission> {
         var wanted=Set<IslandPermission>()
         if snapping || hud || modules.contains(.windows) { wanted.insert(.accessibility) }
-        if hud { wanted.insert(.mediaControls) }
+        if hud { wanted.insert(.accessibility) }
         if modules.contains(.devices) { wanted.insert(.bluetooth) }
         if modules.contains(.mirror) { wanted.insert(.camera) }
         if modules.contains(.calendar) || modules.contains(.day) { wanted.insert(.calendar) }
@@ -128,16 +128,14 @@ enum IslandPermissionRecommendations {
         return wanted
     }
 }
-// Active media-key filtering uses the control grant. A separate passive
-// Input Monitoring check can stay false despite that grant and must not block
-// an already-authorized filter. The old input key remains a compatibility alias.
+// Window and media operations share the authenticated controls helper and
+// its real AX grant. Legacy UI keys remain aliases; no foreground PostEvent or
+// passive Input Monitoring request is needed by the sandboxed UI.
 struct IslandControlAccess {
     let window:Bool?
-    let media:Bool
     var statuses:[IslandPermission:IslandPermissionStatus] {
-        [.accessibility:window.map { $0 ? .allowed : .ask } ?? .checking,
-         .mediaControls:media ? .allowed : .ask,
-         .input:media ? .allowed : .ask]
+        let status=window.map { $0 ? IslandPermissionStatus.allowed : .ask } ?? .checking
+        return [.accessibility:status,.mediaControls:status,.input:status]
     }
 }
 enum IslandPermissionAttempt { case finished,waitingInSettings,waitingForApproval }
@@ -198,7 +196,7 @@ extension IslandPermissionClient {
             else if message.hasPrefix("All selected features") || message.hasPrefix("Setup finished.") { updateCompletionMessage() }
         }
         let resume=continueAfterRefresh;continueAfterRefresh=false
-        if resume,canPresentNext(),running,waiting,!prompting,let current,status(current) != .checking,!status(current).canSetUp { await advance(id:runID) }
+        if (queue.isEmpty || (resume && canPresentNext())),running,waiting,!prompting,let current,status(current) != .checking,!status(current).canSetUp { await advance(id:runID) }
     }
     func begin(_ permissions:[IslandPermission]?=nil) async {
         guard !running,!prompting,!refreshing else { return }
@@ -221,7 +219,7 @@ extension IslandPermissionClient {
             let state=status(next)
             // Returning from a native API is not proof of access. Wait for the
             // OS snapshot instead of silently declaring this step complete.
-            if state == .checking || (state.canSetUp && (result != .finished || state != .settings)) || !canPresentNext() {
+            if state == .checking || (state.canSetUp && (result != .finished || state != .settings)) || (!canPresentNext() && !queue.isEmpty) {
                 waiting=true;waitingInSettings = result == .waitingInSettings || state == .settings;return
             }
         }
@@ -251,11 +249,6 @@ extension IslandPermissionClient {
     private var lastStatuses:[IslandPermission:IslandPermissionStatus]=[:]
     private var lastControlReport=""
     private let log=Logger(subsystem:"org.islandapp.Island",category:"Permissions")
-    // The main app is sandboxed. Its event-filter grant is queried through
-    // CoreGraphics; AX window reads belong exclusively to the window helper.
-    nonisolated static func mainAccessibilityAuthorized()->Bool {
-        CGPreflightPostEventAccess()
-    }
     static func automationStatus(_ id:String,ask:Bool=false) async -> IslandPermissionStatus {
         guard NSWorkspace.shared.urlForApplication(withBundleIdentifier:id) != nil else { return .unavailable }
         // A non-running player cannot answer Automation checks reliably.
@@ -325,16 +318,16 @@ extension IslandPermissionClient {
         return result
     }
     func controlsSnapshot() async -> [IslandPermission:IslandPermissionStatus] {
-        let helperAccess=await XPCHelperClient.shared.accessibilityAuthorizationStatus(),mainAccess=Self.mainAccessibilityAuthorized()
-        let result=IslandControlAccess(window:helperAccess,media:mainAccess).statuses
+        let helperAccess=await XPCHelperClient.shared.accessibilityAuthorizationStatus()
+        let result=IslandControlAccess(window:helperAccess).statuses
         let accessibility=result[.accessibility] == .allowed
-        let report="mediaControl=\(mainAccess) windowHelper=\(helperAccess.map(String.init) ?? "checking")"
+        let report="controlHelper=\(helperAccess.map(String.init) ?? "checking")"
         if report != lastControlReport { log.notice("System access: \(report,privacy:.public)");lastControlReport=report }
         if helperAccess != nil {
             if lastAccessibility != accessibility { IslandWindowSnapping.shared.configure() }
             lastAccessibility=accessibility
         }
-        let mediaReady=mainAccess
+        let mediaReady=helperAccess == true
         if mediaReady { await MediaKeyInterceptor.shared.start(promptIfNeeded:false) }
         else if lastInput != mediaReady { MediaKeyInterceptor.shared.stop() }
         lastInput=mediaReady
@@ -362,11 +355,8 @@ extension IslandPermissionClient {
             } catch { }
             Task { await IslandAgenda.shared.refresh() }
         case .notifications:_ = await IslandNotices.shared.requestPermission()
-        case .accessibility:
+        case .accessibility,.mediaControls,.input:
             XPCHelperClient.shared.requestAccessibilityAuthorization()
-            return .waitingForApproval
-        case .mediaControls,.input:
-            _ = CGRequestPostEventAccess()
             return .waitingForApproval
         case .power:
             IslandPowerController.shared.install();return .waitingForApproval
@@ -496,7 +486,7 @@ struct IslandPermissionsView:View {
             if !setup.hasSuggestedSelection { setup.selected=recommendations;setup.hasSuggestedSelection=true }
             if let requested=navigation.requestedPermission,!guidedSetup {
                 setup.selected.insert(requested)
-                if Defaults[.hudReplacement],requested == .accessibility || requested == .input || requested == .mediaControls { setup.selected.formUnion([.accessibility,.mediaControls]) }
+                if Defaults[.hudReplacement],requested == .accessibility || requested == .input || requested == .mediaControls { setup.selected.insert(.accessibility) }
             }
             await setup.refresh(mayContinue:NSApp.isActive)
             while !Task.isCancelled { do { try await Task.sleep(for:.seconds(setup.running ? 1 : 5)) } catch { return };await setup.refresh(mayContinue:NSApp.isActive) }

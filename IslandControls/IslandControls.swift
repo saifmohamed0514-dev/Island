@@ -6,11 +6,23 @@
 //
 
 import Foundation
+import AppKit
 import ApplicationServices
 import IOKit
 import CoreGraphics
 
 class IslandControls: NSObject, IslandControlsProtocol {
+    var mediaListener:IslandMediaKeyListener?
+    private let mediaTap=IslandMediaKeyTap()
+    deinit { DispatchQueue.main.async { [mediaTap] in mediaTap.stop() } }
+    @objc func startMediaKeys(with reply:@escaping(Bool)->Void) {
+        DispatchQueue.main.async { [self] in
+            guard let mediaListener else { reply(false);return }
+            reply(mediaTap.start(authorized:accessibilityAllowed()) { [weak mediaListener] code,flags,time in mediaListener?.mediaKey(code,modifiers:flags,sentAt:time) })
+        }
+    }
+    @objc func stopMediaKeys() { DispatchQueue.main.async { [self] in mediaTap.stop() } }
+
     // A real, read-only AX operation detects grants/revocations even when the
     // process-trust flag has not caught up after the Settings switch changes.
     private func accessibilityAllowed()->Bool {
@@ -261,5 +273,82 @@ class IslandControls: NSObject, IslandControlsProtocol {
             }
             return nil
         }()
+    }
+}
+
+
+// Owns only the supported media-key events. Ordinary typing is never forwarded.
+// The service already owns AX window access; the sandboxed UI receives just the
+// key code/modifiers over its authenticated, local XPC connection.
+final class IslandMediaKeyTap {
+    deinit { stop() }
+    private let lock=NSLock()
+    private var eventRunLoop:CFRunLoop?
+    private var port:CFMachPort?
+    private var retainedContext:Unmanaged<IslandMediaKeyTap>?
+    private var source:CFRunLoopSource?
+    private var send:((Int,UInt64,Double)->Void)?
+    private var suspended=false
+    private var lastPulse=Date.distantPast
+    func start(authorized:Bool,send:@escaping(Int,UInt64,Double)->Void)->Bool {
+        guard authorized else { stop();return false }
+        lock.lock()
+        guard !suspended else { lock.unlock();return false }
+        if let port,CFMachPortIsValid(port) {
+            self.send=send;lastPulse=Date()
+            let enabled=CGEvent.tapIsEnabled(tap:port);lock.unlock();return enabled
+        }
+        lock.unlock();stop()
+        lock.lock();defer { lock.unlock() }
+        self.send=send;lastPulse=Date()
+        let mask=CGEventMask(1 << CGEventType(rawValue:14)!.rawValue)
+        let context=Unmanaged.passRetained(self)
+        guard let created=CGEvent.tapCreate(tap:.cgSessionEventTap,place:.headInsertEventTap,options:.defaultTap,eventsOfInterest:mask,callback:{ _,type,event,context in
+            guard let context else { return Unmanaged.passUnretained(event) }
+            let owner=Unmanaged<IslandMediaKeyTap>.fromOpaque(context).takeUnretainedValue()
+            return owner.handle(type:type,event:event)
+        },userInfo:context.toOpaque()) else { context.release();self.send=nil;return false }
+        guard let madeSource=CFMachPortCreateRunLoopSource(kCFAllocatorDefault,created,0) else {
+            CFMachPortInvalidate(created);context.release();self.send=nil;return false
+        }
+        retainedContext=context;port=created;source=madeSource
+        // XPC services need not drive the main CF run loop. Give the tap its own
+        // run loop so native events are serviced even while XPC work is busy.
+        let thread=Thread { [self] in
+            let runLoop=CFRunLoopGetCurrent()
+            lock.lock()
+            guard port === created,CFMachPortIsValid(created) else { lock.unlock();return }
+            eventRunLoop=runLoop
+            CFRunLoopAddSource(runLoop,madeSource,.commonModes)
+            lock.unlock()
+            CFRunLoopRun()
+        }
+        thread.name="Island Media Keys";thread.qualityOfService = .userInteractive;thread.start()
+        CGEvent.tapEnable(tap:created,enable:true)
+        return CGEvent.tapIsEnabled(tap:created)
+    }
+    func stop() {
+        lock.lock()
+        let oldPort=port,oldSource=source,oldLoop=eventRunLoop,context=retainedContext
+        port=nil;source=nil;eventRunLoop=nil;send=nil;suspended=false;lastPulse = .distantPast;retainedContext=nil
+        lock.unlock()
+        if let oldPort { CGEvent.tapEnable(tap:oldPort,enable:false);CFMachPortInvalidate(oldPort) }
+        if let oldSource,let oldLoop { CFRunLoopRemoveSource(oldLoop,oldSource,.commonModes);CFRunLoopStop(oldLoop);CFRunLoopWakeUp(oldLoop) }
+        context?.release()
+    }
+    private func handle(type:CGEventType,event:CGEvent)->Unmanaged<CGEvent>? {
+        // If the UI stops servicing its connection, stop filtering and leave the
+        // media keys to macOS rather than consuming them without a response.
+        lock.lock()
+        let elapsed=Date().timeIntervalSince(lastPulse)
+        guard elapsed >= 0,elapsed <= 6 else { lock.unlock();stop();return Unmanaged.passUnretained(event) }
+        defer { lock.unlock() }
+        if type == .tapDisabledByTimeout { if let port { CGEvent.tapEnable(tap:port,enable:true) };return Unmanaged.passUnretained(event) }
+        if type == .tapDisabledByUserInput { suspended=true;return Unmanaged.passUnretained(event) }
+        guard type.rawValue == 14,let native=NSEvent(cgEvent:event),native.subtype.rawValue == 8 else { return Unmanaged.passUnretained(event) }
+        let code=(native.data1 & 0xFFFF0000)>>16,state=(native.data1 & 0xFF00)>>8
+        guard [0,1,2,3,7,21,22].contains(code),state == 0xA || state == 0xB else { return Unmanaged.passUnretained(event) }
+        if state == 0xA { send?(code,UInt64(native.modifierFlags.rawValue),ProcessInfo.processInfo.systemUptime) }
+        return nil
     }
 }

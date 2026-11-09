@@ -10,7 +10,7 @@ s=Path('Island/Permissions.swift').read_text()
 s=s[s.index('enum IslandPermission:'):s.index('@MainActor final class IslandSystemPermissionClient:')]
 e=Path('IslandCore/enums/generic.swift').read_text();e=e[e.index('public enum NotchViews:'):e.index('enum SettingsEnum')]
 probes=[]
-for file,method,wrapper in [('Island/Permissions.swift','nonisolated static func mainAccessibilityAuthorized','MainAccessProbe'),('IslandControls/IslandControls.swift','private func accessibilityAllowed','HelperAccessProbe')]:
+for file,method,wrapper in [('IslandControls/IslandControls.swift','private func accessibilityAllowed','HelperAccessProbe')]:
     source=Path(file).read_text();start=source.index('    '+method);end=source.index('\n    }',start)+6
     probe=source[start:end].replace('nonisolated static func mainAccessibilityAuthorized','static func check').replace('private func accessibilityAllowed','static func check')
     for actual,fake in [('AXUIElementCreateSystemWide','PermissionProbeFixture.makeSystem'),('AXUIElementSetMessagingTimeout','PermissionProbeFixture.setTimeout'),('AXUIElementCopyAttributeValue','PermissionProbeFixture.read'),('AXIsProcessTrusted','PermissionProbeFixture.trustedValue'),('CGPreflightPostEventAccess','PermissionProbeFixture.trustedValue')]: probe=probe.replace(actual,fake)
