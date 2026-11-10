@@ -40,6 +40,7 @@ import UniformTypeIdentifiers
         corrupt.place(.notes,relativeTo:.focus)
         check(corrupt.enabled == [.notes,.focus] && corrupt.start == .focus && corrupt.order.count == NotchViews.allCases.count)
         try CanvasSmoke.run()
+        try SavedLayoutsSmoke.run()
         print("PASS: \(count) production module-placement and typed-drag checks; before/after, hidden modules, overflow, default preservation, duplicates, persistence and invalid payloads; no live settings changed")
     }
 }

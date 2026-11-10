@@ -18,6 +18,7 @@ struct IslandLanguageSettings:View {
 }
 struct IslandHelpView:View {
     @Environment(\.dismiss) var dismiss
+    @State private var copied=false
     var body:some View {
         VStack(alignment:.leading,spacing:16) {
             HStack { IslandMark(size:40);Text("Island guide").font(.title2);Spacer();Button("Done") { dismiss() } }
@@ -29,9 +30,11 @@ struct IslandHelpView:View {
                     help("Power controls","Open Settings → Permissions, select Low Power Mode and choose Set up selected. Approve macOS once. Ordinary toggles then work without repeated passwords. Local unsigned preview updates may need setup again; stable Developer ID signed releases can preserve the trusted signing identity.")
                     help("Windows and alerts","Window Snapping is opt-in and requires Accessibility. Wellbeing & Alerts has goals, intervals and battery thresholds. Permissions contains the guided access checklist. Island’s inbox contains its own alerts and alerts explicitly forwarded to it.")
                     help("Your data","Notes, bookmarks, timers, device reminders and usage counters stay on this Mac. OpenAI translation sends the entered text only after you choose OpenAI and Translate. Tokens are stored in Keychain.")
-                    Button("Copy diagnostic summary") {
-                        let info="Island "+(Bundle.main.releaseVersionNumber ?? "")+" ("+(Bundle.main.buildVersionNumber ?? "")+")\n"+ProcessInfo.processInfo.operatingSystemVersionString+"\nDisplays: "+String(NSScreen.screens.count)+"\nModules: "+String(IslandModuleStore.shared.enabled.count)
-                        NSPasteboard.general.clearContents();NSPasteboard.general.setString(info,forType:.string)
+                    Button(copied ? "Copied diagnostic summary" : "Copy diagnostic summary") {
+                        let setup=IslandPermissionSetup.shared
+                        let permissions=IslandPermission.visibleCases.map { $0.title+": "+setup.status($0).label }.joined(separator:"\n")
+                        let info="Island "+(Bundle.main.releaseVersionNumber ?? "")+" ("+(Bundle.main.buildVersionNumber ?? "")+")\n"+ProcessInfo.processInfo.operatingSystemVersionString+"\nDisplays: "+String(NSScreen.screens.count)+"\nModules enabled: "+String(IslandModuleStore.shared.enabled.count)+"\nCustom layout: "+String(IslandCanvasStore.shared.preferences.enabled)+"\nMedia key handler: "+String(MediaKeyInterceptor.shared.isRunning)+"\nUpdate channel: "+(IslandUpdateConfiguration.isConfigured ? "connected" : "not connected")+"\nPermission status (last checked):\n"+permissions
+                        NSPasteboard.general.clearContents();NSPasteboard.general.setString(info,forType:.string);copied=true
                     }
                 }.frame(maxWidth:.infinity,alignment:.leading)
             }

@@ -1,11 +1,11 @@
-# Reference feature audit — November 8, 2026
+# Reference feature audit — November 10, 2026
 
 Checked against the current public [MacNotch feature catalogue](https://macnotch.io). “Implemented” describes Island source, not a promise that every app, account or device has been tested. This preview does **not** have complete feature parity.
 
-| Reference area | Island 2.8 implementation and limits |
+| Reference area | Island 2.9 implementation and limits |
 | --- | --- |
 | Modules and modular Settings | 21 modules, enable/order/default selection, four-position interactive real layout, templates, undo, search and per-module settings. |
-| Dashboard and profiles | Eleven classic widget types; Work/Minimal schedules and shared Focus. Arbitrary saved named profiles and automatic app-folder scanning remain absent. |
+| Dashboard and profiles | Eleven classic widget types; up to 12 saved named module/layout arrangements with rename/update and persistent removal Undo; Work/Minimal schedules and shared Focus. Automatic scheduling of arbitrary named layouts and automatic app-folder scanning remain absent. |
 | Media | Real artwork, supported transports, seeking and supported player volume. Compatibility depends on the selected backend and player. Audio spectrum and collapsed hover transport controls remain absent. |
 | Files and drop actions | Tray, drag-out, Quick Look, AirDrop, open-with, ZIP/extract, image conversion, copy/move and removable-volume ejection. Direct iCloud-target drops remain absent; a user-chosen destination can be used. |
 | Calendar and tasks | Search, upcoming events, writable Reminders, completion and recoverable task trash. Full event-detail/meeting-awareness UI and all reminder filters remain incomplete. |
@@ -23,6 +23,6 @@ Checked against the current public [MacNotch feature catalogue](https://macnotch
 | Live activities | Opt-in rotation of media, timer, upcoming event, device and Island Inbox activity; source filtering; priority HUD/power/approval notices. No arbitrary third-party update events. |
 | Devices | macOS-reported connected Bluetooth/HID levels and optional low-battery alerts; accessory coverage is limited by available reports. |
 | System and windows | CPU/memory/storage, fixed-layout buttons, edge/corner snapping, native glass battery and optional HUD replacement. Real AX/permission and external-monitor checks remain important. |
-| Help, language and updates | Guided startup, practice tutorial, permission guidance, settings search, English/core Arabic labels and signed Sparkle scheduling. Full translations, production release hosting and Apple notarization remain outstanding. |
+| Help, language and updates | Guided startup, practice tutorial, contextual page/module instructions, searchable Help & Tips, permission guidance, settings search, English/core Arabic labels and signed Sparkle scheduling. Full translations, production release hosting and Apple notarization remain outstanding. |
 
 The current Mac only has its built-in display attached. Source/fixture checks do not establish physical external-display, real notification, private service, audio or accessory parity. See VERIFICATION.md for actual evidence.

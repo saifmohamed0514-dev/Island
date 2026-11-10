@@ -1,4 +1,4 @@
-Island 2.8.4 (284) — development preview
+Island 2.9.0 (284) — development preview
 
 INSTALL
 Run Island.app on an Apple silicon Mac with macOS 15 or newer. Keep one copy in Applications and quit other notch utilities to avoid overlapping overlays. This build is locally signed, not Apple-notarized; macOS may block it after downloading to another Mac.
@@ -38,3 +38,5 @@ This remains a development preview, not verified full MacNotch parity. FEATURE-S
 
 UPDATES AND CURRENT LIMITS
 Settings → Updates controls consent, check frequency and installation timing. A release signing key is ready in the owner’s Keychain; its private half is never in this download. The release repository still needs to be chosen and published before automatic delivery can work. The source includes Set Up Updates.command and a publishing guide. MACNOTCH-COMPARISON.md records the current feature audit and missing details. This preview does not yet have full MacNotch parity or Apple notarization.
+
+In Settings, the question-mark button explains the current page. Help & Tips is searchable. Modules → Layouts can save and switch up to 12 of your own arrangements; Undo restores a removed saved layout. Your content and account settings are kept.

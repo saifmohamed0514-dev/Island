@@ -18,6 +18,7 @@ s=Path('Island/IslandShell.swift').read_text();s=s[s.index('struct IslandSurface
 p=Path('Island/ModulePreview.swift').read_text()
 c=Path('Island/CanvasLayout.swift').read_text();c=c[c.index('struct IslandCanvasPreferences:'):c.index('@MainActor final class IslandCanvasStore')]
 d=Path('Island/ModuleDesigner.swift').read_text();d=d[d.index('struct IslandModuleDesigner:'):d.index('struct IslandModuleInspector:')]
+l=Path('Island/SavedLayouts.swift').read_text().replace('static let shared=IslandSavedLayoutStore()','static let shared=IslandSavedLayoutStore(defaults:UserDefaults(suiteName:"IslandDesignerRender.LayoutFixture")!)')
 fixture='''
 enum IslandFixtureHapticEvent { case selection,placement,confirmation,boundary }
 enum IslandHaptics { static func play(_ event:IslandFixtureHapticEvent) {} }
@@ -43,9 +44,10 @@ enum IslandHaptics { static func play(_ event:IslandFixtureHapticEvent) {} }
  func template(_ name:String) { }
  func restore(_ value:IslandCanvasPreferences) { preferences=value }
 }
+@MainActor final class IslandCoordinator { static let shared=IslandCoordinator();var currentView=NotchViews.home }
 struct IslandModuleInspector:View { let module:NotchViews;var body:some View { Text(module.title) } }
 '''
-Path(sys.argv[1]).write_text('import SwiftUI\nimport Combine\nimport Foundation\n'+e+m+c+s+p+fixture+d)
+Path(sys.argv[1]).write_text('import SwiftUI\nimport Combine\nimport Foundation\n'+e+m+c+s+p+fixture+l+d)
 PY
 if [[ "${ISLAND_DESIGNER_DEMO:-0}" == 1 ]]; then
     APP="$OUTPUT/Island Canvas Check.app"

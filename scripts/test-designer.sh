@@ -10,7 +10,8 @@ e=Path('IslandCore/enums/generic.swift').read_text();e=e[e.index('public enum No
 m=Path('Island/Modules.swift').read_text();m=m[m.index('struct IslandModulePreferences:'):m.index('@MainActor final class IslandModuleStore')]
 t=Path('Island/ModulePreview.swift').read_text();t=t[t.index('extension UTType'):t.index('// These are sample module blocks')]
 c=Path('Island/CanvasLayout.swift').read_text();c=c[c.index('struct IslandCanvasPreferences:'):c.index('struct IslandCanvasLiveView:')]
-Path(sys.argv[1]).write_text('import Foundation\nimport Combine\nimport CoreTransferable\nimport UniformTypeIdentifiers\n'+e+m+t+c)
+l=Path('Island/SavedLayouts.swift').read_text();l=l[l.index('struct IslandSavedLayout:'):l.index('struct IslandSavedLayoutsView:')]
+Path(sys.argv[1]).write_text('import Foundation\nimport Combine\nimport CoreTransferable\nimport UniformTypeIdentifiers\n'+e+m+t+c+l)
 PY
-xcrun swiftc -module-cache-path "$STAGE/cache" "$STAGE/Models.swift" Tests/DesignerSmoke.swift Tests/CanvasSmoke.swift -o "$STAGE/test"
+xcrun swiftc -module-cache-path "$STAGE/cache" "$STAGE/Models.swift" Tests/DesignerSmoke.swift Tests/CanvasSmoke.swift Tests/SavedLayoutsSmoke.swift -o "$STAGE/test"
 "$STAGE/test"

@@ -1,4 +1,4 @@
-# Island 2.8.4
+# Island 2.9.0
 
 An independent, open-source macOS notch utility, based on [Boring Notch](https://github.com/TheBoredTeam/boring.notch). GPL-3.0; original copyright notices and third-party licenses are retained.
 
@@ -40,3 +40,7 @@ Start with [START-HERE.md](START-HERE.md), then follow [docs/RELEASING.md](docs/
 ## License and attribution
 
 See [LICENSE](LICENSE), [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES), and [UPSTREAM.md](UPSTREAM.md). Island is not an Apple product and is not affiliated with MacNotch. MacNotch screenshots were inspected as reference only; none of its images or proprietary code are distributed here.
+
+### Settings help and saved layouts
+
+Use the question-mark button for the current page, Help & Tips for searchable instructions, or How to use in a module inspector. The introductory help tip can be dismissed permanently. Modules → Layouts saves up to 12 named arrangements, with rename, explicit update, apply and persistent removal Undo. Applying a layout preserves module content and approvals; schedules still use Work/Minimal.

@@ -1,6 +1,6 @@
-# Island 2.8 development status
+# Island 2.9 development status
 
-Updated November 8, 2026. This is an implementation inventory, not a claim of full MacNotch parity or zero bugs.
+Updated November 10, 2026. This is an implementation inventory, not a claim of full MacNotch parity or zero bugs.
 
 ## Island interface
 
@@ -11,7 +11,7 @@ A running timer appears in two bounded wings beside the physical camera. Complet
 ## Available features
 
 - 21 selectable modules: Dashboard, Now Playing, File Tray, Focus, Notes, Calendar, Tasks, Day Progress, Weather, Wellbeing, System Monitor, Screen Time, Launcher, Code Hosting, Translation, Bluetooth, Window Layouts, File Actions, Mirror, AI Coding and Inbox.
-- Settings → Modules is a four-position module canvas. Drop cards into the body of the notch preview, drag existing blocks to swap positions, or replace a block with a new card. The first placement applies the arrangement to the real Island’s Dashboard. Click preview blocks for settings; click real blocks for full controls, with a grid button to return. Layout removal and module enablement are separate. Existing classic Dashboard widgets and module navigation settings are retained. Includes undo, templates, search, position buttons and visible instructions. Preview content is illustrative.
+- Settings → Modules is a four-position module canvas. Drop cards into the body of the notch preview, drag existing blocks to swap positions, or replace a block with a new card. The first placement applies the arrangement to the real Island’s Dashboard. Click preview blocks for settings; click real blocks for full controls, with a grid button to return. Layout removal and module enablement are separate. Existing classic Dashboard widgets and module navigation settings are retained. Includes undo, templates, search, position buttons, visible instructions and up to 12 named saved arrangements with rename/update and persistent removal Undo. Preview content is illustrative.
 - Modules can be enabled, ordered and selected as the default. Five appear in the strip; the rest use More. Minimal/Work/Everything layouts and four configurable dashboard widgets. Optional daily Work/Minimal scheduling, including overnight periods and local time-zone changes; a shared system Focus state can take priority when macOS makes it available and permission is granted.
 - Own player with real artwork and metadata, transport, seeking, supported player-volume controls, and one Not Playing idle label. The licensed media-controller backends support Now Playing, Apple Music, Spotify and YouTube Music subject to source requirements.
 - Own file tray, drag/drop, file picker, Quick Look, context actions and AirDrop. Existing bookmark/persistence backend is retained.
@@ -30,7 +30,7 @@ A running timer appears in two bounded wings beside the physical camera. Complet
 - Local ChatGPT Work/Codex/Claude Code/Cursor hook bridge: session events, expiring single-request approval/denial, explicit review, compact pending count. Setup exports a helper and example configs to a chosen folder; it does not alter existing client settings. Inbox displays explicitly forwarded alerts. See Integrations/README.md.
 - ChatGPT draft handoff and connected chat links, an English/Arabic language picker with core Arabic labels, in-app help and a diagnostic summary containing no note text, tokens or user paths. Some detailed messages retain English.
 - Dedicated, source-included Low Power Mode service and one-time GUI setup helper; narrow fixed-command interface, immediate yellow switch state and macOS reconciliation. Live setup/authorization remains a separate verification step. Ad-hoc updates may require setup again; normal toggles do not. See Power/README.md.
-- Central Permissions page for Accessibility, media-key monitoring, Bluetooth, camera, calendar, reminders, notifications, Music/Spotify automation, shared Focus and Low Power Mode. Select features, request one at a time, skip or finish later, and resume after manual System Settings approval. Checks do not request grants. Existing media polling checks automation permission before scripting; setup owns the consent prompt. No Touch ID shortcut bypasses macOS or client hook review.
+- Central Permissions page for shared Window and media controls, Bluetooth, camera, calendar, reminders, notifications, Music/Spotify automation, shared Focus and Low Power Mode. Select features, request one at a time, skip or finish later, and resume after manual System Settings approval. Checks do not request grants. Existing media polling checks automation permission before scripting; setup owns the consent prompt. No Touch ID shortcut bypasses macOS or client hook review.
 - GPL source, local Git repository, signed Sparkle release tooling, build/release workflows and beginner publishing guide. Update consent, hourly/daily/weekly checks and quit/idle/night installation choices are implemented. A signing key is stored in the owner’s Keychain; only its public key is bundled. Checks/downloads start off. The GitHub release feed remains unconnected and nothing has been uploaded.
 
 ## Refinement in 2.8
@@ -38,6 +38,10 @@ A running timer appears in two bounded wings beside the physical camera. Complet
 Settings has grouped sections, keyboard focus, page/module search and direct File Tray options. First launch asks about login and update choices, then other preferences, permissions, a hands-on practice tutorial and real module customization. Native approval requests no longer jump to System Settings automatically; explicit manual steps explain the correct switch and resume only after returning to Island. Trackpad haptics mark useful interactions with a global rate limit and an off switch.
 
 New options include Live Activities rotation/source filters, module and snooze shortcuts, due-task day timelines, usage exclusions/day boundaries, weather pressure/UV/sun times, launcher grid/list and named Shortcuts, Keep Awake, extra Dashboard widgets and an editable quote. A skipped eye break no longer credits a completed break. Read [the complete comparison](MACNOTCH-COMPARISON.md) for remaining subfeature gaps.
+
+## Refinement in 2.9
+
+Each Settings page has contextual help, and every module inspector has How to use. Help & Tips searches instructions and terms; ordinary Settings search also matches these explanations and multiple words. The one-time help tip can be dismissed permanently. Named layouts save module enablement, opening module and the four-position arrangement while preserving module content and account settings. Automatic scheduling still uses Work/Minimal. Diagnostics copy reports last-known permission and feature state without private content. macOS Screen Time enforcement/settings are unchanged as requested.
 
 ## Remaining reference scope
 

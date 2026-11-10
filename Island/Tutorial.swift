@@ -56,7 +56,7 @@ struct IslandTutorialView:View {
                 case .explore:
                     Picker("Explore a module",selection:$explored) { ForEach(NotchViews.allCases) { module in Label(module.title,systemImage:module.icon).tag(module) } }
                     Text(IslandModuleGuide.description(explored)).foregroundStyle(.secondary).frame(maxWidth:.infinity,alignment:.leading).fixedSize(horizontal:false,vertical:true)
-                    Text("Start with what you use. Extra connections and permissions can be set up later. Settings has search, so typing a module name takes you straight to its options.").font(.callout)
+                    Text("Start with what you use. Extra connections and permissions can be set up later. Search Settings for a module or action to find its options. The question-mark button explains each page; How to use explains the selected module.").font(.callout)
                 }
             }.font(.callout)
             Spacer(minLength:0)

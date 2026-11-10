@@ -28,7 +28,7 @@ struct IslandCanvasPreferences:Codable,Equatable {
     }
     static func title(_ index:Int)->String { ["Top left","Top right","Bottom left","Bottom right"].indices.contains(index) ? ["Top left","Top right","Bottom left","Bottom right"][index] : "Position" }
 }
-struct IslandDesignerSnapshot {
+struct IslandDesignerSnapshot:Codable,Equatable {
     var modules:IslandModulePreferences
     var canvas:IslandCanvasPreferences
 }

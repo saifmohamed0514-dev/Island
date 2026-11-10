@@ -4,6 +4,7 @@ import Defaults
 struct IslandModuleDesigner:View {
     @ObservedObject private var modules=IslandModuleStore.shared
     @ObservedObject private var canvas=IslandCanvasStore.shared
+    @ObservedObject private var layouts=IslandSavedLayoutStore.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("island.designer.selected") private var selectedID=""
     @AppStorage("island.designer.inspector") private var inspecting=false
@@ -15,6 +16,7 @@ struct IslandModuleDesigner:View {
     @State private var feedback="Drag a card into a space inside the notch."
     @State private var removeTargeted=false
     @State private var help=false
+    @State private var savedLayouts=false
     var selected:NotchViews { NotchViews(rawValue:selectedID) ?? canvas.preferences.modules.first ?? .home }
     var inLayout:Bool { canvas.preferences.modules.contains(selected) }
     var moduleEnabled:Bool { modules.enabled.contains(selected) }
@@ -26,7 +28,11 @@ struct IslandModuleDesigner:View {
         VStack(alignment:.leading,spacing:10) {
             HStack {
                 Text("Build your Island").font(.title2.weight(.semibold));Spacer()
-                Menu("Layouts") { ForEach(["Music & focus","Work","Simple"],id:\.self) { name in Button(name) { change { canvas.template(name) };feedback=name+" layout applied to Island." } } }
+                Menu("Layouts") {
+                    Section("Templates") { ForEach(["Music & focus","Work","Simple"],id:\.self) { name in Button(name) { change { canvas.template(name) };feedback=name+" layout applied to Island." } } }
+                    if !layouts.layouts.isEmpty { Section("Saved layouts") { ForEach(layouts.layouts) { layout in Button(layout.name) { apply(layout) } } } }
+                    Divider();Button("Save or manage layouts…") { savedLayouts=true }
+                }.help("Use a template or keep your own named arrangements.")
                 Button("Undo") { if let previousLayout { IslandHaptics.play(.selection);modules.restore(previousLayout.modules);canvas.restore(previousLayout.canvas);self.previousLayout=nil;feedback="Previous layout restored." } }.disabled(previousLayout == nil)
             }
             HStack(spacing:14) { Label("Drop into a space",systemImage:"hand.draw");Label("Drag blocks to swap",systemImage:"arrow.left.arrow.right");Label("Click for settings",systemImage:"cursorarrow.click") }.font(.caption).foregroundStyle(.secondary)
@@ -50,6 +56,7 @@ struct IslandModuleDesigner:View {
             moduleLibrary
         }.padding(16)
         .sheet(isPresented:$inspecting) { inspector.padding(18).frame(width:560,height:540) }
+        .sheet(isPresented:$savedLayouts) { IslandSavedLayoutsView(snapshot:{ IslandDesignerSnapshot(modules:modules.preferences,canvas:canvas.preferences) },apply:apply) }
     }
     private var moduleLibrary:some View {
         VStack(alignment:.leading,spacing:9) {
@@ -102,6 +109,11 @@ struct IslandModuleDesigner:View {
             IslandModuleInspector(module:selected).id(selected).frame(maxWidth:.infinity,maxHeight:.infinity)
         }
     }
+    private func apply(_ layout:IslandSavedLayout) {
+        change { modules.restore(layout.snapshot.modules);canvas.restore(layout.snapshot.canvas) }
+        IslandCoordinator.shared.currentView=layout.snapshot.modules.start
+        IslandHaptics.play(.placement);feedback=layout.name+" applied. Undo restores your previous arrangement."
+    }
     private func inspect(_ module:NotchViews) { IslandHaptics.play(.selection);selectedID=module.rawValue;inspecting=true }
     private func change(_ action:()->Void) {
         let before=IslandDesignerSnapshot(modules:modules.preferences,canvas:canvas.preferences);action()
@@ -141,10 +153,13 @@ struct IslandModuleInspector:View {
     @Default(.boringShelf) private var trayDrop
     @Default(.openShelfByDefault) private var openTray
     @State private var sheet:Sheet?
+    @State private var showInstructions=false
     enum Sheet:String,Identifiable { case weather,connections;var id:String { rawValue } }
     var body:some View {
-        Group {
-            switch module {
+        VStack(spacing:0) {
+            HStack { Text(IslandModuleGuide.description(module)).font(.caption).foregroundStyle(.secondary).lineLimit(2);Spacer();Button("How to use",systemImage:"questionmark.circle") { showInstructions.toggle() }.font(.caption).popover(isPresented:$showInstructions) { ScrollView { IslandGuideContent(topic:IslandGuideCatalog.module(module)).padding(20) }.frame(width:380).frame(maxHeight:460) } }.padding(.horizontal,12).padding(.vertical,10)
+            Divider()
+            Group { switch module {
             case .dashboard:IslandDashboardSettings()
             case .home:IslandMediaSettings()
             case .focus:IslandFocusSettings()
@@ -154,8 +169,8 @@ struct IslandModuleInspector:View {
             case .day:IslandDaySettings()
             case .usage:IslandUsageSettings()
             default:options
-            }
-        }.sheet(item:$sheet) { destination in
+            } }
+        }.onChange(of:module) { showInstructions=false }.sheet(item:$sheet) { destination in
             VStack(alignment:.leading,spacing:12) {
                 HStack { Text(destination == .weather ? "Weather" : "Account connections").font(.headline);Spacer();Button("Done") { sheet=nil } }.padding(.horizontal,18).padding(.top,16)
                 if destination == .weather { ScrollView { IslandWeatherView().padding(18) } } else { IslandConnectionsSettings(provider:module == .translation ? "OpenAI" : codeProvider) }
@@ -164,7 +179,6 @@ struct IslandModuleInspector:View {
     }
     private var options:some View {
         Form {
-            Section(module.title) { Text(IslandModuleGuide.description(module)).foregroundStyle(.secondary) }
             switch module {
             case .shelf:
                 Section("File Tray") { Toggle("Accept drops over the closed Island",isOn:$trayDrop);Toggle("Open File Tray when it contains files",isOn:$openTray);Text("Your files stay in their original locations. Hiding the tray keeps its saved items.").font(.caption).foregroundStyle(.secondary) }
