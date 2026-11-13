@@ -1,6 +1,6 @@
 # Island signed updates
 
-The app uses Sparkle, already linked by the Xcode project. A public signing key is included; the release feed is still unconnected. Starting the updater is gated on valid configuration and completion of first-run setup. Automatic checks/downloads start off, with explicit consent, cadence and installation-time choices. It cannot update from Boring Notch's feed.
+The app uses Sparkle, already linked by the Xcode project. The existing public signing key is included, and the feed is configured as `https://github.com/saifmohamed0514-dev/Island/releases/latest/download/appcast.xml`. Signed assets must still be published before this URL is available. Starting the updater is gated on valid configuration and completion of first-run setup. Automatic checks/downloads start off, with explicit consent, cadence and installation-time choices. It cannot update from Boring Notch's feed.
 
 Official reference: https://sparkle-project.org/documentation/ and https://sparkle-project.org/documentation/publishing/
 

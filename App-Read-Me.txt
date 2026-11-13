@@ -1,4 +1,4 @@
-Island 2.10.0 (2103) — development preview
+Island 2.10.1 (2110) — development preview
 
 INSTALL
 Run Island.app on an Apple silicon Mac with macOS 15 or newer. Keep one copy in Applications and quit other notch utilities to avoid overlapping overlays. This build is locally signed, not Apple-notarized; macOS may block it after downloading to another Mac.
@@ -31,13 +31,13 @@ OPTIONAL CONNECTIONS
 Calendar, Reminders and Mirror ask for permission when selected. Weather uses a manual city and has an hourly chart. Code Hosting uses explicit refresh, pagination and Keychain tokens; Jira changes require confirmation. Translation defaults to local Ollama; OpenAI is optional, needs a separate API key/model, sends the entered text only on Translate and may incur API charges. Bluetooth readings and window snapping depend on macOS permissions and device support. Device and wellbeing alerts are optional and run while Island is running.
 
 WHAT IS INCLUDED
-Island.app, corresponding source and local Git history in Source, licenses, build/release scripts, tests, verification report and beginner publishing guide. No user preferences, passwords, private signing keys or account tokens are included. Automatic updates remain off until your own release feed and public key are configured. Nothing has been uploaded.
+Island.app, corresponding source and local Git history in Source, licenses, build/release scripts, tests, verification report and beginner publishing guide. No user preferences, passwords, private signing keys or account tokens are included. The GitHub release feed is configured. Update checks and downloads remain optional in Settings → Updates. A signed release must be published before the feed is available.
 
 STATUS
 This remains a development preview, not verified full MacNotch parity. FEATURE-STATUS.md lists remaining scope and VERIFICATION.md records actual checks, including what has not been tested live.
 
 UPDATES AND CURRENT LIMITS
-Settings → Updates controls consent, check frequency and installation timing. A release signing key is ready in the owner’s Keychain; its private half is never in this download. The release repository still needs to be chosen and published before automatic delivery can work. The source includes Set Up Updates.command and a publishing guide. MACNOTCH-COMPARISON.md records the current feature audit and missing details. This preview does not yet have full MacNotch parity or Apple notarization.
+Settings → Updates controls consent, check frequency and installation timing. A release signing key is ready in the owner’s Keychain; its private half is never in this download. The release channel is https://github.com/saifmohamed0514-dev/Island. A signed latest release must be published there before automatic delivery can work. The source includes Set Up Updates.command and a publishing guide. MACNOTCH-COMPARISON.md records the current feature audit and missing details. This preview does not yet have full MacNotch parity or Apple notarization.
 
 In Settings, the question-mark button explains the current page. Help & Tips is searchable. Modules → Layouts can save and switch up to 12 of your own arrangements; Undo restores a removed saved layout. Your content and account settings are kept.
 

@@ -25,6 +25,8 @@
 	<true/>
 	<key>SUEnableInstallerLauncherService</key>
 	<true/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/saifmohamed0514-dev/Island/releases/latest/download/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>+oxbwXw10AGnNM2Dj0kbuZ4d4M+emfI/NyWx8huVs4M=</string>
 	<key>SUSendProfileInfo</key>
