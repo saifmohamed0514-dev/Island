@@ -21,6 +21,10 @@ For an interactive setup, double-click `Set Up Updates.command` in the Source fo
 5. Commit the public configuration and rebuild. The first distributed auto-updating app must already contain the correct public key and feed.
 6. For public distribution, obtain an Apple Developer ID certificate and notarize your app. The supplied local build uses ad-hoc signatures and is not notarized. Sparkle archive signatures and Apple's code signing/notarization are separate protections. Never share your Apple private certificate in source.
 
+## Create the download DMG
+
+After building and committing the matching source, run `scripts/package-dmg.sh`. It creates `dist/Island-VERSION.dmg` with Island.app, an Applications shortcut, installation instructions and the corresponding source archive. It verifies the app signature and the disk image, and refuses to overwrite an existing download. The DMG is for manual installation; keep the signed `Island.zip` and `appcast.xml` as the updater assets. Attach all three to the same GitHub Release. Creating a DMG does not add Apple notarization or connect an unconfigured feed.
+
 ## Prepare an update locally
 
 1. Increase `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in both main-target build configurations in `Island.xcodeproj/project.pbxproj`. Example: version `2.0.1`, build `201`. Keep increasing the build number.
@@ -36,7 +40,7 @@ For an interactive setup, double-click `Set Up Updates.command` in the Source fo
      --sign-tool .build/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update
    ```
 
-5. Create a GitHub Release tagged exactly `v` plus the app version (for example `v2.0.1`). Attach **Island.zip** and **appcast.xml** with those exact names. Include release notes and the source commit. Mark it as the latest release when you are ready for that update to reach users. The helper only prepares files; it never publishes.
+5. Create a GitHub Release tagged exactly `v` plus the app version (for example `v2.0.1`). Attach **Island.zip** and **appcast.xml** with those exact names, plus the versioned DMG for manual installation. Include release notes and the source commit. Save a draft first and attach all assets before publishing. The current feed uses GitHub’s latest-release URL: publish a regular release and mark it latest for that channel. A GitHub pre-release will not be served by that URL. Describe the app as a development preview in its title/notes until the public-release checks are complete. The helper only prepares files; it never publishes.
 6. Test a genuine upgrade from the previous distributed build on a separate test Mac/account before announcing release. Test a tampered ZIP and confirm rejection. Keep the last working release available.
 
 ## Optional GitHub Actions

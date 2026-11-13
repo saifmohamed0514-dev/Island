@@ -27,7 +27,7 @@ Apple silicon, macOS 15+. Build with Xcode 26 or later. The supplied preview is 
 scripts/build.sh
 ```
 
-After committing the corresponding source, `scripts/package-source.sh` creates a complete app + source ZIP.
+After committing the corresponding source, `scripts/package-source.sh` creates a complete app + source ZIP. `scripts/package-dmg.sh` creates a drag-to-Applications DMG containing the app, installation guide and matching source.
 
 `xcrun swift scripts/make-icon.swift` regenerates all ten custom icon resolutions and the ICNS from the included vector drawing.
 
