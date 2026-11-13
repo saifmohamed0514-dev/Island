@@ -20,7 +20,7 @@ jobs:
           SIGN_TOOL=$(find .build/SourcePackages/artifacts -type f -name sign_update -print -quit)
           test -n "$SIGN_TOOL"
           python3 scripts/prepare-release.py --app .release-check/Island.app --archive dist/Island.zip --output dist/appcast.xml --sign-tool "$SIGN_TOOL"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: Island-release-files
           path: |
