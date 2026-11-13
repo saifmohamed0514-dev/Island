@@ -2,10 +2,10 @@ import SwiftUI
 import Defaults
 
 // Island's own bounded surface and physical-camera-safe activity layout.
-enum IslandCompactKind { case idle, music, timer, hud, battery, agent, event, device, notice }
+enum IslandCompactKind { case idle, music, timer, hud, battery, agent, event, device, notice, wellbeing }
 struct IslandCompactLayout {
     static func wing(for kind:IslandCompactKind) -> CGFloat {
-        switch kind { case .idle: return 0; case .music: return 34; case .timer,.hud,.battery,.agent,.event,.device,.notice: return 64 }
+        switch kind { case .idle: return 0; case .music: return 34; case .timer,.hud,.battery,.agent,.event,.device,.notice,.wellbeing: return 64 }
     }
     static func width(camera:CGFloat,kind:IslandCompactKind) -> CGFloat { max(0,camera) + 2 * wing(for:kind) }
 }
@@ -60,33 +60,41 @@ struct IslandCompactActivity:View {
     @ObservedObject var agenda=IslandAgenda.shared
     @ObservedObject var devices=IslandDevices.shared
     @ObservedObject var notices=IslandNotices.shared
+    @AppStorage("island.health.water") private var water=0
+    @AppStorage("island.health.waterGoal") private var waterGoal=8
+    @AppStorage("island.health.day") private var healthDay=""
     var body:some View {
         let wing = IslandCompactLayout.wing(for:kind)
-        HStack(spacing:0) {
-            leading.frame(width:wing)
-            Color.black.frame(width:vm.closedNotchSize.width).allowsHitTesting(false)
-            trailing.frame(width:wing)
-        }
-        .frame(width:IslandCompactLayout.width(camera:vm.closedNotchSize.width,kind:kind),height:vm.effectiveClosedNotchHeight)
-        .font(.system(size:11,weight:.semibold,design:.rounded)).lineLimit(1)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            if kind == .event { coordinator.currentView = IslandModuleStore.shared.enabled.contains(.calendar) ? .calendar : .day }
-            else if kind == .device { coordinator.currentView = .devices }
-            else if kind == .notice { coordinator.currentView = .inbox }
-            else if kind == .timer { coordinator.currentView = .focus }
-            else if kind == .agent { coordinator.currentView = .agents }
-            else if kind == .music { coordinator.currentView = .home }
-            vm.open()
-        }
+        Button(action:openActivity) {
+            HStack(spacing:0) {
+                leading.frame(width:wing)
+                Color.black.frame(width:vm.closedNotchSize.width).allowsHitTesting(false)
+                trailing.frame(width:wing)
+            }
+            .frame(width:IslandCompactLayout.width(camera:vm.closedNotchSize.width,kind:kind),height:vm.effectiveClosedNotchHeight)
+            .font(.system(size:11,weight:.semibold,design:.rounded)).lineLimit(1)
+            .contentShape(Rectangle())
+        }.buttonStyle(.plain).accessibilityLabel(kind == .agent ? "Open AI activity and questions" : kind == .wellbeing ? "Open Wellbeing" : "Open Island activity")
+    }
+    private func openActivity() {
+        if kind == .wellbeing { coordinator.currentView = .health }
+        else if kind == .event { coordinator.currentView = IslandModuleStore.shared.enabled.contains(.calendar) ? .calendar : .day }
+        else if kind == .device { coordinator.currentView = .devices }
+        else if kind == .notice { coordinator.currentView = .inbox }
+        else if kind == .timer { coordinator.currentView = .focus }
+        else if kind == .agent { coordinator.currentView = .agents }
+        else if kind == .music { coordinator.currentView = .home }
+        if ![IslandCompactKind.idle,.hud,.battery].contains(kind) { coordinator.showingCanvasDetail=true }
+        vm.open()
     }
     @ViewBuilder var leading:some View {
         switch kind {
         case .idle: Color.clear
+        case .wellbeing:Image(systemName:"drop.fill").foregroundStyle(.cyan)
         case .event:Image(systemName:"calendar").foregroundStyle(.orange)
         case .device:Image(systemName:"headphones").foregroundStyle(.cyan)
         case .notice:Image(systemName:"bell.badge.fill").foregroundStyle(.cyan)
-        case .agent: Image(systemName:"hand.raised.fill").foregroundStyle(.cyan)
+        case .agent: Image(systemName:bridge.pending.isEmpty ? "sparkles" : "questionmark.bubble.fill").foregroundStyle(.cyan)
         case .timer: Image(systemName:focus.showCompletion ? "checkmark.circle.fill" : "timer").foregroundStyle(.orange)
         case .music: Image(nsImage:music.albumArt).resizable().scaledToFill().frame(width:18,height:18).clipShape(RoundedRectangle(cornerRadius:5))
         case .hud: Image(systemName:coordinator.sneakPeek.icon.isEmpty ? "speaker.wave.2.fill" : coordinator.sneakPeek.icon).foregroundStyle(.white)
@@ -96,11 +104,12 @@ struct IslandCompactActivity:View {
     @ViewBuilder var trailing:some View {
         switch kind {
         case .idle: Color.clear
+        case .wellbeing:Text("\(healthDay == Date().formatted(.iso8601.year().month().day()) ? max(0,water) : 0)/\(max(1,waterGoal))").monospacedDigit().foregroundStyle(.cyan)
         case .event:
             if let event=agenda.events.first(where:{ $0.endDate>Date() && $0.startDate.timeIntervalSinceNow<1800 }) { Text(event.startDate<=Date() ? "Now" : "\(max(1,Int(event.startDate.timeIntervalSinceNow/60))) min").monospacedDigit().foregroundStyle(.orange) }
         case .device:Text(devices.devices.compactMap(\.battery).min().map { "\($0)%" } ?? "Connected").foregroundStyle(.cyan)
         case .notice:Text("\(notices.items.filter { !$0.read }.count) unread").foregroundStyle(.cyan)
-        case .agent: Text("\(bridge.pending.count) waiting").foregroundStyle(.cyan)
+        case .agent: Text(bridge.pending.isEmpty ? (bridge.activePluginProgress?.percent.map { "\(Int($0))%" } ?? "Working") : "\(bridge.pending.count) waiting").foregroundStyle(.cyan)
         case .timer: Text(focus.showCompletion ? "Done" : focus.label).monospacedDigit().foregroundStyle(.orange)
         case .music: Image(systemName:music.isPlaying ? "waveform" : "pause.fill").foregroundStyle(.cyan)
         case .hud: ProgressView(value:min(1,max(0,Double(coordinator.sneakPeek.value)))).progressViewStyle(.linear).tint(.white).padding(.horizontal,10)

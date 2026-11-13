@@ -29,6 +29,8 @@ struct ContentView: View {
     @ObservedObject var liveNotices=IslandNotices.shared
     @ObservedObject var focusTimer = IslandFocusTimer.shared
     @ObservedObject var agentBridge = IslandAgentBridge.shared
+    @ObservedObject var activityTrays=IslandActivityTrayStore.shared
+    @ObservedObject var moduleStore=IslandModuleStore.shared
     @ObservedObject var musicManager = MusicManager.shared
     @ObservedObject var batteryModel = BatteryStatusViewModel.shared
     @ObservedObject var brightnessManager = BrightnessManager.shared
@@ -57,17 +59,18 @@ struct ContentView: View {
     private var compactKind: IslandCompactKind {
         if coordinator.sneakPeek.show && [.volume,.brightness,.backlight,.mic].contains(coordinator.sneakPeek.type) { return .hud }
         if coordinator.expandingView.show && coordinator.expandingView.type == .battery && Defaults[.showPowerStatusNotifications] { return .battery }
-        if !agentBridge.pending.isEmpty && IslandModuleStore.shared.enabled.contains(.agents) { return .agent }
-        let defaults=UserDefaults.standard,modules=IslandModuleStore.shared.enabled
-        let timerActive=(focusTimer.state.deadline != nil || focusTimer.showCompletion) && modules.contains(.focus)
-        if timerActive && defaults.object(forKey:"island.live.timerPriority") as? Bool != false { return .timer }
+        if !agentBridge.pending.isEmpty && activityTrays.preferences.enabled.contains(.agent) && moduleStore.enabled.contains(.agents) { return .agent }
+        let defaults=UserDefaults.standard,modules=moduleStore.enabled
+        let timerActive=(focusTimer.state.deadline != nil || focusTimer.showCompletion) && modules.contains(.focus) && activityTrays.preferences.enabled.contains(.timer)
         var available:[IslandCompactKind]=[]
         if timerActive { available.append(.timer) }
         if !musicManager.isPlayerIdle && coordinator.musicLiveActivityEnabled && modules.contains(.home) && !IslandActivityRules.excluded(musicManager.bundleIdentifier,from:defaults.string(forKey:"island.live.excludedPlayers") ?? "") { available.append(.music) }
-        if defaults.bool(forKey:"island.live.calendar"),(modules.contains(.calendar) || modules.contains(.day)),liveAgenda.events.contains(where:{ $0.endDate>Date() && $0.startDate.timeIntervalSinceNow<1800 }) { available.append(.event) }
-        if defaults.bool(forKey:"island.live.devices"),modules.contains(.devices),!liveDevices.devices.isEmpty { available.append(.device) }
-        if defaults.bool(forKey:"island.live.notices"),modules.contains(.inbox),liveNotices.items.contains(where:{ !$0.read }) { available.append(.notice) }
-        return IslandActivityRules.choose(available,rotate:defaults.bool(forKey:"island.live.rotate"),phase:activityClock.phase)
+        if activityTrays.preferences.enabled.contains(.event),(modules.contains(.calendar) || modules.contains(.day)),liveAgenda.events.contains(where:{ $0.endDate>Date() && $0.startDate.timeIntervalSinceNow<1800 }) { available.append(.event) }
+        if activityTrays.preferences.enabled.contains(.device),modules.contains(.devices),!liveDevices.devices.isEmpty { available.append(.device) }
+        if activityTrays.preferences.enabled.contains(.notice),modules.contains(.inbox),liveNotices.items.contains(where:{ !$0.read }) { available.append(.notice) }
+        if modules.contains(.health) { available.append(.wellbeing) }
+        if modules.contains(.agents),agentBridge.activePluginProgress != nil { available.append(.agent) }
+        return IslandActivityRules.choose(activityTrays.preferences.arrange(available),rotate:defaults.bool(forKey:"island.live.rotate"),phase:activityClock.phase)
     }
     private var topCornerRadius: CGFloat { 0 }
     private var currentNotchShape: IslandSurface { IslandSurface(radius:vm.notchState == .open ? 30 : 14) }
@@ -110,6 +113,7 @@ struct ContentView: View {
                     .onHover { hovering in
                         handleHover(hovering)
                     }
+                    .onReceive(NotificationCenter.default.publisher(for:Notification.Name("IslandActivityTraysChanged"))) { _ in IslandLiveActivityClock.shared.configure() }
                     .onTapGesture {
                         doOpen()
                     }

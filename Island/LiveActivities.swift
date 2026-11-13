@@ -18,14 +18,14 @@ enum IslandActivityRules {
     func configure() {
         task?.cancel();task=nil;phase=(phase+1)%100000
         let defaults=UserDefaults.standard
-        guard ["island.live.rotate","island.live.calendar","island.live.devices","island.live.notices"].contains(where:{ defaults.bool(forKey:$0) }) else { return }
+        guard defaults.bool(forKey:"island.live.rotate") || IslandActivityTrayStore.shared.preferences.enabled.contains(.event) || IslandActivityTrayStore.shared.preferences.enabled.contains(.device) else { return }
         task=Task {
             var poll=10
             while !Task.isCancelled {
                 if poll>=10 {
                     poll=0;let modules=IslandModuleStore.shared.enabled
-                    if defaults.bool(forKey:"island.live.calendar"),(modules.contains(.calendar) || modules.contains(.day)) { await IslandAgenda.shared.refresh() }
-                    if defaults.bool(forKey:"island.live.devices"),modules.contains(.devices) { IslandDevices.shared.refresh() }
+                    if IslandActivityTrayStore.shared.preferences.enabled.contains(.event),(modules.contains(.calendar) || modules.contains(.day)) { await IslandAgenda.shared.refresh() }
+                    if IslandActivityTrayStore.shared.preferences.enabled.contains(.device),modules.contains(.devices) { IslandDevices.shared.refresh() }
                 }
                 try? await Task.sleep(for:.seconds(6));guard !Task.isCancelled else { return };poll+=1;phase=(phase+1)%100000
             }
@@ -37,18 +37,14 @@ struct IslandLiveActivitySettings:View {
     @AppStorage("island.live.calendar") private var calendar=false
     @AppStorage("island.live.devices") private var devices=false
     @AppStorage("island.live.notices") private var notices=false
-    @AppStorage("island.live.timerPriority") private var timerPriority=true
     @AppStorage("island.live.excludedPlayers") private var excluded=""
     private var apps:[NSRunningApplication] { NSWorkspace.shared.runningApplications.filter { $0.activationPolicy == .regular && $0.bundleIdentifier != nil }.sorted { ($0.localizedName ?? "")<($1.localizedName ?? "") } }
     var body:some View {
         Form {
             Section("Beside the camera") {
                 Toggle("Rotate available activities every 6 seconds",isOn:$rotate)
-                Toggle("Keep the focus timer visible while running",isOn:$timerPriority)
-                Toggle("Upcoming calendar events",isOn:$calendar)
-                Toggle("Connected device batteries",isOn:$devices)
-                Toggle("Unread Island Inbox alerts",isOn:$notices)
-                Text("Only enabled modules contribute activities. Calendar events appear within 30 minutes of starting. Power notices, system HUDs and pending coding approvals take priority. External displays use the same choices.").font(.caption).foregroundStyle(.secondary)
+                Button("Choose and arrange activity trays…") { IslandSettingsNavigation.shared.selected="Trays" }
+                Text("Add or remove the timer, Wellbeing, AI activity and other trays in Settings → Trays. Their enabled modules supply the activity.").font(.caption).foregroundStyle(.secondary)
             }
             Section("Media sources") {
                 Text("Hide media activity from selected apps. Playback controls in the Now Playing module remain available.").font(.caption).foregroundStyle(.secondary)
@@ -57,7 +53,7 @@ struct IslandLiveActivitySettings:View {
                 }
             }
         }.formStyle(.grouped)
-        .onChange(of:rotate) { configure() }.onChange(of:calendar) { configure() }.onChange(of:devices) { configure() }.onChange(of:notices) { configure() }.onChange(of:timerPriority) { configure() }.onChange(of:excluded) { configure() }
+        .onChange(of:rotate) { configure() }.onChange(of:calendar) { configure() }.onChange(of:devices) { configure() }.onChange(of:notices) { configure() }.onChange(of:excluded) { configure() }
     }
     private func configure() { IslandLiveActivityClock.shared.configure() }
 }

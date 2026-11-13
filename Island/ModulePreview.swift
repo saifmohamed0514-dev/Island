@@ -118,7 +118,7 @@ enum IslandModuleGuide {
         case .windows:return "Window layouts and optional edge snapping."
         case .files:return "Archive, convert, share and organize selected files."
         case .mirror:return "A camera preview, only when you start it."
-        case .agents:return "Local AI sessions and one-request approvals."
+        case .agents:return "Plugin progress and questions you can answer in Island."
         case .inbox:return "Island alerts and notices you explicitly forward."
         }
     }

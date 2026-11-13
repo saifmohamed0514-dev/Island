@@ -1,4 +1,4 @@
-# Island 2.9.0
+# Island 2.10.0
 
 An independent, open-source macOS notch utility, based on [Boring Notch](https://github.com/TheBoredTeam/boring.notch). GPL-3.0; original copyright notices and third-party licenses are retained.
 
@@ -12,8 +12,8 @@ An independent, open-source macOS notch utility, based on [Boring Notch](https:/
 - Persistent focus timer with a draggable ring, saved custom presets, work/break cycles, selectable sounds, audio import, volume and repeat-until-stopped.
 - Shared timer across displays; multiple local notes and four configurable dashboard widgets.
 - A four-position module canvas: drag blocks into the notch preview, swap positions inside it, click for settings, and use the same arrangement on the real Island. Live blocks open full module controls; a grid button returns to the layout. Includes typed drag/drop, undo, search and a visible interaction guide. Settings can be resized.
-- Module toggles, ordering, daily scheduled layouts and keyboard shortcut settings. Optional weather, tasks, day progress, wellbeing, system/usage monitoring, launcher, code hosting, local/optional cloud translation, device readings, window layouts, file actions and a local agent hook bridge/inbox. See FEATURE-STATUS.md for exact scope.
-- ChatGPT Work/Codex, Claude Code and Cursor local hooks, one-request decisions and ChatGPT draft handoff. See [Integrations/README.md](Integrations/README.md).
+- Module toggles, ordering, daily scheduled layouts and keyboard shortcut settings. Optional weather, tasks, day progress, wellbeing, system/usage monitoring, launcher, code hosting, local/optional cloud translation, device readings, window layouts, file actions and a local AI activity plugin/inbox. See FEATURE-STATUS.md for exact scope.
+- Hook-free ChatGPT/Codex and Claude plugins for task progress and clarification questions answered in Island. Older local hook connections remain optional under Advanced. See [Integrations/README.md](Integrations/README.md).
 - Narrow Low Power Mode service with one-time macOS setup; later toggles need no password. Local ad-hoc updates can require setup again. See [Power/README.md](Power/README.md).
 - Hourly weather, optional device/wellbeing alerts, seven-day usage categories, provider pagination/Jira transitions and opt-in window snapping.
 - One Permissions page with feature explanations, actual status checks and a sequential setup guide. Optional selections, skip/retry, and resume after System Settings. macOS privacy approvals remain separate from administrator authentication.
@@ -44,3 +44,9 @@ See [LICENSE](LICENSE), [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES), and [UPSTR
 ### Settings help and saved layouts
 
 Use the question-mark button for the current page, Help & Tips for searchable instructions, or How to use in a module inspector. The introductory help tip can be dismissed permanently. Modules → Layouts saves up to 12 named arrangements, with rename, explicit update, apply and persistent removal Undo. Applying a layout preserves module content and approvals; schedules still use Work/Minimal.
+
+### Hook-free AI plugins and trays
+
+Settings → Agents & Inbox creates a ChatGPT/Codex local plugin and Claude desktop-extension installer/Code plugin. They expose local progress and clarification-question tools, use the account already signed in to the client, and contain no hooks. They work for tasks using the plugin, not every existing chat. Installation/tool review in the client and a real connection test remain required. See Integrations/README.md.
+
+Settings → Trays separately customizes the tools inside Island and the activities while it is closed. Hide the timer without stopping it, add Wellbeing’s water counter, reorder priorities, choose rotation and undo changes.

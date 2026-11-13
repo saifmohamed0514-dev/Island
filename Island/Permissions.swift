@@ -472,7 +472,7 @@ struct IslandPermissionsView:View {
             Section("Files and app connections") {
                 Text("Files and folders are approved when you choose them. Island doesn’t need access to your whole disk, microphone or screen recording to use these features.").font(.caption).foregroundStyle(.secondary)
                 LabeledContent("ChatGPT, Claude and Cursor",value:bridge.events.isEmpty ? (bridge.folderName == nil ? "Not connected" : "Folder connected") : "Activity received")
-                Text("Hook review stays in the connected app. A connected folder does not mean its hooks have been trusted.").font(.caption).foregroundStyle(.secondary)
+                Text("Plugin review stays in the connected app. A prepared folder does not mean the plugin is installed or reporting.").font(.caption).foregroundStyle(.secondary)
                 Button("Manage app connections") { IslandSettingsNavigation.shared.selected="Agents & Inbox" }
             }
         }.formStyle(.grouped)

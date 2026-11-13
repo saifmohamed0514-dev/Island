@@ -20,7 +20,7 @@ struct IslandSettingsGroup:Identifiable {
 enum IslandSettingsCatalog {
     static let groups:[IslandSettingsGroup]=[
         .init(title:"Get started",pages:[.init(route:"Overview",icon:"capsule",keywords:"welcome setup help start"),.init(route:"Permissions",icon:"checkmark.shield",keywords:"privacy access allow approval camera bluetooth calendar reminders touch id"),.init(route:"Help & Tips",icon:"questionmark.circle",keywords:"guide instructions tutorial what how glossary help")]),
-        .init(title:"Make it yours",pages:[.init(route:"Modules",icon:"square.grid.2x2",keywords:"layout notch preview drag arrange sections"),.init(route:"Dashboard",icon:"rectangle.grid.2x2",keywords:"widgets profiles schedule focus"),.init(route:"Live Activities",icon:"waveform",keywords:"compact collapsed rotate calendar bluetooth timer source"),.init(route:"Displays",icon:"display.2",keywords:"screen external monitor location"),.init(route:"Behavior",icon:"cursorarrow.rays",keywords:"login startup shortcuts haptics hover snooze")]),
+        .init(title:"Make it yours",pages:[.init(route:"Trays",icon:"rectangle.stack",keywords:"remove timer wellbeing add reorder tools tabs activity compact closed"),.init(route:"Modules",icon:"square.grid.2x2",keywords:"layout notch preview drag arrange sections"),.init(route:"Dashboard",icon:"rectangle.grid.2x2",keywords:"widgets profiles schedule focus"),.init(route:"Live Activities",icon:"waveform",keywords:"compact collapsed rotate calendar bluetooth timer source"),.init(route:"Displays",icon:"display.2",keywords:"screen external monitor location"),.init(route:"Behavior",icon:"cursorarrow.rays",keywords:"login startup shortcuts haptics hover snooze")]),
         .init(title:"Daily tools",pages:[.init(route:"Focus & Sounds",icon:"timer",keywords:"timer pomodoro ringtone preset"),.init(route:"Media",icon:"music.note",keywords:"music spotify apple player artwork"),.init(route:"Window Snapping",icon:"macwindow",keywords:"windows tile resize halves corners"),.init(route:"Wellbeing & Alerts",icon:"heart",keywords:"health water breaks breathing notifications")]),
         .init(title:"Connected tools",pages:[.init(route:"System Controls",icon:"switch.2",keywords:"battery power hud volume brightness"),.init(route:"Connections",icon:"network",keywords:"api token key account github jira openai ollama"),.init(route:"Agents & Inbox",icon:"terminal",keywords:"chatgpt codex claude cursor hooks coding messages")]),
         .init(title:"Island",pages:[.init(route:"Updates",icon:"arrow.down.circle",keywords:"automatic update version release install schedule"),.init(route:"Language",icon:"globe",keywords:"arabic english translation"),.init(route:"About Island",icon:"info.circle",keywords:"help guide license credits version")])
@@ -53,6 +53,7 @@ struct IslandSettingsView:View {
                 switch navigation.selected {
                 case "Permissions":IslandPermissionsView()
                 case "Help & Tips":IslandGuidanceSettings()
+                case "Trays":IslandTraysSettings()
                 case "Modules":IslandModulesSettings()
                 case "Dashboard":IslandDashboardSettings()
                 case "Live Activities":IslandLiveActivitySettings()

@@ -20,6 +20,8 @@ scripts/test-snapping.sh
 scripts/test-refinement.sh
 scripts/test-guidance.sh
 scripts/test-services.sh
+scripts/test-plugin.sh
+scripts/test-trays.sh
 BUILD_ARGS=()
 if [[ -n "${ISLAND_PACKAGES_DIR:-}" ]]; then BUILD_ARGS+=(-clonedSourcePackagesDirPath "$ISLAND_PACKAGES_DIR"); fi
 BUILD_ACTIONS=(clean build)
@@ -39,6 +41,8 @@ ditto --norsrc --noextattr "$BUILD/Build/Products/Release/Island.app" "$STAGE/Is
 cp Assets/Island.icns "$STAGE/Island.app/Contents/Resources/AppIcon.icns"
 xcrun swiftc -O -target arm64-apple-macos15.0 -module-cache-path "$STAGE/cache" Integrations/IslandBridge.swift -o "$STAGE/Island.app/Contents/Resources/IslandBridge"
 codesign --force --sign - "$STAGE/Island.app/Contents/Resources/IslandBridge"
+xcrun swiftc -O -target arm64-apple-macos15.0 -module-cache-path "$STAGE/cache" Integrations/IslandPlugin.swift -o "$STAGE/Island.app/Contents/Resources/IslandPlugin"
+codesign --force --sign - "$STAGE/Island.app/Contents/Resources/IslandPlugin"
 xcrun swiftc -O -target arm64-apple-macos15.0 -module-cache-path "$STAGE/cache" Power/IslandPower.swift -o "$STAGE/Island.app/Contents/Resources/IslandPower"
 codesign --force --sign - "$STAGE/Island.app/Contents/Resources/IslandPower"
 SETUP="$STAGE/Island.app/Contents/Library/LoginItems/IslandPowerSetup.app"

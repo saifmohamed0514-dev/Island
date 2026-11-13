@@ -76,7 +76,7 @@ extension NotchViews {
         case .windows: return "Window Layouts"
         case .files: return "File Actions"
         case .mirror: return "Mirror"
-        case .agents: return "AI Coding"
+        case .agents: return "AI Activity"
         case .inbox: return "Inbox"
         }
     }
