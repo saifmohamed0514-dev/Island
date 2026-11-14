@@ -20,13 +20,25 @@ enum IslandScheduleRules {
         let active = s < e ? m >= s && m < e : m >= s || m < e
         return active ? "Work" : "Minimal"
     }
+    static func selection(profile:String,work:String,minimal:String,available:Set<String>)->String {
+        let choice=profile == "Work" ? work : minimal
+        if ["Work","Minimal"].contains(choice) { return choice }
+        if choice.hasPrefix("saved:"),UUID(uuidString:String(choice.dropFirst(6))) != nil,available.contains(choice) { return choice }
+        return profile == "Work" ? "Work" : "Minimal"
+    }
 }
 @MainActor final class IslandProfileSchedule {
     static let shared = IslandProfileSchedule()
     private var task:Task<Void,Never>?
     private var applied:String?
+    private var wakeObserver:NSObjectProtocol?
+    private var zoneObserver:NSObjectProtocol?
+    private init() {
+        wakeObserver=NSWorkspace.shared.notificationCenter.addObserver(forName:NSWorkspace.didWakeNotification,object:nil,queue:.main) { [weak self] _ in Task { @MainActor in self?.check() } }
+        zoneObserver=NotificationCenter.default.addObserver(forName:.NSSystemTimeZoneDidChange,object:nil,queue:.main) { [weak self] _ in Task { @MainActor in self?.check() } }
+    }
     func start() {
-        task?.cancel(); task = nil
+        task?.cancel(); task = nil;applied=nil
         guard UserDefaults.standard.bool(forKey:"island.schedule.enabled") || UserDefaults.standard.bool(forKey:"island.schedule.useFocus") else { applied = nil; return }
         task = Task { [weak self] in
             while !Task.isCancelled { self?.check(); try? await Task.sleep(for:.seconds(30)) }
@@ -41,9 +53,12 @@ enum IslandScheduleRules {
         let useFocus=defaults.bool(forKey:"island.schedule.useFocus") && focus != nil
         let profile=useFocus ? (focus == true ? "Work" : "Minimal") : timed
         if !useFocus && !defaults.bool(forKey:"island.schedule.enabled") { return }
-        let stamp = "\(useFocus)-\(components.year ?? 0)-\(components.month ?? 0)-\(components.day ?? 0)-\(start)-\(end)-\(profile)"
+        let available=Set(IslandSavedLayoutStore.shared.layouts.map { "saved:"+$0.id.uuidString })
+        let selection=IslandScheduleRules.selection(profile:profile,work:defaults.string(forKey:"island.schedule.workLayout") ?? "Work",minimal:defaults.string(forKey:"island.schedule.minimalLayout") ?? "Minimal",available:available)
+        let stamp = "\(useFocus)-\(components.year ?? 0)-\(components.month ?? 0)-\(components.day ?? 0)-\(start)-\(end)-\(selection)"
         guard stamp != applied else { return }; applied = stamp
-        IslandModuleStore.shared.profile(profile)
+        if selection.hasPrefix("saved:"),let layout=IslandSavedLayoutStore.shared.layouts.first(where:{ "saved:"+$0.id.uuidString == selection }) { layout.snapshot.apply() }
+        else { IslandModuleStore.shared.profile(selection) }
     }
 }
 struct IslandDashboardSettings:View {
@@ -54,6 +69,9 @@ struct IslandDashboardSettings:View {
     @State var focusStatus=""
     @AppStorage("island.schedule.start") var start = 540
     @AppStorage("island.schedule.end") var end = 1020
+    @AppStorage("island.schedule.workLayout") private var workLayout="Work"
+    @AppStorage("island.schedule.minimalLayout") private var minimalLayout="Minimal"
+    @ObservedObject private var layouts=IslandSavedLayoutStore.shared
     func time(_ value:Binding<Int>)->Binding<Date> {
         Binding(get:{ Calendar.current.date(bySettingHour:value.wrappedValue/60,minute:value.wrappedValue%60,second:0,of:Date()) ?? Date() },set:{ date in let c=Calendar.current.dateComponents([.hour,.minute],from:date);value.wrappedValue=(c.hour ?? 0)*60+(c.minute ?? 0) })
     }
@@ -69,21 +87,30 @@ struct IslandDashboardSettings:View {
             Section("Your words") { TextField("A line to keep close",text:$quote);Text("Choose Your words in a widget slot to see this on your Dashboard.").font(.caption).foregroundStyle(.secondary) }
             Section("System Focus") {
                 Toggle("Follow shared Focus status",isOn:$useFocus)
-                Text("Applies Work while a shared system Focus is on and Minimal when it is off. Requires Focus sharing permission. Focus takes priority over the daily schedule; macOS shares an on/off state, not the Focus name.").font(.caption).foregroundStyle(.secondary)
+                Text("Uses your daytime layout while a shared system Focus is on and your other layout when it is off. Requires Focus sharing permission. Focus takes priority over the daily schedule; macOS shares an on/off state, not the Focus name.").font(.caption).foregroundStyle(.secondary)
                 if !focusStatus.isEmpty { Text(focusStatus).foregroundStyle(.secondary) }
             }
             Section("Daily layout schedule") {
                 Toggle("Switch module layouts on a schedule",isOn:$scheduled)
-                DatePicker("Work starts",selection:time($start),displayedComponents:.hourAndMinute).disabled(!scheduled)
-                DatePicker("Minimal starts",selection:time($end),displayedComponents:.hourAndMinute).disabled(!scheduled)
-                Text("Applies Work at the first time and Minimal at the second, every day in your Mac’s time zone. Turning this on applies the current layout immediately. Manual changes last until the next boundary; your notes, files and timer are kept.").font(.caption).foregroundStyle(.secondary)
+                DatePicker("Daytime starts",selection:time($start),displayedComponents:.hourAndMinute).disabled(!scheduled)
+                DatePicker("Other layout starts",selection:time($end),displayedComponents:.hourAndMinute).disabled(!scheduled)
+                layoutPicker("Daytime / Focus on",selection:$workLayout)
+                layoutPicker("Other hours / Focus off",selection:$minimalLayout)
+                Text("Choose a template or any saved layout. Saved layouts include their compact trays. Changes follow your Mac’s time zone, including after sleep. Turning this on applies the current layout; manual changes last until the next boundary. Notes, files and timers are kept.").font(.caption).foregroundStyle(.secondary)
                 if start == end { Text("Choose different times to schedule a Work period.").foregroundStyle(.orange) }
             }
         }.formStyle(.grouped).onChange(of:useFocus) {
             if useFocus && INFocusStatusCenter.default.authorizationStatus != .authorized { useFocus=false;IslandSettingsController.shared.showPermissions(.focus) }
             else if useFocus && INFocusStatusCenter.default.focusStatus.isFocused == nil { useFocus=false;focusStatus="Focus sharing is unavailable for Island on this Mac. Use the daily schedule instead." }
             IslandProfileSchedule.shared.start()
-        }.onChange(of:scheduled) { IslandProfileSchedule.shared.start() }.onChange(of:start) { IslandProfileSchedule.shared.start() }.onChange(of:end) { IslandProfileSchedule.shared.start() }
+        }.onChange(of:scheduled) { IslandProfileSchedule.shared.start() }.onChange(of:start) { IslandProfileSchedule.shared.start() }.onChange(of:end) { IslandProfileSchedule.shared.start() }.onChange(of:workLayout) { IslandProfileSchedule.shared.start() }.onChange(of:minimalLayout) { IslandProfileSchedule.shared.start() }
+    }
+    private func layoutPicker(_ title:String,selection:Binding<String>)->some View {
+        Picker(title,selection:selection) {
+            Text("Work template").tag("Work");Text("Minimal template").tag("Minimal")
+            ForEach(layouts.layouts) { layout in Text(layout.name).tag("saved:"+layout.id.uuidString) }
+            if !["Work","Minimal"].contains(selection.wrappedValue),!layouts.layouts.contains(where:{ "saved:"+$0.id.uuidString == selection.wrappedValue }) { Text("Removed layout · choose another").tag(selection.wrappedValue) }
+        }.disabled(!scheduled && !useFocus)
     }
 }
 struct IslandDashboardView:View {

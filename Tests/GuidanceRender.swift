@@ -13,6 +13,7 @@ import SwiftUI
         _=store.save(name:"A quieter evening",snapshot:snapshot)
         for scheme in [ColorScheme.light,.dark] {
             let suffix=scheme == .light ? "light" : "dark"
+            try render(IslandGuideContent(topic:IslandGuideCatalog.installation).padding(24),name:"installation-"+suffix,width:520,height:540,scheme:scheme,to:folder)
             try render(IslandGuidanceSettings(),name:"help-"+suffix,width:570,height:650,scheme:scheme,to:folder)
             try render(IslandGuideContent(topic:IslandGuideCatalog.page("System Controls")).padding(20),name:"page-help-"+suffix,width:390,height:510,scheme:scheme,to:folder)
             try render(IslandGuideContent(topic:IslandGuideCatalog.module(.shelf)).padding(20),name:"module-help-"+suffix,width:380,height:320,scheme:scheme,to:folder)

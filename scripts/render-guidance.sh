@@ -17,8 +17,10 @@ s=Path('Island/IslandSettings.swift').read_text();s=s[s.index('struct IslandSett
 d=Path('Island/ModulePreview.swift').read_text();d=d[d.index('enum IslandModuleGuide'):]
 c=Path('Island/CanvasLayout.swift').read_text();c=c[c.index('struct IslandCanvasPreferences:'):c.index('@MainActor final class IslandCanvasStore')]
 l=Path('Island/SavedLayouts.swift').read_text().replace('static let shared=IslandSavedLayoutStore()','static let shared=IslandSavedLayoutStore(defaults:UserDefaults(suiteName:"IslandGuidanceRender.Fixture")!)')
+tr=Path('Island/Trays.swift').read_text();tr=tr[tr.index('enum IslandActivityTray:'):tr.index('@MainActor final class IslandActivityTrayStore')]
+co=Path('Island/IslandShell.swift').read_text();co=co[co.index('enum IslandCompactKind'):co.index('struct IslandSurface:')]
 h='enum IslandHaptics { enum Event { case confirmation };static func play(_ event:Event) {} }\n'
-Path(sys.argv[1]).write_text('import SwiftUI\nimport Combine\nimport Foundation\n'+e+m+d+c+s+h+g+l)
+Path(sys.argv[1]).write_text('import SwiftUI\nimport Combine\nimport Foundation\nimport CoreTransferable\nimport UniformTypeIdentifiers\n'+e+m+co+tr+d+c+s+h+g+l)
 PY
 xcrun swiftc -module-cache-path "$STAGE/cache" "$STAGE/Views.swift" Tests/GuidanceRender.swift -o "$STAGE/render"
 "$STAGE/render" "$OUTPUT"

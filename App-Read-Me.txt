@@ -1,4 +1,4 @@
-Island 2.10.1 (2110) — development preview
+Island 2.11.0 (21100) — development preview
 
 INSTALL
 Run Island.app on an Apple silicon Mac with macOS 15 or newer. Keep one copy in Applications and quit other notch utilities to avoid overlapping overlays. This build is locally signed, not Apple-notarized; macOS may block it after downloading to another Mac.
@@ -42,3 +42,11 @@ Settings → Updates controls consent, check frequency and installation timing. 
 In Settings, the question-mark button explains the current page. Help & Tips is searchable. Modules → Layouts can save and switch up to 12 of your own arrangements; Undo restores a removed saved layout. Your content and account settings are kept.
 
 Use Settings → Trays to choose tools and closed-Island activities. Agents & Inbox creates hook-free plugins for ChatGPT/Codex and Claude; install and review them in the matching client, then select Island for a task. They show progress and questions sent by that plugin, not every chat automatically.
+
+NEW IN 2.11
+Saved layouts also remember compact activity order, enablement and rotation. In Dashboard settings, choose your own saved daytime/other-hours layouts; shared system Focus uses those same choices when available. Old saved layouts keep your current trays until explicitly updated.
+
+Settings → Trays → While closed has a black interactive preview: drag activities into it to add, drag its cards to reorder, or click a card for module settings. Arrow buttons and Undo remain available. Hover over the closed music activity to play, pause or skip; click artwork to open the player. Turn Music controls on hover off to use ordinary hover-to-open.
+
+IF MACOS BLOCKS THE FIRST LAUNCH
+Try opening Island from Applications once. If you trust the download, open System Settings → Privacy & Security, scroll to Security, and choose Open Anyway for Island. Some macOS versions show Open first. Approve the Mac’s own authentication prompt, then choose Open. See INSTALL.md and Settings → Help & Tips for the full steps and Apple’s support link. This preview is not Apple-notarized or Developer ID-signed.

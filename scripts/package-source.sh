@@ -32,7 +32,7 @@ assert 'SUFeedURL' not in info or info.get('SUPublicEDKey'),'Incomplete update c
 PY
 git clone --quiet --local --no-hardlinks "$ROOT" "$BUNDLE/Source"
 git -C "$BUNDLE/Source" remote remove origin
-for DOCUMENT in App-Read-Me.txt FEATURE-STATUS.md VERIFICATION.md START-HERE.md MACNOTCH-COMPARISON.md LICENSE THIRD_PARTY_LICENSES UPSTREAM.md; do
+for DOCUMENT in App-Read-Me.txt FEATURE-STATUS.md VERIFICATION.md START-HERE.md MACNOTCH-COMPARISON.md INSTALL.md LICENSE THIRD_PARTY_LICENSES UPSTREAM.md; do
   cp "$DOCUMENT" "$BUNDLE/$DOCUMENT"
 done
 printf '%s\n' "$(git rev-parse HEAD)" > "$BUNDLE/SOURCE-COMMIT.txt"

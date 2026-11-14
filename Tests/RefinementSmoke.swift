@@ -24,6 +24,8 @@ import Foundation
         precondition(pages.first(where:{ $0.route == "Permissions" }).map { IslandSettingsCatalog.matches($0,query:"privacy") } == true)
         precondition(pages.first(where:{ $0.route == "Behavior" }).map { IslandSettingsCatalog.matches($0,query:"HAPTICS") } == true)
         precondition(pages.first(where:{ $0.route == "Modules" }).map { IslandSettingsCatalog.matches($0,query:"arrange") } == true)
-        print("PASS: 26 production update-consent scheduling, release URL, haptic throttling, live-activity and settings-search checks; no network, installs or hardware feedback")
+        precondition(IslandActivityRules.choose([.music,.event],rotate:true,phase:1,hovered:.music) == .music)
+        precondition(IslandActivityRules.choose([.event],rotate:true,phase:0,hovered:.music) == .event)
+        print("PASS: 28 production update-consent scheduling, release URL, haptic throttling, live-activity and settings-search checks; no network, installs or hardware feedback")
     }
 }

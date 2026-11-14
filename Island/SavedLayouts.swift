@@ -19,7 +19,7 @@ struct IslandSavedLayout:Codable,Equatable,Identifiable {
         for var layout in saved {
             layout.name=Self.cleanName(layout.name)
             guard Self.validName(layout.name),ids.insert(layout.id).inserted,!layouts.contains(where:{ $0.name.compare(layout.name,options:[.caseInsensitive,.diacriticInsensitive]) == .orderedSame }),layouts.count<Self.limit else { continue }
-            layout.snapshot.modules.normalize();layout.snapshot.canvas.normalize();layouts.append(layout)
+            layout.snapshot.normalize();layouts.append(layout)
         }
         lastDeleted=defaults.data(forKey:"island.layouts.deleted").flatMap { try? JSONDecoder().decode(IslandSavedLayout.self,from:$0) }
     }
@@ -29,7 +29,7 @@ struct IslandSavedLayout:Codable,Equatable,Identifiable {
         let name=Self.cleanName(name)
         guard Self.validName(name) else { return "Choose a name with 1–40 characters." }
         guard !layouts.contains(where:{ $0.id != id && $0.name.compare(name,options:[.caseInsensitive,.diacriticInsensitive]) == .orderedSame }) else { return "That name is already saved. Choose another, or update the existing layout." }
-        var snapshot=snapshot;snapshot.modules.normalize();snapshot.canvas.normalize()
+        var snapshot=snapshot;snapshot.normalize()
         if let id {
             guard let index=layouts.firstIndex(where:{ $0.id == id }) else { return "This layout is no longer available." }
             layouts[index]=IslandSavedLayout(id:id,name:name,snapshot:snapshot)
@@ -75,7 +75,7 @@ struct IslandSavedLayoutsView:View {
             HStack { Label("Saved layouts",systemImage:"rectangle.stack").font(.title2.weight(.semibold));Spacer();Button("Done") { dismiss() }.keyboardShortcut(.cancelAction) }.padding(20)
             Form {
                 Section("Keep this arrangement") {
-                    Text("Save your four positions, enabled modules and opening module. Your notes, files, timer and account settings stay as they are.").foregroundStyle(.secondary)
+                    Text("Save your four positions, enabled modules, opening module and compact trays. Your notes, files, timer and account settings stay as they are.").foregroundStyle(.secondary)
                     VStack(alignment:.leading,spacing:10) { TextField("Layout name",text:$name,prompt:Text("Work, Study, Evening…")).textFieldStyle(.roundedBorder).labelsHidden().accessibilityLabel("Name for the current layout").onSubmit(save);Button("Save current layout",action:save).disabled(IslandSavedLayoutStore.cleanName(name).isEmpty || store.layouts.count>=IslandSavedLayoutStore.limit) }
                     if !feedback.isEmpty { Text(feedback).font(.callout).foregroundStyle(.secondary).accessibilityLabel("Layout status: "+feedback) }
                 }
@@ -98,7 +98,7 @@ struct IslandSavedLayoutsView:View {
                     }
                     if let deleted=store.lastDeleted { Button("Undo removal of "+deleted.name) { feedback=store.undoDelete() ?? "Layout restored." } }
                 }
-                Section { Text("Applying a layout changes which modules are enabled. It never approves permissions. If a schedule or system Focus switches layouts, it can replace your choice at its next change. Undo in the module editor restores your previous arrangement.").font(.caption).foregroundStyle(.secondary) }
+                Section { Text("Applying a layout changes which modules are enabled. It never approves permissions. Choose your saved layouts in Dashboard’s daily schedule. A schedule or shared Focus can replace your choice at its next change. Undo in the module editor restores your previous arrangement.").font(.caption).foregroundStyle(.secondary) }
             }.formStyle(.grouped)
         }.frame(width:580,height:540)
         .alert("Rename layout",isPresented:Binding(get:{ renameTarget != nil },set:{ if !$0 { renameTarget=nil } })) {

@@ -34,7 +34,7 @@ HELP="$STAGE/Installer/Source and Help"
 mkdir -p "$HELP"
 git archive --format=zip --prefix=Island-Source/ HEAD > "$HELP/Island-Source.zip"
 git rev-parse HEAD > "$HELP/SOURCE-COMMIT.txt"
-for DOCUMENT in LICENSE THIRD_PARTY_LICENSES UPSTREAM.md FEATURE-STATUS.md VERIFICATION.md App-Read-Me.txt; do
+for DOCUMENT in LICENSE THIRD_PARTY_LICENSES UPSTREAM.md INSTALL.md FEATURE-STATUS.md VERIFICATION.md App-Read-Me.txt; do
   cp "$DOCUMENT" "$HELP/$DOCUMENT"
 done
 python3 - "$APP" "$STAGE/Installer/Install Island.txt" <<'PY'
@@ -52,6 +52,14 @@ Path(sys.argv[2]).write_text(f'''Welcome to Island {info['CFBundleShortVersionSt
 
 Requires an Apple silicon Mac with macOS 15 or newer.
 This is a locally signed development preview, not Apple-notarized. macOS may block it after downloading on another Mac.
+
+IF MACOS BLOCKS ISLAND
+1. Try opening Island from Applications once, then dismiss the blocked-app message.
+2. Open System Settings → Privacy & Security and scroll to Security.
+3. Find Island and choose Open Anyway. Some macOS versions show Open first.
+4. Approve the Mac’s authentication prompt yourself, then choose Open.
+
+Use this only for a download you trust. Open Anyway usually appears for about an hour after the blocked attempt; try opening Island again if it is missing. A managed Mac may need its administrator. Apple’s instructions: https://support.apple.com/102445
 
 UPDATES
 {updates}

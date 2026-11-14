@@ -37,6 +37,8 @@ struct ContentView: View {
     @ObservedObject var volumeManager = VolumeManager.shared
     @State private var hoverTask: Task<Void, Never>?
     @State private var isHovering: Bool = false
+    @State private var hoveredActivity:IslandCompactKind?
+    @AppStorage("island.live.musicQuickControls") private var musicQuickControls=true
     @State private var anyDropDebounceTask: Task<Void, Never>?
 
     @State private var gestureProgress: CGFloat = .zero
@@ -70,11 +72,12 @@ struct ContentView: View {
         if activityTrays.preferences.enabled.contains(.notice),modules.contains(.inbox),liveNotices.items.contains(where:{ !$0.read }) { available.append(.notice) }
         if modules.contains(.health) { available.append(.wellbeing) }
         if modules.contains(.agents),agentBridge.activePluginProgress != nil { available.append(.agent) }
-        return IslandActivityRules.choose(activityTrays.preferences.arrange(available),rotate:defaults.bool(forKey:"island.live.rotate"),phase:activityClock.phase)
+        return IslandActivityRules.choose(activityTrays.preferences.arrange(available),rotate:defaults.bool(forKey:"island.live.rotate"),phase:activityClock.phase,hovered:isHovering ? hoveredActivity : nil)
     }
     private var topCornerRadius: CGFloat { 0 }
     private var currentNotchShape: IslandSurface { IslandSurface(radius:vm.notchState == .open ? 30 : 14) }
-    private var computedChinWidth: CGFloat { IslandCompactLayout.width(camera:vm.closedNotchSize.width,kind:compactKind) }
+    private var showsMusicControls:Bool { IslandCompactLayout.showsMusicControls(kind:compactKind,hovering:isHovering,closed:vm.notchState == .closed,enabled:musicQuickControls) }
+    private var computedChinWidth: CGFloat { IslandCompactLayout.width(camera:vm.closedNotchSize.width,kind:compactKind,musicControls:showsMusicControls) }
 
     var body: some View {
         // Calculate scale based on gesture progress only
@@ -95,7 +98,7 @@ struct ContentView: View {
                             .frame(width:openNotchSize.width,height:openNotchSize.height,alignment:.top)
                             .transition(.asymmetric(insertion:.opacity.animation(.easeOut(duration:0.16)),removal:.opacity.animation(.easeOut(duration:0.10))))
                     } else {
-                        IslandCompactActivity(kind:compactKind)
+                        IslandCompactActivity(kind:compactKind,showsMusicControls:showsMusicControls)
                             .transition(.opacity.animation(.easeOut(duration:0.12)))
                     }
                 }
@@ -114,9 +117,6 @@ struct ContentView: View {
                         handleHover(hovering)
                     }
                     .onReceive(NotificationCenter.default.publisher(for:Notification.Name("IslandActivityTraysChanged"))) { _ in IslandLiveActivityClock.shared.configure() }
-                    .onTapGesture {
-                        doOpen()
-                    }
                     .conditionalModifier(Defaults[.enableGestures]) { view in
                         view
                             .panGesture(direction: .down) { translation, phase in
@@ -276,6 +276,7 @@ struct ContentView: View {
         hoverTask?.cancel()
         
         if hovering {
+            hoveredActivity=compactKind
             isHovering = true
             
             if vm.notchState == .closed && Defaults[.enableHaptics] {
@@ -284,6 +285,7 @@ struct ContentView: View {
             
             guard vm.notchState == .closed,
                   !coordinator.sneakPeek.show,
+                  !showsMusicControls,
                   Defaults[.openNotchOnHover] else { return }
             
             hoverTask = Task {
@@ -305,6 +307,7 @@ struct ContentView: View {
                 
                 await MainActor.run {
                     self.isHovering = false
+                    self.hoveredActivity=nil
                     
                     if self.vm.notchState == .open && !self.vm.isBatteryPopoverActive && !SharingStateManager.shared.preventNotchClose {
                         self.vm.close()

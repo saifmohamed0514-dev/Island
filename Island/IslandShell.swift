@@ -4,10 +4,12 @@ import Defaults
 // Island's own bounded surface and physical-camera-safe activity layout.
 enum IslandCompactKind { case idle, music, timer, hud, battery, agent, event, device, notice, wellbeing }
 struct IslandCompactLayout {
-    static func wing(for kind:IslandCompactKind) -> CGFloat {
+    static func wing(for kind:IslandCompactKind,musicControls:Bool=false) -> CGFloat {
+        if kind == .music && musicControls { return 64 }
         switch kind { case .idle: return 0; case .music: return 34; case .timer,.hud,.battery,.agent,.event,.device,.notice,.wellbeing: return 64 }
     }
-    static func width(camera:CGFloat,kind:IslandCompactKind) -> CGFloat { max(0,camera) + 2 * wing(for:kind) }
+    static func width(camera:CGFloat,kind:IslandCompactKind,musicControls:Bool=false) -> CGFloat { max(0,camera) + 2 * wing(for:kind,musicControls:musicControls) }
+    static func showsMusicControls(kind:IslandCompactKind,hovering:Bool,closed:Bool,enabled:Bool)->Bool { kind == .music && hovering && closed && enabled }
 }
 struct IslandSurface: Shape {
     var radius:CGFloat
@@ -51,6 +53,7 @@ struct IslandHeader:View {
 }
 struct IslandCompactActivity:View {
     let kind:IslandCompactKind
+    var showsMusicControls=false
     @EnvironmentObject var vm:IslandViewModel
     @ObservedObject var focus = IslandFocusTimer.shared
     @ObservedObject var music = MusicManager.shared
@@ -64,8 +67,21 @@ struct IslandCompactActivity:View {
     @AppStorage("island.health.waterGoal") private var waterGoal=8
     @AppStorage("island.health.day") private var healthDay=""
     var body:some View {
-        let wing = IslandCompactLayout.wing(for:kind)
-        Button(action:openActivity) {
+        let wing = IslandCompactLayout.wing(for:kind,musicControls:showsMusicControls)
+        Group {
+        if kind == .music && showsMusicControls {
+            HStack(spacing:0) {
+                HStack(spacing:2) {
+                    Button { music.previousTrack();IslandHaptics.play(.selection) } label:{ Image(systemName:"backward.fill").frame(width:26,height:28) }.accessibilityLabel("Previous track")
+                    Button(action:openActivity) { Image(nsImage:music.albumArt).resizable().scaledToFill().frame(width:20,height:20).clipShape(RoundedRectangle(cornerRadius:5)) }.accessibilityLabel("Open Now Playing")
+                }.frame(width:wing)
+                Button(action:openActivity) { Color.black.frame(width:vm.closedNotchSize.width,height:vm.effectiveClosedNotchHeight) }.accessibilityLabel("Open Island")
+                HStack(spacing:2) {
+                    Button { music.togglePlay();IslandHaptics.play(.confirmation) } label:{ Image(systemName:music.isPlaying ? "pause.fill" : "play.fill").frame(width:26,height:28) }.accessibilityLabel(music.isPlaying ? "Pause" : "Play")
+                    Button { music.nextTrack();IslandHaptics.play(.selection) } label:{ Image(systemName:"forward.fill").frame(width:26,height:28) }.accessibilityLabel("Next track")
+                }.frame(width:wing)
+            }.frame(height:vm.effectiveClosedNotchHeight).buttonStyle(.plain).font(.system(size:11,weight:.semibold)).foregroundStyle(.white)
+        } else { Button(action:openActivity) {
             HStack(spacing:0) {
                 leading.frame(width:wing)
                 Color.black.frame(width:vm.closedNotchSize.width).allowsHitTesting(false)
@@ -74,7 +90,8 @@ struct IslandCompactActivity:View {
             .frame(width:IslandCompactLayout.width(camera:vm.closedNotchSize.width,kind:kind),height:vm.effectiveClosedNotchHeight)
             .font(.system(size:11,weight:.semibold,design:.rounded)).lineLimit(1)
             .contentShape(Rectangle())
-        }.buttonStyle(.plain).accessibilityLabel(kind == .agent ? "Open AI activity and questions" : kind == .wellbeing ? "Open Wellbeing" : "Open Island activity")
+        }.buttonStyle(.plain).accessibilityLabel(kind == .agent ? "Open AI activity and questions" : kind == .wellbeing ? "Open Wellbeing" : "Open Island activity") }
+        }
     }
     private func openActivity() {
         if kind == .wellbeing { coordinator.currentView = .health }

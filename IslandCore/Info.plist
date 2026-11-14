@@ -43,6 +43,16 @@
 			<key>UTTypeIdentifier</key>
 			<string>org.islandapp.module</string>
 		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Island activity tray</string>
+			<key>UTTypeIdentifier</key>
+			<string>org.islandapp.activity-tray</string>
+		</dict>
 	</array>
 	<key>UTImportedTypeDeclarations</key>
 	<array>

@@ -48,6 +48,21 @@ struct SavedLayoutsSmoke {
         defaults.set(try JSONEncoder().encode(raw),forKey:"island.layouts.saved")
         let normalized=IslandSavedLayoutStore(defaults:defaults)
         check(normalized.layouts.count == 1 && normalized.layouts[0].snapshot.canvas.slots == [.home,nil,nil,nil] && !normalized.layouts[0].snapshot.modules.enabled.isEmpty)
+        var withTrays=snapshot
+        var activity=IslandActivityTrayPreferences();activity.set(.timer,enabled:false);activity.place(.wellbeing,at:0)
+        withTrays.activities=activity;withTrays.rotateActivities=true
+        check(normalized.save(name:"With trays",snapshot:withTrays) == nil)
+        let newStore=IslandSavedLayoutStore(defaults:defaults)
+        check(newStore.layouts.first { $0.name == "With trays" }?.snapshot == withTrays)
+        let trayLayout=newStore.layouts.first { $0.name == "With trays" }!
+        check(newStore.rename(trayLayout.id,to:"Still has trays") == nil && newStore.layouts.first { $0.id==trayLayout.id }?.snapshot.activities == activity)
+        var legacy=try JSONSerialization.jsonObject(with:JSONEncoder().encode(withTrays)) as! [String:Any]
+        legacy.removeValue(forKey:"activities");legacy.removeValue(forKey:"rotateActivities")
+        let decoded=try JSONDecoder().decode(IslandDesignerSnapshot.self,from:JSONSerialization.data(withJSONObject:legacy))
+        check(decoded.activities == nil && decoded.rotateActivities == nil && decoded.modules == snapshot.modules && decoded.canvas == snapshot.canvas)
+        var damaged=withTrays;damaged.activities?.order=[.music,.music];damaged.activities?.enabled=[.music,.music];damaged.normalize()
+        check(damaged.activities?.order.count==7 && damaged.activities?.enabled == [.music])
+        newStore.delete(trayLayout.id);check(newStore.undoDelete() == nil && newStore.layouts.first { $0.id==trayLayout.id }?.snapshot == withTrays)
         print("PASS: \(count) production saved-layout checks; persistence, normalization, rename/update, duplicate names, limits, deletion undo across reload and unrelated data preservation; private test defaults only")
     }
 }

@@ -31,6 +31,10 @@ struct IslandCanvasPreferences:Codable,Equatable {
 struct IslandDesignerSnapshot:Codable,Equatable {
     var modules:IslandModulePreferences
     var canvas:IslandCanvasPreferences
+    // Optional fields keep layouts saved before 2.11 compatible without changing their trays.
+    var activities:IslandActivityTrayPreferences? = nil
+    var rotateActivities:Bool? = nil
+    mutating func normalize() { modules.normalize();canvas.normalize();activities?.normalize() }
 }
 @MainActor final class IslandCanvasStore:ObservableObject {
     static let shared=IslandCanvasStore()
@@ -144,5 +148,20 @@ struct IslandCanvasLiveView:View {
         case .files:return "Choose files"
         case .mirror:return "Tap to open Mirror"
         }
+    }
+}
+
+
+@MainActor extension IslandDesignerSnapshot {
+    static func current()->Self {
+        .init(modules:IslandModuleStore.shared.preferences,canvas:IslandCanvasStore.shared.preferences,activities:IslandActivityTrayStore.shared.preferences,rotateActivities:UserDefaults.standard.bool(forKey:"island.live.rotate"))
+    }
+    func apply() {
+        IslandModuleStore.shared.restore(modules)
+        IslandCanvasStore.shared.restore(canvas)
+        if let activities { IslandActivityTrayStore.shared.restore(activities) }
+        if let rotateActivities { UserDefaults.standard.set(rotateActivities,forKey:"island.live.rotate") }
+        IslandLiveActivityClock.shared.configure()
+        IslandCoordinator.shared.currentView=modules.start
     }
 }

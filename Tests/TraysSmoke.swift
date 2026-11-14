@@ -22,6 +22,17 @@ import Foundation
   s.restore(original);check(IslandActivityTrayStore(defaults:defaults).preferences == original)
   defaults.set(Data("broken".utf8),forKey:"island.trays.activities");check(IslandActivityTrayStore(defaults:defaults).preferences == original)
   check(try JSONDecoder().decode(IslandActivityTrayPreferences.self,from:JSONEncoder().encode(p)) == p)
-  print("PASS: \(count) production activity-tray checks; hiding timer, adding/reordering Wellbeing, empty trays, normalization, migration, private persistence and Undo")
+  var placed=IslandActivityTrayPreferences()
+  check(placed.place(.timer,at:1) && placed.order.prefix(2) == [.music,.timer])
+  check(placed.place(.wellbeing,at:0) && placed.order.first == .wellbeing && placed.enabled.first == .wellbeing)
+  let beforeInvalid=placed;check(!placed.place(.agent,at:-1) && !placed.place(.agent,at:7) && placed == beforeInvalid)
+  check(placed.place(.wellbeing,at:6) && placed.order.last == .wellbeing && Set(placed.order).count==7)
+  s.restore(original);s.place(.notice,at:0);check(s.preferences.enabled.first == .notice)
+  check(IslandActivityTrayStore(defaults:defaults).preferences == s.preferences)
+  s.restore(original);check(s.preferences == original)
+  let transfer=IslandActivityTrayTransfer(tray:.wellbeing)
+  check(try JSONDecoder().decode(IslandActivityTrayTransfer.self,from:JSONEncoder().encode(transfer)).tray == .wellbeing)
+  check((try? JSONDecoder().decode(IslandActivityTrayTransfer.self,from:Data("{\"tray\":\"unknown\"}".utf8))) == nil)
+  print("PASS: \(count) production activity-tray checks; hiding timer, adding/reordering Wellbeing, empty trays, normalization, migration, private persistence, typed compact drops and Undo")
  }
 }

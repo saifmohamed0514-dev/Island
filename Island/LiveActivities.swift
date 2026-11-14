@@ -2,8 +2,9 @@ import SwiftUI
 import AppKit
 
 enum IslandActivityRules {
-    static func choose(_ available:[IslandCompactKind],rotate:Bool,phase:Int)->IslandCompactKind {
+    static func choose(_ available:[IslandCompactKind],rotate:Bool,phase:Int,hovered:IslandCompactKind?=nil)->IslandCompactKind {
         guard !available.isEmpty else { return .idle }
+        if let hovered,available.contains(hovered) { return hovered }
         return available[rotate ? max(0,phase)%available.count : 0]
     }
     static func excluded(_ bundle:String?,from value:String)->Bool {

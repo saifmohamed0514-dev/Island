@@ -1,12 +1,12 @@
-# Reference feature audit — November 13, 2026
+# Reference feature audit — November 14, 2026
 
 Checked against the current public [MacNotch feature catalogue](https://macnotch.io). “Implemented” describes Island source, not a promise that every app, account or device has been tested. This preview does **not** have complete feature parity.
 
-| Reference area | Island 2.10 implementation and limits |
+| Reference area | Island 2.11 implementation and limits |
 | --- | --- |
 | Modules and modular Settings | 21 modules, dedicated opened/closed Trays settings, enable/order/default selection, four-position interactive real layout, templates, undo, search and per-module settings. |
-| Dashboard and profiles | Eleven classic widget types; up to 12 saved named module/layout arrangements with rename/update and persistent removal Undo; Work/Minimal schedules and shared Focus. Automatic scheduling of arbitrary named layouts and automatic app-folder scanning remain absent. |
-| Media | Real artwork, supported transports, seeking and supported player volume. Compatibility depends on the selected backend and player. Audio spectrum and collapsed hover transport controls remain absent. |
+| Dashboard and profiles | Eleven classic widget types; up to 12 saved named module/layout arrangements with rename/update and persistent removal Undo; Work/Minimal schedules and shared Focus. The daily schedule can choose named layouts, including their compact trays; automatic app-folder scanning remains absent. |
+| Media | Real artwork, supported transports, seeking and supported player volume. Compatibility depends on the selected backend and player. Collapsed hover controls provide previous/play/pause/next without covering the camera; audio spectrum remains absent. |
 | Files and drop actions | Tray, drag-out, Quick Look, AirDrop, open-with, ZIP/extract, image conversion, copy/move and removable-volume ejection. Direct iCloud-target drops remain absent; a user-chosen destination can be used. |
 | Calendar and tasks | Search, upcoming events, writable Reminders, completion and recoverable task trash. Full event-detail/meeting-awareness UI and all reminder filters remain incomplete. |
 | Notes | Multiple local notes, autosave and recoverable trash. |
@@ -23,6 +23,6 @@ Checked against the current public [MacNotch feature catalogue](https://macnotch
 | Live activities | Ordered/enabled compact trays for media, timer, Wellbeing water count, plugin work/questions, upcoming event, device and Island Inbox; source filtering and rotation; priority HUD/power/approval notices. No arbitrary third-party update events. |
 | Devices | macOS-reported connected Bluetooth/HID levels and optional low-battery alerts; accessory coverage is limited by available reports. |
 | System and windows | CPU/memory/storage, fixed-layout buttons, edge/corner snapping, native glass battery and optional HUD replacement. Real AX/permission and external-monitor checks remain important. |
-| Help, language and updates | Guided startup, practice tutorial, contextual page/module instructions, searchable Help & Tips, permission guidance, settings search, English/core Arabic labels and signed Sparkle scheduling. Full translations, production release hosting and Apple notarization remain outstanding. |
+| Help, language and updates | Guided startup, practice tutorial, contextual page/module instructions, searchable Help & Tips, permission guidance, settings search, English/core Arabic labels and signed Sparkle scheduling. Full translations, GitHub release hosting is live; full translations and Apple notarization remain outstanding. |
 
 The current Mac only has its built-in display attached. Source/fixture checks do not establish physical external-display, real notification, private service, audio or accessory parity. See VERIFICATION.md for actual evidence.

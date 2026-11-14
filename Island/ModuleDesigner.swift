@@ -33,7 +33,7 @@ struct IslandModuleDesigner:View {
                     if !layouts.layouts.isEmpty { Section("Saved layouts") { ForEach(layouts.layouts) { layout in Button(layout.name) { apply(layout) } } } }
                     Divider();Button("Save or manage layouts…") { savedLayouts=true }
                 }.help("Use a template or keep your own named arrangements.")
-                Button("Undo") { if let previousLayout { IslandHaptics.play(.selection);modules.restore(previousLayout.modules);canvas.restore(previousLayout.canvas);self.previousLayout=nil;feedback="Previous layout restored." } }.disabled(previousLayout == nil)
+                Button("Undo") { if let previousLayout { IslandHaptics.play(.selection);previousLayout.apply();self.previousLayout=nil;feedback="Previous layout restored." } }.disabled(previousLayout == nil)
             }
             HStack(spacing:14) { Label("Drop into a space",systemImage:"hand.draw");Label("Drag blocks to swap",systemImage:"arrow.left.arrow.right");Label("Click for settings",systemImage:"cursorarrow.click") }.font(.caption).foregroundStyle(.secondary)
             IslandModulePreview(modules:modules.enabled,slots:canvas.preferences.slots,selected:selected,focusMinutes:workMinutes,weatherCity:city,fahrenheit:fahrenheit,onSelect:inspect,onDrop:drop)
@@ -56,7 +56,7 @@ struct IslandModuleDesigner:View {
             moduleLibrary
         }.padding(16)
         .sheet(isPresented:$inspecting) { inspector.padding(18).frame(width:560,height:540) }
-        .sheet(isPresented:$savedLayouts) { IslandSavedLayoutsView(snapshot:{ IslandDesignerSnapshot(modules:modules.preferences,canvas:canvas.preferences) },apply:apply) }
+        .sheet(isPresented:$savedLayouts) { IslandSavedLayoutsView(snapshot:{ IslandDesignerSnapshot.current() },apply:apply) }
     }
     private var moduleLibrary:some View {
         VStack(alignment:.leading,spacing:9) {
@@ -110,14 +110,14 @@ struct IslandModuleDesigner:View {
         }
     }
     private func apply(_ layout:IslandSavedLayout) {
-        change { modules.restore(layout.snapshot.modules);canvas.restore(layout.snapshot.canvas) }
+        change { layout.snapshot.apply() }
         IslandCoordinator.shared.currentView=layout.snapshot.modules.start
         IslandHaptics.play(.placement);feedback=layout.name+" applied. Undo restores your previous arrangement."
     }
     private func inspect(_ module:NotchViews) { IslandHaptics.play(.selection);selectedID=module.rawValue;inspecting=true }
     private func change(_ action:()->Void) {
-        let before=IslandDesignerSnapshot(modules:modules.preferences,canvas:canvas.preferences);action()
-        if before.modules != modules.preferences || before.canvas != canvas.preferences { previousLayout=before }
+        let before=IslandDesignerSnapshot.current();action()
+        if before != IslandDesignerSnapshot.current() { previousLayout=before }
     }
     private func drop(_ module:NotchViews,_ index:Int)->Bool {
         guard (0..<4).contains(index) else { return false }

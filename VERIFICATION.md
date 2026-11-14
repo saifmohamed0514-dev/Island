@@ -1,4 +1,12 @@
-# Island 2.10.1 verification — November 13, 2026
+# Island 2.11.0 verification — November 14, 2026
+
+## 2.11.0 (21100)
+
+The 35 missing tracked Swift files were restored byte-for-byte from the committed 2.10.1 source before new work. Existing app preferences, content, hooks and macOS permissions were not reset. The release build and full suite passed: 443 Swift checks, 12 actual compiled MCP transport scenarios, the 11 legacy bridge scenarios and release/configuration fixtures. New production-model cases cover typed compact-drop ordering/invalid indices/reload, legacy saved-layout decoding, compact preferences in saves/renames/removal Undo, saved schedule selection/fallback and camera-safe hover-control policy/width and rotation retaining only an available hovered activity. The guide search includes Open Anyway and Privacy & Security.
+
+Offscreen native renders use real editor, compact-player, help and layout views with isolated fixture state and inert actions. They establish layout, not live dragging, media command delivery or physical hover. ScreenCaptureKit returned -3811 when selecting the installed app, so the live interface check could not run. Physical external-display and sleep/wake interactions remain unverified; existing production geometry, permission-queue and rapid open/close checks passed.
+
+A valid Developer ID identity is not installed on this Mac; the owner confirmed a free developer account and chose manual Open Anyway instructions. The build is ad-hoc signed, not Developer ID-signed or Apple-notarized. Instructions use Apple’s documented per-app approval flow and do not alter security settings automatically. The actual release ZIP was signed using the existing Sparkle key in Keychain and verified independently against the app’s embedded public key. No private key was exported. This update signature does not provide Apple notarization.
 
 ## Repository-connected build 2110
 

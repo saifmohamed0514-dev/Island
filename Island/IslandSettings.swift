@@ -92,6 +92,7 @@ struct IslandSettingsView:View {
 struct IslandOverviewSettings:View {
     var navigate:(String)->Void
     @ObservedObject var modules = IslandModuleStore.shared
+    @State private var installationHelp=false
     var body:some View {
         Form {
             Section {
@@ -102,11 +103,12 @@ struct IslandOverviewSettings:View {
                 LabeledContent("Opens with",value:modules.defaultModule.title)
                 HStack { Button("Set up permissions") { navigate("Permissions") };Button("Choose modules") { navigate("Modules") }; Button("Set up focus") { navigate("Focus & Sounds") } }
             }
+            Section("Installing a download") { Button("Privacy & Security · Open Anyway instructions") { installationHelp=true };Text("Help for opening this development preview on another Mac.").font(.caption).foregroundStyle(.secondary) }
             Section("Guided setup") { Button("Set up Island…") { NotificationCenter.default.post(name:.islandShowSetup,object:nil) };Text("Review preferences, customize your modules and set up access one step at a time.").foregroundStyle(.secondary) }
             Section("Quick access") { HStack { Button("File Tray") { IslandSettingsController.shared.showModuleDesigner(.shelf) };Button("Window Snapping") { navigate("Window Snapping") };Button("Updates") { navigate("Updates") };Button("Help & Tips") { navigate("Help & Tips") } } }
             Section("Start small") { Text("Enable only what you use. Optional data connections and permissions are requested when you choose them, and your notes and timer stay on this Mac.").foregroundStyle(.secondary) }
             Section("Release channel") { Label(IslandUpdateConfiguration.isConfigured ? "Signed update channel connected" : "Local preview · update channel not connected",systemImage:"arrow.down.circle").foregroundStyle(.secondary) }
-        }.formStyle(.grouped)
+        }.formStyle(.grouped).sheet(isPresented:$installationHelp) { VStack(alignment:.leading,spacing:16) { HStack { Text("Opening Island").font(.headline);Spacer();Button("Done") { installationHelp=false }.keyboardShortcut(.cancelAction) };ScrollView { IslandGuideContent(topic:IslandGuideCatalog.installation) };Link("Apple’s instructions",destination:URL(string:"https://support.apple.com/102445")!) }.padding(24).frame(width:520,height:510) }
     }
 }
 struct IslandDisplaySettings:View {

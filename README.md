@@ -1,4 +1,4 @@
-# Island 2.10.1
+# Island 2.11.0
 
 An independent, open-source macOS notch utility, based on [Boring Notch](https://github.com/TheBoredTeam/boring.notch). GPL-3.0; original copyright notices and third-party licenses are retained.
 
@@ -20,6 +20,16 @@ An independent, open-source macOS notch utility, based on [Boring Notch](https:/
 - Island-specific signed Sparkle updates from this repository’s latest release. Checks/downloads are opt-in; the signed release assets must be published first.
 
 Apple silicon, macOS 15+. Build with Xcode 26 or later. The supplied preview is locally signed and **not notarized**. A physical external monitor and all optional integrations still require live testing.
+
+## New in 2.11
+
+Saved layouts include both tray modes, and your daily schedule can switch between named arrangements. Drag compact activities into the black preview and reorder them there. Hover over music for quick playback controls. Overview and Help & Tips include the first-launch Open Anyway guide.
+
+## Download and open Island
+
+Get the DMG from [the latest release](https://github.com/saifmohamed0514-dev/Island/releases/latest), then drag Island into Applications.
+
+This preview is not Apple-notarized or Developer ID-signed. If macOS blocks a download you trust, first try opening Island once, then open **System Settings → Privacy & Security → Security → Open Anyway** and complete the Mac’s confirmation. Some macOS versions show **Open** first. See [the step-by-step install guide](INSTALL.md) and [Apple’s instructions](https://support.apple.com/102445).
 
 ## Build
 

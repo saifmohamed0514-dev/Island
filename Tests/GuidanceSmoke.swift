@@ -18,6 +18,10 @@ import Foundation
         check(IslandGuideCatalog.page("Permissions").matches("   "))
         check(IslandSettingsCatalog.groups.flatMap(\.pages).first { $0.route == "System Controls" }.map { IslandSettingsCatalog.matches($0,query:"brightness volume") } == true)
         check(IslandGuideCatalog.page("unknown").id == "Overview")
+        check(IslandGuideCatalog.installation.matches("privacy security"))
+        check(IslandGuideCatalog.installation.matches("Open Anyway"))
+        check(IslandGuideCatalog.page("Dashboard").matches("saved layouts"))
+        check(IslandGuideCatalog.page("Media").matches("hover skip"))
         print("PASS: \(checks) production guidance checks; every Settings page/module covered, action/term search and mixed-case multiple-word queries; no OS requests")
     }
 }

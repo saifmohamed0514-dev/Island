@@ -1,6 +1,6 @@
-# Island 2.10 development status
+# Island 2.11 development status
 
-Updated November 13, 2026. This is an implementation inventory, not a claim of full MacNotch parity or zero bugs.
+Updated November 14, 2026. This is an implementation inventory, not a claim of full MacNotch parity or zero bugs.
 
 ## Island interface
 
@@ -31,7 +31,7 @@ A running timer appears in two bounded wings beside the physical camera. Complet
 - ChatGPT draft handoff and connected chat links, an English/Arabic language picker with core Arabic labels, in-app help and a diagnostic summary containing no note text, tokens or user paths. Some detailed messages retain English.
 - Dedicated, source-included Low Power Mode service and one-time GUI setup helper; narrow fixed-command interface, immediate yellow switch state and macOS reconciliation. Live setup/authorization remains a separate verification step. Ad-hoc updates may require setup again; normal toggles do not. See Power/README.md.
 - Central Permissions page for shared Window and media controls, Bluetooth, camera, calendar, reminders, notifications, Music/Spotify automation, shared Focus and Low Power Mode. Select features, request one at a time, skip or finish later, and resume after manual System Settings approval. Checks do not request grants. Existing media polling checks automation permission before scripting; setup owns the consent prompt. No Touch ID shortcut bypasses macOS or client hook review.
-- GPL source, local Git repository, signed Sparkle release tooling, build/release workflows and beginner publishing guide. Update consent, hourly/daily/weekly checks and quit/idle/night installation choices are implemented. A signing key is stored in the owner’s Keychain; only its public key is bundled. Checks/downloads start off. The GitHub release feed points to saifmohamed0514-dev/Island. Its signed release files still need to be published; no upload is performed by the local packaging tools.
+- GPL source, local Git repository, signed Sparkle release tooling, build/release workflows and beginner publishing guide. Update consent, hourly/daily/weekly checks and quit/idle/night installation choices are implemented. A signing key is stored in the owner’s Keychain; only its public key is bundled. Checks/downloads start off. The GitHub release feed points to saifmohamed0514-dev/Island. Version 2.10.1 is published; the local packaging tools do not upload or publish automatically.
 
 ## Refinement in 2.8
 
@@ -57,3 +57,14 @@ Read VERIFICATION.md for actual checks. Only the built-in display is attached; p
 Agents & Inbox now offers hook-free plugins first. It exports a local OpenAI marketplace/plugin and a Claude MCPB installer plus Claude Code plugin folder, using the client’s existing account. MCP progress updates and clarification questions are local and bounded; questions support options/free text, expiry, cancellation and explicit Send answer. The native approval bridge remains under an optional legacy disclosure. No hooks or trust records are installed/changed by creating the new packages. Actual client installation and end-to-end use remain separate checks.
 
 Settings → Trays controls both opened-Island tools and closed-Island activities. Choose, search, reorder, set the opening module and undo changes. Closed activity order/enablement persists; the timer can be hidden while it continues running. Wellbeing can show the day’s water count and goal, and plugin work/questions can appear compactly. Modules and their saved content are retained. Trays respect module enablement; transient media HUD/battery notices retain their existing controls.
+
+
+## Layouts, compact controls and installation in 2.11
+
+- Saved layouts now include compact activity enablement/order and rotation alongside opened modules and the four-position canvas. Older saved layouts load without changing current compact choices. The designer’s Undo restores both layouts; module data, timer state and accounts remain outside the snapshot.
+- Dashboard’s daily schedule selects built-in templates or any saved named layout. Shared Focus on/off uses the same two choices when available. Removed layouts fall back to the matching built-in template. The schedule checks after wake and time-zone changes; it retains manual changes until its next effective boundary.
+- Trays → While closed includes a black compact preview with typed drag-and-drop activity cards, adding from the library, reordering, a context action to hide, and click-through to module settings. The existing arrows and Undo remain available. Preview content is illustrative; actual Island shows one available source at a time.
+- Hovering over a compact music activity exposes previous, play/pause and next controls in two camera-safe wings. Clicking artwork opens the full player. A Trays option restores ordinary hover-to-open. Compact buttons own their actions without the former parent tap opening the full Island.
+- Open Anyway instructions are in Overview, searchable Help & Tips, the DMG installation guide, INSTALL.md and README. They link to Apple’s manual procedure, explain that this is an unnotarized preview and require the person to approve their own Mac prompt. No global security setting is changed by Island.
+
+Developer ID signing and Apple notarization are unavailable with the owner’s current free account. This release remains locally signed. See VERIFICATION.md for the exact automated, rendered and live-check boundaries.

@@ -45,6 +45,18 @@ struct ModuleSmoke {
   precondition(IslandScheduleRules.profile(minute:60,start:1320,end:360) == "Work")
   precondition(IslandScheduleRules.profile(minute:700,start:1320,end:360) == "Minimal")
   precondition(IslandScheduleRules.profile(minute:400,start:400,end:400) == "Minimal")
-  print("PASS: 32 dial, preset, cycle, module and compact display geometry checks")
+  let key="saved:"+UUID().uuidString
+  precondition(IslandScheduleRules.selection(profile:"Work",work:key,minimal:"Minimal",available:[key]) == key)
+  precondition(IslandScheduleRules.selection(profile:"Minimal",work:key,minimal:"Work",available:[key]) == "Work")
+  precondition(IslandScheduleRules.selection(profile:"Work",work:key,minimal:"Minimal",available:[]) == "Work")
+  precondition(IslandScheduleRules.selection(profile:"Minimal",work:"Work",minimal:"saved:bad",available:["saved:bad"]) == "Minimal")
+  precondition(IslandScheduleRules.selection(profile:"Work",work:"bad",minimal:"Minimal",available:["bad"]) == "Work")
+  precondition(IslandCompactLayout.width(camera:185,kind:.music,musicControls:true)==313 && IslandCompactLayout.width(camera:185,kind:.music)==253)
+  precondition(IslandCompactLayout.showsMusicControls(kind:.music,hovering:true,closed:true,enabled:true))
+  precondition(!IslandCompactLayout.showsMusicControls(kind:.timer,hovering:true,closed:true,enabled:true))
+  precondition(!IslandCompactLayout.showsMusicControls(kind:.music,hovering:false,closed:true,enabled:true))
+  precondition(!IslandCompactLayout.showsMusicControls(kind:.music,hovering:true,closed:false,enabled:true))
+  precondition(!IslandCompactLayout.showsMusicControls(kind:.music,hovering:true,closed:true,enabled:false))
+  print("PASS: 43 dial, preset, cycle, module and compact display geometry checks")
  }
 }
