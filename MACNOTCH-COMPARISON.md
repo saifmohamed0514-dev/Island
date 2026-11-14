@@ -2,7 +2,7 @@
 
 Checked against the current public [MacNotch feature catalogue](https://macnotch.io). “Implemented” describes Island source, not a promise that every app, account or device has been tested. This preview does **not** have complete feature parity.
 
-| Reference area | Island 2.11 implementation and limits |
+| Reference area | Island 2.11.1 implementation and limits |
 | --- | --- |
 | Modules and modular Settings | 21 modules, dedicated opened/closed Trays settings, enable/order/default selection, four-position interactive real layout, templates, undo, search and per-module settings. |
 | Dashboard and profiles | Eleven classic widget types; up to 12 saved named module/layout arrangements with rename/update and persistent removal Undo; Work/Minimal schedules and shared Focus. The daily schedule can choose named layouts, including their compact trays; automatic app-folder scanning remains absent. |

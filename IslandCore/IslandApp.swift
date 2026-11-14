@@ -69,7 +69,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var whatsNewWindow: NSWindow?
     var timer: Timer?
     var closeNotchTask: Task<Void, Never>?
-    private var previousScreens: [NSScreen]?
+    private var previousDisplayMetrics:[IslandDisplayMetrics]=[]
     private var onboardingWindowController: NSWindowController?
     private var snoozeObserver:AnyCancellable?
     private var setupObserver:NSObjectProtocol?
@@ -292,11 +292,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let screenFrame = screen.frame
-        window.setFrameOrigin(
-            NSPoint(
-                x: screenFrame.origin.x + (screenFrame.width / 2) - window.frame.width / 2,
-                y: screenFrame.origin.y + screenFrame.height - window.frame.height
-            ))
+        let frame=IslandDisplayGeometry.frame(screen:screenFrame,size:window.frame.size,scale:screen.backingScaleFactor)
+        window.setFrame(frame,display:true)
         window.alphaValue = 1
     }
 
@@ -484,7 +481,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 guard let self else { return }; self.vm.open(); self.viewModels.values.forEach { $0.open() }
             }
         }
-        previousScreens = NSScreen.screens
+        previousDisplayMetrics = displayMetrics(NSScreen.screens)
     }
 
     private func navigateModule(_ direction:Int) {
@@ -509,16 +506,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return false
     }
 
+    private func displayMetrics(_ screens:[NSScreen])->[IslandDisplayMetrics] {
+        screens.map { IslandDisplayMetrics(id:$0.displayUUID ?? $0.localizedName,frame:$0.frame,safeTop:$0.safeAreaInsets.top,scale:$0.backingScaleFactor) }
+    }
+
     @objc func screenConfigurationDidChange() {
         let currentScreens = NSScreen.screens
 
-        let screensChanged =
-            currentScreens.count != previousScreens?.count
-            || Set(currentScreens.compactMap { $0.displayUUID })
-                != Set(previousScreens?.compactMap { $0.displayUUID } ?? [])
-            || Set(currentScreens.map { $0.frame }) != Set(previousScreens?.map { $0.frame } ?? [])
-
-        previousScreens = currentScreens
+        let metrics=displayMetrics(currentScreens)
+        let screensChanged=metrics != previousDisplayMetrics
+        previousDisplayMetrics=metrics
 
         if screensChanged {
             DispatchQueue.main.async { [weak self] in
@@ -557,11 +554,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
 
                 if let window = windows[uuid], let viewModel = viewModels[uuid] {
+                    viewModel.refreshClosedGeometry()
                     positionWindow(window, on: screen, changeAlpha: changeAlpha)
-
-                    if viewModel.notchState == .closed {
-                        viewModel.close()
-                    }
                 }
             }
         } else {
@@ -582,7 +576,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
 
             vm.screenUUID = selectedScreen.displayUUID
-            vm.notchSize = getClosedNotchSize(screenUUID: selectedScreen.displayUUID)
+            vm.refreshClosedGeometry()
 
             if window == nil {
                 window = createIslandLegacyWindow(for: selectedScreen, with: vm)

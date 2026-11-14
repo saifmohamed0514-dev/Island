@@ -1,4 +1,4 @@
-# Island 2.11.0
+# Island 2.11.1
 
 An independent, open-source macOS notch utility, based on [Boring Notch](https://github.com/TheBoredTeam/boring.notch). GPL-3.0; original copyright notices and third-party licenses are retained.
 
@@ -20,6 +20,10 @@ An independent, open-source macOS notch utility, based on [Boring Notch](https:/
 - Island-specific signed Sparkle updates from this repository’s latest release. Checks/downloads are opt-in; the signed release assets must be published first.
 
 Apple silicon, macOS 15+. Build with Xcode 26 or later. The supplied preview is locally signed and **not notarized**. A physical external monitor and all optional integrations still require live testing.
+
+## New in 2.11.1
+
+Island now anchors flush to the screen edge, respects the physical camera height, and refreshes its geometry when display scale or safe areas change. AI connections show separate client/activity status and provide an updated connection test. Enabled plugins are instructed to report useful milestones and route questions to Island; supported local work sessions also have a direct fallback when MCP tools are unavailable. Active AI work can take priority over music and timers, with a switch in Trays to keep your usual order instead. Client installation and tool review are still required; this does not monitor every chat automatically.
 
 ## New in 2.11
 
@@ -53,7 +57,7 @@ See [LICENSE](LICENSE), [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES), and [UPSTR
 
 ### Settings help and saved layouts
 
-Use the question-mark button for the current page, Help & Tips for searchable instructions, or How to use in a module inspector. The introductory help tip can be dismissed permanently. Modules → Layouts saves up to 12 named arrangements, with rename, explicit update, apply and persistent removal Undo. Applying a layout preserves module content and approvals; schedules still use Work/Minimal.
+Use the question-mark button for the current page, Help & Tips for searchable instructions, or How to use in a module inspector. The introductory help tip can be dismissed permanently. Modules → Layouts saves up to 12 named arrangements, with rename, explicit update, apply and persistent removal Undo. Applying a layout preserves module content and approvals; schedules can select your saved layouts.
 
 ### Hook-free AI plugins and trays
 

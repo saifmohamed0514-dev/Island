@@ -7,6 +7,7 @@ STAGE="$(mktemp -d /private/tmp/island-stage.XXXXXX)"
 trap 'rm -rf "$STAGE"' EXIT
 python3 -m unittest discover -s Tests -p 'test_*.py'
 scripts/test-timer.sh
+scripts/test-display-geometry.sh
 scripts/test-completion.sh
 scripts/test-transition.sh
 scripts/test-permissions.sh
@@ -22,11 +23,11 @@ scripts/test-guidance.sh
 scripts/test-services.sh
 scripts/test-plugin.sh
 scripts/test-trays.sh
-BUILD_ARGS=()
+BUILD_ARGS=(-project Island.xcodeproj -scheme Island -configuration Release -derivedDataPath "$BUILD")
 if [[ -n "${ISLAND_PACKAGES_DIR:-}" ]]; then BUILD_ARGS+=(-clonedSourcePackagesDirPath "$ISLAND_PACKAGES_DIR"); fi
 BUILD_ACTIONS=(clean build)
 if [[ "${ISLAND_INCREMENTAL:-0}" == 1 ]]; then BUILD_ACTIONS=(build); fi
-xcodebuild -project Island.xcodeproj -scheme Island -configuration Release -derivedDataPath "$BUILD" "${BUILD_ARGS[@]}" -destination 'platform=macOS,arch=arm64' CODE_SIGNING_ALLOWED=NO "${BUILD_ACTIONS[@]}"
+xcodebuild "${BUILD_ARGS[@]}" -destination 'platform=macOS,arch=arm64' CODE_SIGNING_ALLOWED=NO "${BUILD_ACTIONS[@]}"
 for PACKAGE_ROOT in "$BUILD/SourcePackages" "${ISLAND_PACKAGES_DIR:-$BUILD/SourcePackages}"; do
   if [[ -d "$PACKAGE_ROOT/artifacts" ]]; then
     SIGN_TOOL="$(find "$PACKAGE_ROOT/artifacts" -type f -name sign_update -print -quit)"

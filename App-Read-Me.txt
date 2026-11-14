@@ -1,4 +1,4 @@
-Island 2.11.0 (21100) — development preview
+Island 2.11.1 (21101) — development preview
 
 INSTALL
 Run Island.app on an Apple silicon Mac with macOS 15 or newer. Keep one copy in Applications and quit other notch utilities to avoid overlapping overlays. This build is locally signed, not Apple-notarized; macOS may block it after downloading to another Mac.
@@ -47,6 +47,9 @@ NEW IN 2.11
 Saved layouts also remember compact activity order, enablement and rotation. In Dashboard settings, choose your own saved daytime/other-hours layouts; shared system Focus uses those same choices when available. Old saved layouts keep your current trays until explicitly updated.
 
 Settings → Trays → While closed has a black interactive preview: drag activities into it to add, drag its cards to reorder, or click a card for module settings. Arrow buttons and Undo remain available. Hover over the closed music activity to play, pause or skip; click artwork to open the player. Turn Music controls on hover off to use ordinary hover-to-open.
+
+NEW IN 2.11.1
+The Island panel now meets the screen edge, clamps its closed height to the physical camera area, and refreshes its placement after display changes. Agents & Inbox shows each client’s connection and last activity separately. Use Update plugin files after an app update, reinstall the updated package in your client, and start a new supported local chat. Copy connection-test message gives you a short test to paste there. Enabled plugins report meaningful work and ask questions in Island; compatible local work sessions have a fallback when their MCP tools are unavailable. This still requires the client to use Island and does not monitor every chat automatically. In Trays, Prefer active AI work lets reported work appear ahead of music and timers without replacing controls you are hovering over; pending questions retain priority.
 
 IF MACOS BLOCKS THE FIRST LAUNCH
 Try opening Island from Applications once. If you trust the download, open System Settings → Privacy & Security, scroll to Security, and choose Open Anyway for Island. Some macOS versions show Open first. Approve the Mac’s own authentication prompt, then choose Open. See INSTALL.md and Settings → Help & Tips for the full steps and Apple’s support link. This preview is not Apple-notarized or Developer ID-signed.

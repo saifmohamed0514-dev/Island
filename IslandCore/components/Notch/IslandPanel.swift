@@ -33,6 +33,9 @@ extension SkyLightOperator {
 
 class IslandPanel: NSPanel {
     private var isSkyLightEnabled: Bool = false
+    // AppKit otherwise reserves a one-point strip above floating panels.
+    // Island is positioned explicitly against the physical display edge.
+    override func constrainFrameRect(_ frameRect:NSRect,to screen:NSScreen?)->NSRect { frameRect }
     
     override init(
         contentRect: NSRect,

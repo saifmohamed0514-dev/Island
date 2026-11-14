@@ -107,6 +107,12 @@ class IslandViewModel: NSObject, ObservableObject {
             .store(in: &cancellables)
     }
 
+    func refreshClosedGeometry() {
+        let size=getClosedNotchSize(screenUUID:screenUUID)
+        closedNotchSize=size
+        if notchState == .closed { notchSize=size }
+    }
+
     // Computed property for effective notch height
     var effectiveClosedNotchHeight: CGFloat {
         let currentScreen = screenUUID.flatMap { NSScreen.screen(withUUID: $0) }

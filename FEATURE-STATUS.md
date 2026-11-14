@@ -1,4 +1,4 @@
-# Island 2.11 development status
+# Island 2.11.1 development status
 
 Updated November 14, 2026. This is an implementation inventory, not a claim of full MacNotch parity or zero bugs.
 
@@ -31,7 +31,7 @@ A running timer appears in two bounded wings beside the physical camera. Complet
 - ChatGPT draft handoff and connected chat links, an English/Arabic language picker with core Arabic labels, in-app help and a diagnostic summary containing no note text, tokens or user paths. Some detailed messages retain English.
 - Dedicated, source-included Low Power Mode service and one-time GUI setup helper; narrow fixed-command interface, immediate yellow switch state and macOS reconciliation. Live setup/authorization remains a separate verification step. Ad-hoc updates may require setup again; normal toggles do not. See Power/README.md.
 - Central Permissions page for shared Window and media controls, Bluetooth, camera, calendar, reminders, notifications, Music/Spotify automation, shared Focus and Low Power Mode. Select features, request one at a time, skip or finish later, and resume after manual System Settings approval. Checks do not request grants. Existing media polling checks automation permission before scripting; setup owns the consent prompt. No Touch ID shortcut bypasses macOS or client hook review.
-- GPL source, local Git repository, signed Sparkle release tooling, build/release workflows and beginner publishing guide. Update consent, hourly/daily/weekly checks and quit/idle/night installation choices are implemented. A signing key is stored in the owner’s Keychain; only its public key is bundled. Checks/downloads start off. The GitHub release feed points to saifmohamed0514-dev/Island. Version 2.10.1 is published; the local packaging tools do not upload or publish automatically.
+- GPL source, local Git repository, signed Sparkle release tooling, build/release workflows and beginner publishing guide. Update consent, hourly/daily/weekly checks and quit/idle/night installation choices are implemented. A signing key is stored in the owner’s Keychain; only its public key is bundled. Checks/downloads start off. The GitHub release feed points to saifmohamed0514-dev/Island. Public downloads are on its Releases page; the local packaging tools do not upload or publish automatically.
 
 ## Refinement in 2.8
 
@@ -68,3 +68,11 @@ Settings → Trays controls both opened-Island tools and closed-Island activitie
 - Open Anyway instructions are in Overview, searchable Help & Tips, the DMG installation guide, INSTALL.md and README. They link to Apple’s manual procedure, explain that this is an unnotarized preview and require the person to approve their own Mac prompt. No global security setting is changed by Island.
 
 Developer ID signing and Apple notarization are unavailable with the owner’s current free account. This release remains locally signed. See VERIFICATION.md for the exact automated, rendered and live-check boundaries.
+
+## Edge placement and AI connections in 2.11.1
+
+The panel bypasses AppKit’s floating-window top inset and aligns to backing pixels. Closed geometry cannot shrink below the screen’s physical camera safe area; display changes compare value snapshots including scale and safe-area height. Open content keeps its existing size during refresh.
+
+Agents & Inbox separates ChatGPT/Codex and Claude heartbeats from last reported activity. Existing exported packages refresh when the app version changes; client reinstall/review and new-chat loading remain explicit. A copied test prompt helps verify a real session. Enabled skill instructions request actual milestones and questions during multi-step work. Compatible local work sessions can invoke the same bounded transport directly when MCP tools are unavailable; this requires local execution support and does not create a provider-wide event feed. Stable task IDs update one record across both routes. Native security approvals remain in the client.
+
+Pending questions retain compact priority. Prefer active AI work (on by default) also gives working events priority over ordinary tray order, while keeping hovered controls stable. It respects disabled AI modules/activities and can be switched off.

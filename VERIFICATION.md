@@ -1,4 +1,18 @@
-# Island 2.11.0 verification — November 14, 2026
+# Island 2.11.1 verification — November 14, 2026
+
+## 2.11.1 (21101)
+
+The full local release build passed 464 Swift checks, 17 actual compiled MCP transport scenarios, 11 legacy bridge scenarios and release/configuration fixtures. New coverage exercises physical-notch height clamping, backing-pixel sizing, top-edge placement, negative/above-display coordinates, scale/safe-area snapshots and closed/open geometry refresh. Additional cases verify active-AI priority, disabled trays/modules and hover stability; generated fallback commands contain the actual quoted installed-helper and private-folder paths.
+
+Transport checks use the compiled production helper for both MCP and direct calls: stable task records across separate processes/routes, question waiting after standard-input EOF, nonce-matched answer consumption, unavailable-app rejection, input/tool bounds and four concurrent clients creating their private folder. The concurrency check exposed a transient permission window in Foundation directory creation; the helper now uses atomic POSIX mkdir with owner-only permissions and validates the resulting directory. No account credentials, hook changes or client trust edits are involved.
+
+The installed 2.11.0 panel was independently measured at screen coordinate Y=1. After installing 2.11.1, the visible panel measured Y=0, centered at X=515 with width 680 on the built-in 1710-point screen. Its physical safe-area height is 33.5 points at 2× scale. These are own-window/display metadata checks, not a screen capture or physical external-monitor test. The selected app could not be captured because ScreenCaptureKit returned -3811. Production settings/tray/question views are rendered separately with isolated fixtures and inert actions; renders do not establish native mouse or client behavior.
+
+The ChatGPT/Codex local plugin was updated through the official plugin CLI to 2.11.1. A real work milestone was delivered through the installed helper's direct fallback during this task. A real gap-check question was sent through that route and expired after 300 seconds without a user reply; this is not counted as a successful live question-and-answer check. The fallback correctly returned answered:false. Claude's updated MCPB was opened for the user's installation review; the installed extension still reported 2.10.0 at that check. Export/install/connection status is kept separate from a real assistant question-and-answer round trip. Compatible enabled tasks must use the plugin; no universal monitoring of existing chats, hidden reasoning or native approval interception is claimed. Current macOS permissions, content, preferences and hooks were preserved.
+
+The source build also handles macOS's Bash 3 nounset behavior with an absent optional package-path argument: its build-argument array is now always nonempty. The final local app build uses the existing pinned package cache; GitHub's clean checkout uses the default package-resolution path.
+
+The build remains ad-hoc signed and not Apple-notarized; the existing Sparkle signing key and release channel are unchanged. Update-archive verification and public release/download checks are recorded separately when publishing. Physical external-display, another-Mac upgrade and private service/account coverage remain outside the completed automated suite.
 
 ## 2.11.0 (21100)
 

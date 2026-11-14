@@ -26,6 +26,12 @@ import Foundation
         precondition(pages.first(where:{ $0.route == "Modules" }).map { IslandSettingsCatalog.matches($0,query:"arrange") } == true)
         precondition(IslandActivityRules.choose([.music,.event],rotate:true,phase:1,hovered:.music) == .music)
         precondition(IslandActivityRules.choose([.event],rotate:true,phase:0,hovered:.music) == .event)
-        print("PASS: 28 production update-consent scheduling, release URL, haptic throttling, live-activity and settings-search checks; no network, installs or hardware feedback")
+        precondition(IslandActivityRules.prioritizeAgent(enabled:true,moduleEnabled:true,pending:false,working:true,preferWork:true,hovering:false))
+        precondition(IslandActivityRules.prioritizeAgent(enabled:true,moduleEnabled:true,pending:true,working:false,preferWork:false,hovering:true))
+        precondition(!IslandActivityRules.prioritizeAgent(enabled:false,moduleEnabled:true,pending:true,working:true,preferWork:true,hovering:false))
+        precondition(!IslandActivityRules.prioritizeAgent(enabled:true,moduleEnabled:false,pending:true,working:true,preferWork:true,hovering:false))
+        precondition(!IslandActivityRules.prioritizeAgent(enabled:true,moduleEnabled:true,pending:false,working:true,preferWork:false,hovering:false))
+        precondition(!IslandActivityRules.prioritizeAgent(enabled:true,moduleEnabled:true,pending:false,working:true,preferWork:true,hovering:true))
+        print("PASS: 34 production update-consent scheduling, release URL, haptic throttling, live-activity and settings-search checks; no network, installs or hardware feedback")
     }
 }

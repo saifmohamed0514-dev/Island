@@ -57,6 +57,7 @@ struct IslandTraysSettings:View {
     @ObservedObject private var activities=IslandActivityTrayStore.shared
     @AppStorage("island.live.rotate") private var rotate=false
     @AppStorage("island.live.musicQuickControls") private var musicQuickControls=true
+    @AppStorage("island.live.aiPriority") private var aiPriority=true
     @State private var mode=0
     @State private var query=""
     init(initialTab:Int=0) { _mode=State(initialValue:initialTab) }
@@ -86,6 +87,8 @@ struct IslandTraysSettings:View {
             } else { Section("While Island is closed") {
                 IslandCompactTrayEditor(preferences:activities.preferences,onPlace:{ tray,index in changeActivities { activities.place(tray,at:index) } },onRemove:{ tray in changeActivities { activities.set(tray,enabled:false) } })
                 Toggle("Rotate available trays every 6 seconds",isOn:$rotate).onChange(of:rotate) { IslandLiveActivityClock.shared.configure() }
+                Toggle("Prefer active AI work",isOn:$aiPriority)
+                Text("Show reported AI progress before music and timers. Questions take priority while they need an answer. Your current hovered controls stay in place until you leave.").font(.caption).foregroundStyle(.secondary)
                 Toggle("Music controls on hover",isOn:$musicQuickControls)
                 Text("Hover over the music activity for play, pause and skip. Click its artwork to open the player. When off, your usual hover-to-open setting applies.").font(.caption).foregroundStyle(.secondary)
                 Text("Only enabled modules can supply activity. For example, enable Wellbeing under Inside Island, then add its activity here. Priority follows this order when rotation is off.").font(.caption).foregroundStyle(.secondary)

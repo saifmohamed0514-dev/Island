@@ -53,6 +53,13 @@ enum IslandAgentHookRules {
             guard url.startAccessingSecurityScopedResource() else { error = "Choose the connection folder again to restore access."; return }
             accessRoot=url;pluginPrepared=(try? String(contentsOf:url.appendingPathComponent("ISLAND-PLUGIN.txt"),encoding:.utf8))?.hasPrefix("Island plugin connection") == true
             root = pluginPrepared ? url.appendingPathComponent("Local data",isDirectory:true) : url; folderName = url.lastPathComponent
+            if pluginPrepared,let executable=Bundle.main.url(forResource:"IslandPlugin",withExtension:nil) {
+                let version=Bundle.main.releaseVersionNumber ?? "2.11.1"
+                if UserDefaults.standard.string(forKey:"island.plugins.exportVersion") != version {
+                    do { try IslandPluginPackage.write(to:url,executable:executable,version:version);UserDefaults.standard.set(version,forKey:"island.plugins.exportVersion");info="Plugin files refreshed for Island "+version+". Reinstall the updated client package and start a new chat to load the new instructions." }
+                    catch { self.error="The app updated, but its plugin files couldn’t refresh. Use Update plugin files or choose the folder again." }
+                }
+            }
             task = Task { [weak self] in while !Task.isCancelled { self?.refresh(); try? await Task.sleep(for:.seconds(1)) } }
         } catch { self.error = "The connection folder is unavailable. Choose it again." }
     }
@@ -63,7 +70,7 @@ enum IslandAgentHookRules {
         do {
             guard let executable=Bundle.main.url(forResource:"IslandPlugin",withExtension:nil) else { error="Plugin transport is missing from this build.";return }
             let folder=parent.appendingPathComponent("Island Plugins",isDirectory:true)
-            try IslandPluginPackage.write(to:folder,executable:executable,version:Bundle.main.releaseVersionNumber ?? "2.10.0")
+            try IslandPluginPackage.write(to:folder,executable:executable,version:Bundle.main.releaseVersionNumber ?? "2.11.1")
             let bookmark=try folder.bookmarkData(options:.withSecurityScope,includingResourceValuesForKeys:nil,relativeTo:nil)
             UserDefaults.standard.set(bookmark,forKey:"island.bridge.bookmark");UserDefaults.standard.set(folder.lastPathComponent,forKey:"island.bridge.folderName");folderName=folder.lastPathComponent
             IslandModuleStore.shared.setEnabled(.agents,true);start(true)
@@ -153,6 +160,23 @@ enum IslandAgentHookRules {
             error="Updated the generated files. Previous files are preserved in "+backup.lastPathComponent+". Review changed hooks in each client before trusting them."
         } catch { self.error="Couldn’t finish updating the bridge files. Previous files remain in the backup folder." }
     }
+    func updatePluginPackages() {
+        guard pluginPrepared,let accessRoot,let executable=Bundle.main.url(forResource:"IslandPlugin",withExtension:nil) else { error="Get the plugins first to connect a private folder.";return }
+        do {
+            try IslandPluginPackage.write(to:accessRoot,executable:executable,version:Bundle.main.releaseVersionNumber ?? "2.11.1")
+            UserDefaults.standard.set(Bundle.main.releaseVersionNumber ?? "2.11.1",forKey:"island.plugins.exportVersion")
+            error=nil;info="Plugin files updated. Reinstall the updated package in your client and start a new chat; an existing chat can keep its previous tools. Your connection data is kept."
+        } catch { self.error="Couldn’t update the plugin files. Get the plugins again in a writable private folder." }
+    }
+    func openClient(_ provider:String) {
+        let ids=provider == "claude-plugin" ? ["com.anthropic.claudefordesktop"] : ["com.openai.codex","com.openai.chat"]
+        guard let url=ids.compactMap({ NSWorkspace.shared.urlForApplication(withBundleIdentifier:$0) }).first else { error="Install the matching desktop client, then return here to connect Island.";return }
+        if !NSWorkspace.shared.open(url) { error="The desktop client couldn’t open. Try opening it from Applications." }
+    }
+    func copyConnectionPrompt() {
+        NSPasteboard.general.clearContents();NSPasteboard.general.setString("Use the Island plugin for this task. First check its connection and report a working progress update. Ask which colour I prefer, Blue or Green, using Island’s ask_question tool and wait for my actual reply in the notch. Then report the task completed. If MCP tools are unavailable in a local work session, follow the Island skill’s local fallback. Do not create answer files yourself.",forType:.string)
+        info="Test message copied. Paste it into a new chat with Island enabled, then answer in your notch."
+    }
     func openClaudeInstaller() {
         guard pluginPrepared,let accessRoot else { return }
         let bundle=accessRoot.appendingPathComponent("Island for Claude.mcpb")
@@ -168,12 +192,22 @@ struct IslandBridgeSettings:View {
             Section("Island plugins") {
                 Text("Progress and questions from ChatGPT and Claude, right in your notch.").font(.headline)
                 Text("Use the account already signed in to your client. Island needs no provider password, API key or hooks. Install its local plugin once, then choose Island for the tasks you want to follow.").foregroundStyle(.secondary)
-                HStack { Button("Get the plugins…") { bridge.preparePlugins() };if bridge.pluginPrepared { Button("Install in Claude…") { bridge.openClaudeInstaller() } };if bridge.folderName != nil { Button("Show plugin folder") { bridge.reveal() };Button("Disconnect") { bridge.disconnect() } } }
+                HStack { Button("Get the plugins…") { bridge.preparePlugins() };if bridge.pluginPrepared { Button("Update plugin files") { bridge.updatePluginPackages() };Button("Install in Claude…") { bridge.openClaudeInstaller() } } }
+                if bridge.folderName != nil { HStack { Button("Show plugin folder") { bridge.reveal() };Button("Disconnect") { bridge.disconnect() } } }
+                ForEach(["chatgpt-plugin","claude-plugin"],id:\.self) { provider in
+                    let name=provider == "chatgpt-plugin" ? "ChatGPT" : "Claude"
+                    let latest=bridge.events.first { $0.provider == provider && $0.kind != "connection" }
+                    HStack {
+                        VStack(alignment:.leading,spacing:4) { Text(name).font(.headline);Text(bridge.reportingPlugins.contains(name) ? "Client connected" : latest.map { "Last activity: "+Date(timeIntervalSince1970:$0.time).formatted(date:.abbreviated,time:.shortened) } ?? "Waiting for the first client activity").font(.caption).foregroundStyle(.secondary) }
+                        Spacer();Button("Open "+name) { bridge.openClient(provider) }
+                    }.padding(.vertical,4)
+                }
+                Button("Copy connection-test message") { bridge.copyConnectionPrompt() }
                 Label(bridge.reportingPlugins.isEmpty ? "No plugin reporting yet" : bridge.reportingPlugins.joined(separator:" & ")+" reporting",systemImage:bridge.reportingPlugins.isEmpty ? "link" : "checkmark.circle")
                 Text("The plugin reports task milestones and asks questions through its tools. It does not monitor every chat automatically. Local plugins need a compatible desktop/client session; ordinary browser chats cannot reach your Mac’s plugin folder.").font(.caption).foregroundStyle(.secondary)
             }
             Section("Getting started") {
-                Text("1. Get the plugins. Open the Claude installer, or add the folder as a local marketplace in ChatGPT/Codex.\n2. Select Island in a new chat and ask it to show progress here.\n3. When it asks a question, open AI activity in Island, choose an option or type a reply, then Send answer.").foregroundStyle(.secondary)
+                Text("1. Get the plugins. Open the Claude installer, or add the folder as a local marketplace in ChatGPT/Codex.\n2. Enable Island in a new chat. For local work, its skill reports progress and sends clarification questions here; use the test message to verify your client.\n3. When it asks a question, open AI activity in Island, choose an option or type a reply, then Send answer.").foregroundStyle(.secondary)
                 Text("Native security and tool approvals stay in the original app. Your answers are for questions and preferences, not a replacement for those approvals.").font(.caption).foregroundStyle(.secondary)
             }
             Section("Advanced") { DisclosureGroup("Older client connections") { Button("Prepare legacy bridge…") { bridge.choose() };if bridge.folderName != nil && !bridge.pluginPrepared { Button("Update legacy files") { bridge.updateFiles() } };Text("Optional compatibility for existing local hooks. These are separate from the new hook-free plugins and are not needed by them.").font(.caption).foregroundStyle(.secondary) } }

@@ -39,6 +39,7 @@ struct ContentView: View {
     @State private var isHovering: Bool = false
     @State private var hoveredActivity:IslandCompactKind?
     @AppStorage("island.live.musicQuickControls") private var musicQuickControls=true
+    @AppStorage("island.live.aiPriority") private var aiPriority=true
     @State private var anyDropDebounceTask: Task<Void, Never>?
 
     @State private var gestureProgress: CGFloat = .zero
@@ -61,7 +62,7 @@ struct ContentView: View {
     private var compactKind: IslandCompactKind {
         if coordinator.sneakPeek.show && [.volume,.brightness,.backlight,.mic].contains(coordinator.sneakPeek.type) { return .hud }
         if coordinator.expandingView.show && coordinator.expandingView.type == .battery && Defaults[.showPowerStatusNotifications] { return .battery }
-        if !agentBridge.pending.isEmpty && activityTrays.preferences.enabled.contains(.agent) && moduleStore.enabled.contains(.agents) { return .agent }
+        if IslandActivityRules.prioritizeAgent(enabled:activityTrays.preferences.enabled.contains(.agent),moduleEnabled:moduleStore.enabled.contains(.agents),pending:!agentBridge.pending.isEmpty,working:agentBridge.activePluginProgress != nil,preferWork:aiPriority,hovering:isHovering) { return .agent }
         let defaults=UserDefaults.standard,modules=moduleStore.enabled
         let timerActive=(focusTimer.state.deadline != nil || focusTimer.showCompletion) && modules.contains(.focus) && activityTrays.preferences.enabled.contains(.timer)
         var available:[IslandCompactKind]=[]

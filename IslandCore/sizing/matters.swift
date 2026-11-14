@@ -22,6 +22,25 @@ enum MusicPlayerImageSizes {
     static let size = (opened: CGSize(width: 90, height: 90), closed: CGSize(width: 20, height: 20))
 }
 
+struct IslandDisplayMetrics:Equatable {
+    let id:String
+    let frame:CGRect
+    let safeTop:CGFloat
+    let scale:CGFloat
+}
+enum IslandDisplayGeometry {
+    static func height(requested:CGFloat,physical:CGFloat,scale:CGFloat)->CGFloat {
+        let factor=scale.isFinite && scale>0 ? scale : 1
+        let actual=physical.isFinite ? max(0,physical) : 0
+        let value=requested.isFinite ? max(1,requested) : max(32,actual)
+        return ceil(max(value,actual)*factor)/factor
+    }
+    static func frame(screen:CGRect,size:CGSize,scale:CGFloat)->CGRect {
+        let factor=scale.isFinite && scale>0 ? scale : 1
+        return CGRect(x:((screen.midX-size.width/2)*factor).rounded()/factor,y:screen.maxY-size.height,width:size.width,height:size.height)
+    }
+}
+
 @MainActor func getScreenFrame(_ screenUUID: String? = nil) -> CGRect? {
     var selectedScreen = NSScreen.main
 
@@ -74,5 +93,6 @@ enum MusicPlayerImageSizes {
         }
     }
 
+    notchHeight=IslandDisplayGeometry.height(requested:notchHeight,physical:selectedScreen?.safeAreaInsets.top ?? 0,scale:selectedScreen?.backingScaleFactor ?? 1)
     return .init(width: notchWidth, height: notchHeight)
 }

@@ -2,19 +2,21 @@
 import Foundation
 import CoreFoundation
 import Darwin
+import CryptoKit
 
 func arg(_ key:String)->String? { guard let i=CommandLine.arguments.firstIndex(of:key),i+1<CommandLine.arguments.count else { return nil };return CommandLine.arguments[i+1] }
 final class IslandPluginServer:@unchecked Sendable {
 let provider:String
 let root:URL
 init(provider:String,path:String) { self.provider=provider;root=URL(fileURLWithPath:path,isDirectory:true) }
-let files=FileManager.default,outputLock=NSLock(),stateLock=NSLock()
+let files=FileManager.default,outputLock=NSLock(),stateLock=NSLock(),connectionLock=NSLock()
 var lastCleanup=Date.distantPast
 var stopped=false,cancelled=Set<String>(),sessions:[String:String]=[:],questions=Set<String>()
 let questionSlots=DispatchSemaphore(value:8)
 let connectionID=UUID().uuidString
 func privateFolder(_ url:URL) throws {
-    if !files.fileExists(atPath:url.path) { try files.createDirectory(at:url,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700]) }
+    let failure=url.path.withCString { Darwin.mkdir($0,0o700)==0 ? 0 : errno }
+    guard failure==0 || failure==EEXIST else { throw NSError(domain:NSPOSIXErrorDomain,code:Int(failure)) }
     let a=try files.attributesOfItem(atPath:url.path)
     guard a[.type] as? FileAttributeType == .typeDirectory,(a[.ownerAccountID] as? NSNumber)?.uint32Value == geteuid(),((a[.posixPermissions] as? NSNumber)?.intValue ?? 0) & 0o077 == 0 else { throw CocoaError(.fileReadNoPermission) }
 }
@@ -49,8 +51,12 @@ func cleanup() {
         try? files.removeItem(at:url)
     }
 }
-func connection(_ state:String) { if state == "connected" && isCancelled(connectionID) { return };cleanup();_ = try? record(id:connectionID,session:connectionID,kind:"connection",title:"Plugin connected",message:"",state:state,expires:Date().timeIntervalSince1970+20) }
+func connection(_ state:String) { connectionLock.lock();defer { connectionLock.unlock() };if state == "connected" && isCancelled(connectionID) { return };cleanup();_ = try? record(id:connectionID,session:connectionID,kind:"connection",title:"Plugin connected",message:"",state:state,expires:Date().timeIntervalSince1970+20) }
 func isCancelled(_ key:String)->Bool { stateLock.lock();defer { stateLock.unlock() };return stopped || cancelled.contains(key) }
+func progressID(_ task:String)->String {
+    let bytes=Array(SHA256.hash(data:Data(("island-progress:"+provider+":"+task).utf8)).prefix(16))
+    return bytes.withUnsafeBufferPointer { NSUUID(uuidBytes:$0.baseAddress!).uuidString }
+}
 func taskID(_ args:[String:Any])->String? { guard let value=string(args,"task_id",100),value.unicodeScalars.allSatisfy({ CharacterSet.alphanumerics.contains($0) || "-_.".unicodeScalars.contains($0) }) else { return nil };return value }
 let schema:[String:Any]=["type":"object","properties":["task_id":["type":"string","description":"Stable short ID for this task. Letters, digits, dash, dot or underscore."],"title":["type":"string"],"message":["type":"string"],"state":["type":"string","enum":["working","completed","failed","cancelled"]],"percent":["type":"number","minimum":0,"maximum":100]],"required":["task_id","title","state"],"additionalProperties":false]
 let questionSchema:[String:Any]=["type":"object","properties":["task_id":["type":"string"],"question":["type":"string"],"options":["type":"array","items":["type":"string"],"maxItems":6],"timeout_seconds":["type":"number","minimum":5,"maximum":300]],"required":["task_id","question"],"additionalProperties":false]
@@ -68,7 +74,7 @@ func handle(_ object:[String:Any]) {
     switch method {
     case "initialize":
         let version=params["protocolVersion"] as? String ?? "2025-06-18"
-        reply(id,["protocolVersion":["2024-11-05","2025-03-26","2025-06-18","2025-11-25"].contains(version) ? version : "2025-06-18","capabilities":["tools":["listChanged":false]],"serverInfo":["name":"island","version":"2.10.0"],"instructions":"Use report_progress for task milestones. Use ask_question for user preferences/clarifications, never passwords or native security approvals. Progress covers only this plugin's tasks."])
+        reply(id,["protocolVersion":["2024-11-05","2025-03-26","2025-06-18","2025-11-25"].contains(version) ? version : "2025-06-18","capabilities":["tools":["listChanged":false]],"serverInfo":["name":"island","version":"2.11.1"],"instructions":"For tasks using Island, call report_progress at the start, on meaningful milestones and at completion. Route clarification and preference questions through ask_question and await the actual answer. Never request passwords or native security approvals here. Do not invent percentages or claim access to other chats."])
         connection("connected")
     case "ping":reply(id,[:])
     case "tools/list":reply(id,["tools":tools])
@@ -82,7 +88,7 @@ func handle(_ object:[String:Any]) {
                 guard let title=string(a,"title",300),let state=a["state"] as? String,["working","completed","failed","cancelled"].contains(state),(a["message"] == nil || a["message"] is String),(a["message"] as? String ?? "").utf8.count<=4000 else { throw CocoaError(.fileReadCorruptFile) }
                 var extra:[String:Any]=[:]
                 if let raw=a["percent"] { guard let percent=number(raw),(0...100).contains(percent) else { throw CocoaError(.fileReadCorruptFile) };extra["percent"]=percent }
-                stateLock.lock();if sessions.count>=100 && sessions[task]==nil { stateLock.unlock();throw CocoaError(.fileReadTooLarge) };let eventID=sessions[task] ?? UUID().uuidString;sessions[task]=eventID;stateLock.unlock()
+                stateLock.lock();if sessions.count>=100 && sessions[task]==nil { stateLock.unlock();throw CocoaError(.fileReadTooLarge) };let eventID=sessions[task] ?? progressID(task);sessions[task]=eventID;stateLock.unlock()
                 _=try record(id:eventID,session:task,kind:"progress",title:title,message:a["message"] as? String ?? "",state:state,expires:Date().timeIntervalSince1970+300,extra:extra)
                 toolResult(id,["recorded":true,"visible":available()]);return
             }
@@ -113,8 +119,27 @@ func handle(_ object:[String:Any]) {
     default:error(id,-32601,"Method not found")
     }
 }
+func prepare() throws { try privateFolder(root);try privateFolder(root.appendingPathComponent("events"));try privateFolder(root.appendingPathComponent("answers")) }
+func runOneShot(_ tool:String) {
+    guard ["connection_status","report_progress","ask_question"].contains(tool) else { error(1,-32602,"Unknown tool");exit(2) }
+    do { try prepare() } catch { exit(3) }
+    var input=Data(),bytes=[UInt8](repeating:0,count:8192)
+    while true {
+        let count=Darwin.read(STDIN_FILENO,&bytes,bytes.count)
+        if count==0 { break };if count<0 { if errno==EINTR { continue };exit(2) }
+        input.append(contentsOf:bytes.prefix(count))
+        if input.count>1_048_576 { error(1,-32600,"Request too large");exit(2) }
+    }
+    guard let arguments=(try? JSONSerialization.jsonObject(with:input)) as? [String:Any] else { error(1,-32700,"Provide one JSON object on standard input");exit(2) }
+    let heartbeat=DispatchSource.makeTimerSource(queue:.global(qos:.utility))
+    heartbeat.schedule(deadline:.now(),repeating:5);heartbeat.setEventHandler { [self] in connection("connected") }
+    if tool != "connection_status" { heartbeat.resume() } else { heartbeat.setEventHandler {};heartbeat.resume() }
+    handle(["jsonrpc":"2.0","id":1,"method":"tools/call","params":["name":tool,"arguments":arguments]])
+    stateLock.lock();stopped=true;stateLock.unlock();heartbeat.cancel()
+    if tool != "connection_status" { connection("disconnected") }
+}
 func run() {
-do { try privateFolder(root);try privateFolder(root.appendingPathComponent("events"));try privateFolder(root.appendingPathComponent("answers")) } catch { exit(3) }
+do { try prepare() } catch { exit(3) }
 let heartbeat=DispatchSource.makeTimerSource(queue:.global(qos:.utility));heartbeat.schedule(deadline:.now(),repeating:5);heartbeat.setEventHandler { [self] in connection("connected") };heartbeat.resume()
 var input=Data()
 var bytes=[UInt8](repeating:0,count:8192)
@@ -139,4 +164,5 @@ Thread.sleep(forTimeInterval:0.25)
 }
 let provider=arg("--provider") ?? ""
 guard ["chatgpt-plugin","claude-plugin"].contains(provider),let path=arg("--directory"),path.hasPrefix("/") else { exit(2) }
-IslandPluginServer(provider:provider,path:path).run()
+let server=IslandPluginServer(provider:provider,path:path)
+if let tool=arg("--call") { server.runOneShot(tool) } else { server.run() }

@@ -6,12 +6,12 @@ enum IslandPluginPackage {
     static let skill="""
     ---
     name: island
-    description: Show this task's progress in the Island notch and ask clarification questions there. Use when the user requests Island progress or answers in their notch.
+    description: Keep Island updated during multi-step work and route clarification questions to its notch. Use for work tasks whenever this plugin is enabled, and whenever the user requests Island progress or replies.
     ---
 
-    Use the Island MCP connection for this task. First call connection_status. If unavailable, tell the user to open Island and enable its AI activity tool, and continue normally in chat.
+    Use Island for this task when enabled. First call connection_status. Send useful task milestones automatically without asking the user to repeat the request. Route clarification/preferences through ask_question; native tool and OS approvals stay in the original client. If the tools are unavailable, use the local fallback described below. Never use a fallback to override an intentional client disable or policy denial. If neither route is available, report the limitation and continue in chat.
 
-    Choose a short stable task_id. Call report_progress at the start, at meaningful milestones, and at completion or failure. Send a short useful title and message, never secrets, credentials, raw tool arguments, hidden reasoning or full documents. Include a percentage only when it represents measured progress. Do not claim to observe other conversations or every tool automatically.
+    Choose a unique short task_id for this chat and reuse it for this task. Call report_progress at the start, at meaningful milestones, and at completion or failure. Send a short useful title and message, never secrets, credentials, raw tool arguments, hidden reasoning or full documents. Include a percentage only when it represents measured progress. Do not claim to observe other conversations or every tool automatically.
 
     Use ask_question for concise preference or clarification questions. Offer up to six choices when useful; the user can also type an answer. Wait for its actual result. If answered is false, use the original chat and do not assume an answer. Do not ask for passwords, tokens, OS approvals or client tool approvals through Island. Native security decisions remain in the client. Report completed, failed or cancelled honestly at the end.
     """
@@ -48,7 +48,7 @@ enum IslandPluginPackage {
             var stdio=server;stdio["type"]="stdio"
             try json(["$schema":"https://agent-plugins.org/schemas/1.0.0/mcp.schema.json","mcpServers":["island":stdio]],"mcp.json")
             try json(["mcpServers":["island":server]],".mcp.json")
-            if provider == "chatgpt-plugin" { try json(["name":"island","version":version,"description":"Task progress and questions in Island","skills":"./skills/","mcpServers":"./.mcp.json","interface":["displayName":"Island"]],".codex-plugin/plugin.json") }
+            if provider == "chatgpt-plugin" { try json(["name":"island","version":version,"description":"Task progress and questions in Island","skills":"./skills/","mcpServers":"./.mcp.json","onboardingSkill":"./skills/island/SKILL.md","interface":["displayName":"Island"]],".codex-plugin/plugin.json") }
             else {
                 try json(["name":"island","version":version,"description":"Task progress and questions in Island"],".claude-plugin/plugin.json")
                 try json(["manifest_version":"0.3","name":"island","display_name":"Island","version":version,"description":"Task progress and questions in your Mac’s Island","author":["name":"Island contributors"],"license":"GPL-3.0-only","server":["type":"binary","entry_point":"bin/IslandPlugin","mcp_config":["command":executable.path,"args":["--directory",data.path,"--provider",provider]]],"tools":[["name":"report_progress","description":"Send task progress to Island"],["name":"ask_question","description":"Ask a clarification question in Island"],["name":"connection_status","description":"Check the local Island connection"]],"compatibility":["platforms":["darwin"]]],"manifest.json")
@@ -57,7 +57,18 @@ enum IslandPluginPackage {
                 try pack.run();pack.waitUntilExit();guard pack.terminationStatus==0 else { throw CocoaError(.fileWriteUnknown) }
                 if fm.fileExists(atPath:bundle.path) { _=try fm.replaceItemAt(bundle,withItemAt:temporary) } else { try fm.moveItem(at:temporary,to:bundle) }
             }
-            try safeWrite(Data(skill.utf8),plugin.appendingPathComponent("skills/island/SKILL.md"))
+            func quote(_ value:String)->String { "'"+value.replacingOccurrences(of:"'",with:"'\"'\"'")+"'" }
+            let fallback="""
+
+            ## Local fallback when the client has not exposed MCP tools
+
+            If local command execution is available, use the installed Island helper directly. This calls the same bounded local tools and does not install hooks. Provide arguments as a JSON object on standard input; read result.structuredContent from its JSON reply. Keep the provider and directory below unchanged. Use a structured process call or a quoted heredoc so user text is never interpreted as shell commands.
+
+            Command: \(quote(executable.path)) --directory \(quote(data.path)) --provider \(provider) --call TOOL
+
+            Replace TOOL with connection_status, report_progress or ask_question. connection_status takes {}. report_progress takes task_id, title, state and optionally message/percent. ask_question takes task_id, question, optional options and timeout_seconds (5–300). Keep stdin open only while providing its one JSON object, then close it. Await the process's actual reply. If answered is false, ask in chat instead. Do not run an additional MCP and fallback question for the same prompt. Never synthesize an answer file yourself.
+            """
+            try safeWrite(Data((skill+fallback).utf8),plugin.appendingPathComponent("skills/island/SKILL.md"))
         }
         try directory(root.appendingPathComponent(".agents"));try directory(root.appendingPathComponent(".agents/plugins"))
         let marketplace:[String:Any]=["name":"island-local","interface":["displayName":"Island (this Mac)"],"plugins":[["name":"island","source":["source":"local","path":"./Island for ChatGPT"],"policy":["installation":"AVAILABLE","authentication":"ON_INSTALL"],"category":"Productivity"]]]

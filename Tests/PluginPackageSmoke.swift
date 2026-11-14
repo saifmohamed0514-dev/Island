@@ -17,7 +17,7 @@ import Foundation
    check(try Data(contentsOf:folder.appendingPathComponent("bin/IslandPlugin")) == Data(contentsOf:binary))
    let files=FileManager.default.enumerator(at:folder,includingPropertiesForKeys:nil)!.allObjects as! [URL]
    check(!files.contains { $0.path.lowercased().contains("hooks") })
-   let skill=try String(contentsOf:folder.appendingPathComponent("skills/island/SKILL.md"),encoding:.utf8);check(skill.contains("ask_question") && skill.contains("report_progress"))
+   let skill=try String(contentsOf:folder.appendingPathComponent("skills/island/SKILL.md"),encoding:.utf8);check(skill.contains("ask_question") && skill.contains("report_progress"));check(skill.contains(binary.path) && skill.contains("--call TOOL") && !skill.contains("\\(quote"))
    let portable=try JSONSerialization.jsonObject(with:Data(contentsOf:folder.appendingPathComponent("mcp.json"))) as! [String:Any];check(portable["$schema"] != nil)
   }
   let bundle=root.appendingPathComponent("Island for Claude.mcpb")

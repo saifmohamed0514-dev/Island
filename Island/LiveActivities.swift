@@ -2,6 +2,9 @@ import SwiftUI
 import AppKit
 
 enum IslandActivityRules {
+    static func prioritizeAgent(enabled:Bool,moduleEnabled:Bool,pending:Bool,working:Bool,preferWork:Bool,hovering:Bool)->Bool {
+        enabled && moduleEnabled && (pending || working && preferWork && !hovering)
+    }
     static func choose(_ available:[IslandCompactKind],rotate:Bool,phase:Int,hovered:IslandCompactKind?=nil)->IslandCompactKind {
         guard !available.isEmpty else { return .idle }
         if let hovered,available.contains(hovered) { return hovered }

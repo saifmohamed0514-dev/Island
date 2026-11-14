@@ -86,4 +86,43 @@ class PluginProtocolTests(unittest.TestCase):
   id=self.send('tools/call',{'name':'ask_question','arguments':{'task_id':'t','question':'Question','timeout_seconds':10}});_,e=self.event('question');self.assertEqual(self.receive(self.send('ping'))['result'],{})
   (self.root/'answers'/(e['id']+'.json')).write_text(json.dumps({'id':e['id'],'nonce':e['nonce'],'answer':'Done'}));self.assertTrue(self.receive(id)['result']['structuredContent']['answered'])
 
+ def one_shot(self,name,args):
+  return subprocess.run([os.environ['ISLAND_PLUGIN_BINARY'],'--directory',str(self.root),'--provider','chatgpt-plugin','--call',name],input=json.dumps(args),text=True,capture_output=True,timeout=8)
+ def test_one_shot_status_and_input_bounds(self):
+  r=self.one_shot('connection_status',{});self.assertEqual(r.returncode,0);self.assertTrue(json.loads(r.stdout)['result']['structuredContent']['available'])
+  self.assertEqual(self.one_shot('unsupported',{}).returncode,2)
+  self.assertEqual(self.one_shot('report_progress',{'message':'x'*1_048_577}).returncode,2)
+ def test_one_shot_progress_survives_process_changes(self):
+  a={'task_id':'same-task','title':'Working','state':'working'}
+  self.assertEqual(self.one_shot('report_progress',a).returncode,0)
+  a.update(title='Done',state='completed');self.assertEqual(self.one_shot('report_progress',a).returncode,0)
+  values=[]
+  for p in (self.root/'events').glob('*.island-event.json'):
+   e=json.loads(p.read_text())
+   if e.get('kind')=='progress':values.append(e)
+  self.assertEqual(len(values),1);self.assertEqual(values[0]['state'],'completed')
+  a.update(state='working');self.call('report_progress',a)
+  self.assertEqual(len([p for p in (self.root/'events').glob('*.island-event.json') if json.loads(p.read_text()).get('kind')=='progress']),1)
+ def test_one_shot_question_waits_for_reply(self):
+  p=subprocess.Popen([os.environ['ISLAND_PLUGIN_BINARY'],'--directory',str(self.root),'--provider','chatgpt-plugin','--call','ask_question'],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+  try:
+   p.stdin.write(json.dumps({'task_id':'cli-question','question':'Choose a colour','options':['Blue','Green'],'timeout_seconds':5}));p.stdin.close()
+   _,event=self.event('question');self.assertIsNone(p.poll())
+   answer=self.root/'answers'/(event['id']+'.json');answer.write_text(json.dumps({'id':event['id'],'nonce':event['nonce'],'answer':'Blue'}));answer.chmod(0o600)
+   p.wait(timeout=6);result=json.loads(p.stdout.read())['result']['structuredContent'];self.assertTrue(result['answered']);self.assertEqual(result['answer'],'Blue');self.assertFalse(answer.exists())
+  finally:
+   if p.poll() is None:p.kill();p.wait()
+   p.stdout.close();p.stderr.close()
+ def test_one_shot_unavailable_app(self):
+  self.live=False;self.pulse.join(timeout=1);(self.root/'presence.json').unlink(missing_ok=True)
+  r=self.one_shot('ask_question',{'task_id':'offline','question':'Question','timeout_seconds':5})
+  self.assertFalse(json.loads(r.stdout)['result']['structuredContent']['answered'])
+
+ def test_multiple_processes_prepare_private_folder(self):
+  directory=self.root/'parallel'
+  jobs=[subprocess.Popen([os.environ['ISLAND_PLUGIN_BINARY'],'--directory',str(directory),'--provider','chatgpt-plugin','--call','connection_status'],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True) for _ in range(4)]
+  for job in jobs:
+   output,error=job.communicate('{}',timeout=5);self.assertEqual(job.returncode,0,error);self.assertFalse(json.loads(output)['result']['structuredContent']['available'])
+  self.assertEqual(stat.S_IMODE(directory.stat().st_mode),0o700)
+
 if __name__=='__main__':unittest.main()
