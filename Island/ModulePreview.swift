@@ -25,41 +25,10 @@ struct IslandModulePreview:View {
         GeometryReader { geometry in
             let scale=min(1,geometry.size.width/680)
             VStack(spacing:0) {
-                HStack(spacing:0) {
-                    HStack(spacing:7) {
-                        ForEach(Array(modules.prefix(5))) { module in
-                            Button { onSelect(module) } label: {
-                                Image(systemName:module.icon).frame(width:24,height:26).foregroundStyle(module == selected ? .white : .gray)
-                                    .background(module == selected ? .white.opacity(0.10) : .clear,in:Capsule())
-                            }.buttonStyle(.plain).help("Open "+module.title+" settings").accessibilityLabel(module.title+" settings")
-                        }
-                        if modules.count>5 {
-                            Menu { ForEach(Array(modules.dropFirst(5))) { module in Button(module.title,systemImage:module.icon) { onSelect(module) } } } label: { Image(systemName:"ellipsis").frame(width:24) }
-                                .menuStyle(.borderlessButton).help("More module settings").accessibilityLabel("More module settings")
-                        }
-                    }.frame(maxWidth:.infinity,alignment:.leading)
-                    Color.clear.frame(width:130)
-                    HStack(spacing:12) { Image(systemName:"pin");Image(systemName:"slider.horizontal.3");Image(systemName:"battery.100").font(.system(size:22)).overlay { Text("84").font(.system(size:8,weight:.bold)).foregroundStyle(.black).offset(x:-1) } }.foregroundStyle(.gray).frame(maxWidth:.infinity,alignment:.trailing).accessibilityHidden(true)
-                }.frame(height:34)
+                previewHeader
                 Rectangle().fill(.white.opacity(0.07)).frame(height:1).padding(.top,3)
                 LazyVGrid(columns:[GridItem(.flexible()),GridItem(.flexible())],spacing:8) {
-                    ForEach(0..<4,id:\.self) { index in
-                        Group {
-                            if slots.indices.contains(index),let module=slots[index] {
-                                Button { onSelect(module) } label: { block(module,index:index) }.buttonStyle(.plain)
-                                    .draggable(IslandModuleTransfer(module:module)) { Label(module.title,systemImage:module.icon).padding(12).background(.regularMaterial,in:RoundedRectangle(cornerRadius:12)) }
-                                    .help(IslandCanvasPreferences.title(index)+" · drag this block to another position, or click for settings")
-                                    .accessibilityLabel(module.title+" in "+IslandCanvasPreferences.title(index)+". Click for settings or drag to move.")
-                            } else {
-                                VStack(spacing:4) { Label("Drop a module here",systemImage:"plus").font(.system(size:13,weight:.medium));Text(IslandCanvasPreferences.title(index)).font(.caption).foregroundStyle(.secondary) }
-                                    .frame(maxWidth:.infinity).frame(height:62).background(.white.opacity(0.025),in:RoundedRectangle(cornerRadius:16))
-                                    .overlay { RoundedRectangle(cornerRadius:16).strokeBorder(Color.white.opacity(0.25),style:StrokeStyle(lineWidth:1,dash:[5])) }
-                            }
-                        }
-                        .contentShape(RoundedRectangle(cornerRadius:16))
-                        .overlay { RoundedRectangle(cornerRadius:16).strokeBorder(target == index ? Color.blue : .clear,lineWidth:2).allowsHitTesting(false) }
-                        .dropDestination(for:IslandModuleTransfer.self) { values,_ in guard values.count == 1 else { return false };return onDrop(values[0].module,index) } isTargeted: { if $0 { target=index } else if target == index { target=nil } }
-                    }
+                    ForEach(0..<4,id:\.self) { index in dropSlot(index) }
                 }.frame(width:640,height:134).padding(.top,12)
             }
             .padding(.horizontal,20).padding(.bottom,12).frame(width:680,height:216,alignment:.top)
@@ -68,6 +37,61 @@ struct IslandModulePreview:View {
             .scaleEffect(scale,anchor:.topLeading).frame(width:geometry.size.width,height:216*scale,alignment:.topLeading)
         }.aspectRatio(680.0/216.0,contentMode:.fit)
         .accessibilityLabel("Editable Island layout. Drop modules into the four spaces. Drag blocks between spaces. Click a block for settings.")
+    }
+    private var previewHeader:some View {
+        HStack(spacing:0) {
+            HStack(spacing:7) {
+                ForEach(Array(modules.prefix(5))) { module in
+                    Button { onSelect(module) } label: {
+                        Image(systemName:module.icon).frame(width:24,height:26).foregroundStyle(module == selected ? .white : .gray)
+                            .background(module == selected ? .white.opacity(0.10) : .clear,in:Capsule())
+                    }.buttonStyle(.plain).help("Open "+module.title+" settings").accessibilityLabel(module.title+" settings")
+                }
+                if modules.count>5 {
+                    Menu { ForEach(Array(modules.dropFirst(5))) { module in Button(module.title,systemImage:module.icon) { onSelect(module) } } } label: { Image(systemName:"ellipsis").frame(width:24) }
+                        .menuStyle(.borderlessButton).help("More module settings").accessibilityLabel("More module settings")
+                }
+            }.frame(maxWidth:.infinity,alignment:.leading)
+            Color.clear.frame(width:130)
+            HStack(spacing:12) { Image(systemName:"pin");Image(systemName:"slider.horizontal.3");Image(systemName:"battery.100").font(.system(size:22)).overlay { Text("84").font(.system(size:8,weight:.bold)).foregroundStyle(.black).offset(x:-1) } }.foregroundStyle(.gray).frame(maxWidth:.infinity,alignment:.trailing).accessibilityHidden(true)
+        }.frame(height:34)
+    }
+    private func dropSlot(_ index:Int)->some View {
+        slotContent(index)
+            .contentShape(RoundedRectangle(cornerRadius:16))
+            .overlay { RoundedRectangle(cornerRadius:16).strokeBorder(target == index ? Color.blue : .clear,lineWidth:2).allowsHitTesting(false) }
+            .dropDestination(for:IslandModuleTransfer.self) { values,_ in
+                guard values.count == 1 else { return false }
+                return onDrop(values[0].module,index)
+            } isTargeted: { targeted in
+                if targeted { target=index } else if target == index { target=nil }
+            }
+    }
+    @ViewBuilder private func slotContent(_ index:Int)->some View {
+        if slots.indices.contains(index),let module=slots[index] {
+            moduleButton(module,index:index)
+        } else {
+            emptySlot(index)
+        }
+    }
+    private func moduleButton(_ module:NotchViews,index:Int)->some View {
+        Button { onSelect(module) } label: { block(module,index:index) }
+            .buttonStyle(.plain)
+            .draggable(IslandModuleTransfer(module:module)) { dragPreview(module) }
+            .help(IslandCanvasPreferences.title(index)+" · drag this block to another position, or click for settings")
+            .accessibilityLabel(module.title+" in "+IslandCanvasPreferences.title(index)+". Click for settings or drag to move.")
+    }
+    private func dragPreview(_ module:NotchViews)->some View {
+        Label(module.title,systemImage:module.icon).padding(12).background(.regularMaterial,in:RoundedRectangle(cornerRadius:12))
+    }
+    private func emptySlot(_ index:Int)->some View {
+        VStack(spacing:4) {
+            Label("Drop a module here",systemImage:"plus").font(.system(size:13,weight:.medium))
+            Text(IslandCanvasPreferences.title(index)).font(.caption).foregroundStyle(.secondary)
+        }
+        .frame(maxWidth:.infinity).frame(height:62)
+        .background(.white.opacity(0.025),in:RoundedRectangle(cornerRadius:16))
+        .overlay { RoundedRectangle(cornerRadius:16).strokeBorder(Color.white.opacity(0.25),style:StrokeStyle(lineWidth:1,dash:[5])) }
     }
     private func block(_ module:NotchViews,index:Int)->some View {
         HStack(spacing:12) {
