@@ -22,6 +22,7 @@ Path(sys.argv[1]).write_text(stubs+'\n@MainActor final class TransitionModel {\n
     let coordinator=IslandCoordinator.shared
     private var closedContentTask:Task<Void,Never>?
     var cancellables:Set<AnyCancellable> = []
+    func pendingClose()->Task<Void,Never>? { closedContentTask }
 '''+method('func open()')+'\n'+method('func close()')+'\n'+method('func destroy()')+'\n}\n')
 PY
 xcrun swiftc -module-cache-path "$STAGE/cache" "$STAGE/Model.swift" Tests/TransitionSmoke.swift -o "$STAGE/test"

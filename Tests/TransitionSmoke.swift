@@ -6,18 +6,18 @@ import Foundation
         precondition(vm.notchState == .open && vm.notchSize.width == openNotchSize.width && vm.notchSize.height == openNotchSize.height)
         vm.open();precondition(MusicManager.shared.updates == 1)
         vm.close();precondition(coordinator.currentView == .focus)
-        try await Task.sleep(for:.milliseconds(450))
+        await vm.pendingClose()?.value
         precondition(coordinator.currentView == .dashboard)
 
         coordinator.currentView = .focus;vm.open();vm.close()
-        try await Task.sleep(for:.milliseconds(80))
+        let cancelled=vm.pendingClose();precondition(cancelled != nil)
         coordinator.currentView = .notes;vm.open()
-        try await Task.sleep(for:.milliseconds(450))
+        await cancelled?.value
         precondition(coordinator.currentView == .notes && vm.notchState == .open)
 
         coordinator.currentView = .focus;vm.close()
-        try await Task.sleep(for:.milliseconds(250));vm.close()
-        try await Task.sleep(for:.milliseconds(250))
+        let firstClose=vm.pendingClose();vm.close()
+        await firstClose?.value
         precondition(coordinator.currentView == .dashboard)
 
         vm.open();vm.isPinned=true;vm.close();precondition(vm.notchState == .open)
@@ -27,13 +27,13 @@ import Foundation
         SharingStateManager.shared.preventNotchClose=false
 
         coordinator.currentView = .focus;coordinator.openLastTabByDefault=true;coordinator.showingCanvasDetail=true;vm.close()
-        try await Task.sleep(for:.milliseconds(450))
+        await vm.pendingClose()?.value
         precondition(coordinator.currentView == .focus && coordinator.showingCanvasDetail)
         coordinator.openLastTabByDefault=false;ShelfStateViewModel.shared.isEmpty=false;Defaults.shelfByDefault=true
-        vm.open();vm.close();try await Task.sleep(for:.milliseconds(450))
+        vm.open();vm.close();await vm.pendingClose()?.value
         precondition(coordinator.currentView == .shelf)
         IslandModuleStore.shared.enabled.remove(.shelf);coordinator.currentView = .focus
-        vm.open();vm.close();try await Task.sleep(for:.milliseconds(450))
+        vm.open();vm.close();await vm.pendingClose()?.value
         precondition(coordinator.currentView == .dashboard)
         vm.destroy()
         print("PASS: 13 production open/close lifecycle checks; deferred tab reset, rapid reopening, repeated close and editing/pin/modal/share guards; isolated dependencies")
