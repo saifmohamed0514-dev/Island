@@ -17,9 +17,16 @@ final class FullscreenMediaDetector: ObservableObject {
     @Published var fullscreenStatus: [String: Bool] = [:]
     
     private var monitorTask: Task<Void, Never>?
+    private var lastSpaces:[MacroVisionKit.FullScreenMonitor.SpaceInfo]=[]
+    private var subscriptions=Set<AnyCancellable>()
     
     private init() {
         startMonitoring()
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            Defaults.publisher(.hideNotchOption).sink { [weak self] _ in guard let self else { return };self.updateStatus(with:self.lastSpaces) }.store(in:&self.subscriptions)
+            MusicManager.shared.$bundleIdentifier.removeDuplicates().receive(on:RunLoop.main).sink { [weak self] _ in guard let self else { return };self.updateStatus(with:self.lastSpaces) }.store(in:&self.subscriptions)
+        }
     }
     
     deinit {
@@ -36,6 +43,7 @@ final class FullscreenMediaDetector: ObservableObject {
     }
     
     private func updateStatus(with spaces: [MacroVisionKit.FullScreenMonitor.SpaceInfo]) {
+        lastSpaces=spaces
         var newStatus: [String: Bool] = [:]
         
         for space in spaces {

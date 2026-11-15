@@ -39,7 +39,7 @@ class IslandPanel: NSPanel {
             self?.hideForFullscreen=fullscreen && state == .closed;self?.updateFullscreenVisibility()
         }.store(in:&observers)
     }
-    private func updateFullscreenVisibility() { let hidden=hideForFullscreen && !isSkyLightEnabled;ignoresMouseEvents=hidden;alphaValue=hidden ? 0 : 1 }
+    func updateFullscreenVisibility() { let hidden=hideForFullscreen && !isSkyLightEnabled;ignoresMouseEvents=hidden;alphaValue=hidden ? 0 : 1 }
     // AppKit otherwise reserves a one-point strip above floating panels.
     // Island is positioned explicitly against the physical display edge.
     override func constrainFrameRect(_ frameRect:NSRect,to screen:NSScreen?)->NSRect { frameRect }

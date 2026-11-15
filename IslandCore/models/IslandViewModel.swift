@@ -28,7 +28,7 @@ class IslandViewModel: NSObject, ObservableObject {
     var cancellables: Set<AnyCancellable> = []
     private var closedContentTask: Task<Void,Never>?
     
-    @Published var hideOnClosed: Bool = true
+    @Published var hideOnClosed: Bool = false
 
     @Published var edgeAutoOpenActive: Bool = false
     @Published var isHoveringCalendar: Bool = false

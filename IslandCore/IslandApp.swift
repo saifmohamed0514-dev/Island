@@ -278,7 +278,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             window.disableSkyLight()
         }
 
-        (window as? IslandPanel)?.bindVisibility(to:viewModel)
+        window.bindVisibility(to:viewModel)
         let hosting = NSHostingView(rootView: ContentView().environmentObject(viewModel))
         hosting.safeAreaRegions = []
         window.contentView = hosting
@@ -308,6 +308,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let frame=IslandDisplayGeometry.frame(screen:screenFrame,size:window.frame.size,scale:screen.backingScaleFactor)
         window.setFrame(frame,display:true)
         window.alphaValue = 1
+        (window as? IslandPanel)?.updateFullscreenVisibility()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
