@@ -37,6 +37,12 @@ import Foundation
   check(IslandMediaRules.skip(position:100,seconds:15,duration:110)==110 && IslandMediaRules.skip(position:10,seconds:-15,duration:0)==0)
   old.currentTime = .infinity;check(IslandMediaRules.position(old,at:now).isFinite)
   check(IslandMediaRules.parseDate("2026-11-15T10:20:30.123Z") != nil && IslandMediaRules.parseDate("2026-11-15T10:20:30Z") != nil)
+  let futureMetadata=try reduce(#"{"diff":true,"payload":{"title":"Future track","mediaType":"audio"}}"#,old)
+  check(futureMetadata.title=="Future track" && futureMetadata.duration==0)
+  let sameAlbum=try reduce(#"{"diff":true,"payload":{"title":"Next","album":"Album"}}"#,old)
+  check(sameAlbum.artwork==old.artwork && !sameAlbum.isFavorite)
+  let newAlbum=try reduce(#"{"diff":true,"payload":{"album":"Other Album"}}"#,old);check(newAlbum.artwork==nil)
+  let disconnected=try reduce(#"{"diff":true,"payload":{"bundleIdentifier":null,"playing":false}}"#,old);check(disconnected.bundleIdentifier.isEmpty && disconnected.title.isEmpty && !disconnected.isPlaying)
   print("PASS: \(count) production media-state checks; incremental/null metadata, artwork, source changes, pause/resume, rate, volume and bounded playback position")
  }
 }

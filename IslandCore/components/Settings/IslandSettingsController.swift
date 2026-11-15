@@ -17,7 +17,7 @@ class IslandSettingsController: NSWindowController {
     private init() {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 820, height: 680),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
         )
@@ -45,8 +45,8 @@ class IslandSettingsController: NSWindowController {
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.toolbarStyle = .unifiedCompact
-        window.isOpaque=false
-        window.backgroundColor = .clear
+        window.isOpaque=true
+        window.backgroundColor = .windowBackgroundColor
         window.hasShadow=true
         // Keep mouse input available to the canvas and controls; drag the title bar to move Settings.
         window.isMovableByWindowBackground = false
@@ -64,12 +64,10 @@ class IslandSettingsController: NSWindowController {
         
         // Create the SwiftUI content
         let settingsView = IslandSettingsView(updaterController: updaterController)
-            .background(.regularMaterial,in:RoundedRectangle(cornerRadius:26,style:.continuous))
-            .clipShape(RoundedRectangle(cornerRadius:26,style:.continuous))
+            .background(.regularMaterial)
         let hostingView = NSHostingView(rootView: settingsView)
-        hostingView.wantsLayer=true
-        hostingView.layer?.cornerRadius=26
-        hostingView.layer?.masksToBounds=true
+        // AppKit owns the outer rounded frame and title-bar safe area. Clipping
+        // the hosted split view separately cuts off toolbar/header content.
         window.contentView = hostingView
         
         // Handle window closing

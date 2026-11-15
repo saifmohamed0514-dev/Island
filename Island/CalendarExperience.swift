@@ -4,7 +4,7 @@ import EventKit
 
 extension IslandCalendarItem {
     init?(_ event:EKEvent) {
-        guard let start=event.startDate,let end=event.endDate,let calendar=event.calendar,start.timeIntervalSince1970.isFinite,end.timeIntervalSince1970.isFinite else { return nil }
+        guard event.status != .canceled,let start=event.startDate,let end=event.endDate,let calendar=event.calendar,start.timeIntervalSince1970.isFinite,end.timeIntervalSince1970.isFinite else { return nil }
         self.init(id:event.calendarItemIdentifier,title:event.title ?? "Event",start:start,end:end,calendarID:calendar.calendarIdentifier,allDay:event.isAllDay,declined:event.attendees?.contains { $0.isCurrentUser && $0.participantStatus == .declined } ?? false,subscribed:calendar.type == .subscription)
     }
 }

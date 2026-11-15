@@ -18,6 +18,7 @@ struct IslandLockPreferences:Codable,Equatable {
     var keepAwakeControl=true
     mutating func normalize() {
         var seen=Set<String>();widgets=widgets.filter { Self.available.contains($0) && seen.insert($0).inserted }
+        if widgets.contains("music") { widgets.removeAll { $0=="music" };widgets.insert("music",at:0) }
         if !["glass","clear","solid"].contains(style) { style="glass" }
         offset=offset.isFinite ? min(200,max(-120,offset)) : 0
     }
@@ -59,8 +60,11 @@ struct IslandLockPreferences:Codable,Equatable {
         set(\.widgets,widgets)
     }
     func move(_ widget:String,by delta:Int) {
-        var widgets=preferences.widgets;guard let i=widgets.firstIndex(of:widget),widgets.indices.contains(i+delta) else { return }
-        widgets.swapAt(i,i+delta);set(\.widgets,widgets)
+        guard widget != "music" else { return }
+        var widgets=preferences.widgets
+        let positions=widgets.indices.filter { widgets[$0] != "music" }
+        guard let index=positions.firstIndex(where:{ widgets[$0]==widget }),positions.indices.contains(index+delta) else { return }
+        widgets.swapAt(positions[index],positions[index+delta]);set(\.widgets,widgets)
     }
 }
 @MainActor final class IslandLockScreenController {
@@ -90,6 +94,11 @@ struct IslandLockPreferences:Codable,Equatable {
         windows=[];locked=false
     }
 }
+struct IslandLockWidgetRow:Identifiable {
+    let widget:String
+    let section:String
+    var id:String { section+"."+widget }
+}
 struct IslandLockWidgetsSettings:View {
     @ObservedObject private var model=IslandLockStore.shared
     @State private var preview=false
@@ -105,10 +114,19 @@ struct IslandLockWidgetsSettings:View {
                 Button("Preview your widgets") { preview=true }
             }
             Section("Choose widgets") {
-                ForEach(IslandLockPreferences.available,id:\.self) { widget in Toggle(widget.capitalized,isOn:Binding(get:{ model.preferences.widgets.contains(widget) },set:{ model.toggle(widget,$0) })) }
-                ForEach(model.preferences.widgets.filter { $0 != "music" },id:\.self) { widget in
-                    HStack { Text(widget.capitalized);Spacer();Button { model.move(widget,by:-1) } label: { Image(systemName:"arrow.up") }.accessibilityLabel("Move "+widget+" earlier");Button { model.move(widget,by:1) } label:{ Image(systemName:"arrow.down") }.accessibilityLabel("Move "+widget+" later") }
+                ForEach(IslandLockPreferences.available.map { IslandLockWidgetRow(widget:$0,section:"choice") }) { row in
+                    Toggle(row.widget.capitalized,isOn:Binding(get:{ model.preferences.widgets.contains(row.widget) },set:{ model.toggle(row.widget,$0) }))
                 }
+            }
+            Section("Arrange small widgets") {
+                ForEach(model.preferences.widgets.filter { $0 != "music" }.map { IslandLockWidgetRow(widget:$0,section:"order") }) { row in
+                    HStack {
+                        Text(row.widget.capitalized);Spacer()
+                        Button { model.move(row.widget,by:-1) } label:{ Image(systemName:"arrow.up") }.accessibilityLabel("Move "+row.widget+" earlier").disabled(model.preferences.widgets.filter { $0 != "music" }.first==row.widget)
+                        Button { model.move(row.widget,by:1) } label:{ Image(systemName:"arrow.down") }.accessibilityLabel("Move "+row.widget+" later").disabled(model.preferences.widgets.filter { $0 != "music" }.last==row.widget)
+                    }
+                }
+                Text("Music stays above the smaller cards. The arrows change the order of the other widgets.").font(.caption).foregroundStyle(.secondary)
             }
             Section("Now Playing") {
                 Toggle("Hide when nothing is playing",isOn:model.binding(\.hideInactiveMusic))

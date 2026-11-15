@@ -71,7 +71,8 @@ private final class IslandAudioTap {
     func setEnabled(_ value:Bool) { failed=false;UserDefaults.standard.set(value,forKey:"island.media.liveWaveform");configure() }
     func setLocked(_ value:Bool) { locked=value;configure() }
     func configure() {
-        guard enabled,!locked,MusicManager.shared.isPlaying,!IslandSnooze.shared.active else { stop();message=enabled ? "Waiting for playback. Capture pauses when music stops or your Mac locks." : "Off. Enable it to request system-audio access.";return }
+        guard enabled else { stop();message="Off. Enable it to request system-audio access.";return }
+        guard !locked,MusicManager.shared.isPlaying,!IslandSnooze.shared.active else { stop();if !failed { message="Waiting for playback. Capture pauses when music stops or your Mac locks." };return }
         guard tap==nil,!failed else { return }
         let token=UUID();generation=token;receiving=false;message="Waiting for system audio…"
         let capture=IslandAudioTap();tap=capture

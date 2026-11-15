@@ -42,7 +42,7 @@ import Foundation
   var lock=IslandLockPreferences()
   check(!lock.enabled && !lock.privateDetails)
   lock.widgets=["calendar","music","calendar","invalid"];lock.offset = .nan;lock.style="wrong";lock.normalize()
-  check(lock.widgets==["calendar","music"] && lock.offset==0 && lock.style=="glass")
+  check(lock.widgets==["music","calendar"] && lock.offset==0 && lock.style=="glass")
   let screen=CGRect(x:-1920,y:1080,width:1920,height:1080),frame=lock.panelFrame(screen:screen)
   check(frame.midX==screen.midX && frame.minY>=screen.minY && frame.maxY<=screen.maxY)
   let small=CGRect(x:0,y:0,width:400,height:600),smallFrame=lock.panelFrame(screen:small)
@@ -54,8 +54,10 @@ import Foundation
   check(IslandLockStore(defaults:defaults).preferences.privateDetails)
   let before=lockStore.preferences.widgets;lockStore.move(before[0],by:-1)
   check(lockStore.preferences.widgets==before)
-  lockStore.move(before[0],by:1);check(lockStore.preferences.widgets[1]==before[0])
+  lockStore.move(before[1],by:1);check(lockStore.preferences.widgets[0]=="music" && lockStore.preferences.widgets[2]==before[1])
   check(defaults.string(forKey:"island.notes")=="kept")
+  let choices=IslandLockPreferences.available.map { IslandLockWidgetRow(widget:$0,section:"choice") },positions=lockStore.preferences.widgets.filter { $0 != "music" }.map { IslandLockWidgetRow(widget:$0,section:"order") }
+  let rowIDs=(choices+positions).map(\.id);check(Set(rowIDs).count==rowIDs.count)
   print("PASS: \(count) production appearance/HUD/swipe/lock-widget checks; camera protection, limits, title cleanup, private persistence, gain formatting and one action per gesture")
  }
 }

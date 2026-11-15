@@ -8,7 +8,7 @@ enum IslandActivityTray:String,CaseIterable,Codable,Identifiable {
     var id:String { rawValue }
     var title:String { switch self { case .timer:return "Focus timer";case .music:return "Now Playing";case .wellbeing:return "Wellbeing";case .agent:return "AI activity & questions";case .event:return "Upcoming events";case .device:return "Device batteries";case .notice:return "Island Inbox" } }
     var icon:String { switch self { case .timer:return "timer";case .music:return "music.note";case .wellbeing:return "drop.fill";case .agent:return "sparkles";case .event:return "calendar";case .device:return "headphones";case .notice:return "bell" } }
-    var detail:String { switch self { case .timer:return "Time remaining while a timer runs. Hiding it keeps the timer running.";case .music:return "Artwork and playback status from your chosen player.";case .wellbeing:return "Today’s water count and goal. Click to open Wellbeing.";case .agent:return "Progress and questions sent by the Island plugin.";case .event:return "An event starting in the next 30 minutes.";case .device:return "Connected accessories and available battery levels.";case .notice:return "Unread notices in your Island Inbox." } }
+    var detail:String { switch self { case .timer:return "Time remaining while a timer runs. Hiding it keeps the timer running.";case .music:return "Artwork and playback status from your chosen player.";case .wellbeing:return "Today’s water count and goal. Click to open Wellbeing.";case .agent:return "Progress and questions sent by the Island plugin.";case .event:return "Upcoming and ongoing events within your chosen lead time.";case .device:return "Connected accessories and available battery levels.";case .notice:return "Unread notices in your Island Inbox." } }
     var module:NotchViews { switch self { case .timer:return .focus;case .music:return .home;case .wellbeing:return .health;case .agent:return .agents;case .event:return .calendar;case .device:return .devices;case .notice:return .inbox } }
     var kind:IslandCompactKind { switch self { case .timer:return .timer;case .music:return .music;case .wellbeing:return .wellbeing;case .agent:return .agent;case .event:return .event;case .device:return .device;case .notice:return .notice } }
 }
@@ -164,7 +164,7 @@ struct IslandCompactTrayEditor:View {
                     }
                 }
             }
-            Text("The real Island shows one available activity at a time. Turn on rotation to cycle through them. The arrows below also work without dragging.").font(.caption).foregroundStyle(.secondary)
+            Text("The real Island follows this priority order. Duo shows two available activities; rotation cycles through them. The arrows below also work without dragging.").font(.caption).foregroundStyle(.secondary)
         }.padding(.vertical,6)
     }
 }

@@ -444,11 +444,12 @@ final class YouTubeMusicController: MediaControllerProtocol {
 
             if let artworkURL = response.imageSrc,
                let url = URL(string: artworkURL) {
+                let expectedTitle=newState.title,expectedArtist=newState.artist
                 artworkFetchTask = Task {
                     do {
                         let data = try await ImageService.shared.fetchImageData(from: url)
                         await MainActor.run { [weak self] in
-                            guard !Task.isCancelled,let self,self.playbackState.title==newState.title,self.playbackState.artist==newState.artist else { return }
+                            guard !Task.isCancelled,let self,self.playbackState.title==expectedTitle,self.playbackState.artist==expectedArtist else { return }
                             self.playbackState.artwork = data
 
                         }

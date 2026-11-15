@@ -133,6 +133,8 @@ class SpotifyController: MediaControllerProtocol {
 
         if descriptor.numberOfItems>=14 {
             state.trackURL=IslandTrackLink.safe(descriptor.atIndex(11)?.stringValue)
+            let episode=state.trackURL?.pathComponents.dropFirst().first=="episode"
+            state.supportsForward15=episode;state.supportsBackward15=episode
             state.isFavorite=descriptor.atIndex(12)?.booleanValue ?? false
             state.isExplicit=capabilities.explicitProperty == nil ? nil : descriptor.atIndex(13)?.booleanValue
             let rate=descriptor.atIndex(14)?.doubleValue ?? 1;state.playbackRate=rate.isFinite && (0.5...3).contains(rate) ? rate : 1

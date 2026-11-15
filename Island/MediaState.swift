@@ -20,7 +20,7 @@ struct NowPlayingPayload:Decodable {
         artworkData=try c.decodeIfPresent(String.self,forKey:.artworkData);timestamp=try c.decodeIfPresent(String.self,forKey:.timestamp)
         parentApplicationBundleIdentifier=try c.decodeIfPresent(String.self,forKey:.parentApplicationBundleIdentifier);bundleIdentifier=try c.decodeIfPresent(String.self,forKey:.bundleIdentifier)
         duration=try c.decodeIfPresent(Double.self,forKey:.duration);elapsedTime=try c.decodeIfPresent(Double.self,forKey:.elapsedTime);playbackRate=try c.decodeIfPresent(Double.self,forKey:.playbackRate);volume=try c.decodeIfPresent(Double.self,forKey:.volume)
-        shuffleMode=try c.decodeIfPresent(Int.self,forKey:.shuffleMode);repeatMode=try c.decodeIfPresent(Int.self,forKey:.repeatMode);mediaType=try c.decodeIfPresent(Int.self,forKey:.mediaType)
+        shuffleMode=try c.decodeIfPresent(Int.self,forKey:.shuffleMode);repeatMode=try c.decodeIfPresent(Int.self,forKey:.repeatMode);mediaType=try? c.decodeIfPresent(Int.self,forKey:.mediaType)
         playing=try c.decodeIfPresent(Bool.self,forKey:.playing);isLiked=try c.decodeIfPresent(Bool.self,forKey:.isLiked);supportsIsLiked=try c.decodeIfPresent(Bool.self,forKey:.supportsIsLiked);prohibitsSkip=try c.decodeIfPresent(Bool.self,forKey:.prohibitsSkip)
         supportsFastForward15Seconds=try c.decodeIfPresent(Bool.self,forKey:.supportsFastForward15Seconds);supportsRewind15Seconds=try c.decodeIfPresent(Bool.self,forKey:.supportsRewind15Seconds)
     }
@@ -34,7 +34,7 @@ enum IslandMediaRules {
     }
     static func reduce(_ update:NowPlayingUpdate,previous:PlaybackState,now:Date)->PlaybackState {
         let p=update.payload
-        let source=p.parentApplicationBundleIdentifier ?? p.bundleIdentifier
+        let source=p.parentApplicationBundleIdentifier ?? p.bundleIdentifier ?? (p.keys.contains(.bundleIdentifier) ? "" : nil)
         let sameSource=source == nil || source == previous.bundleIdentifier
         let incremental=update.diff == true && sameSource
         var state=incremental ? previous : PlaybackState(bundleIdentifier:source ?? "",title:"")
@@ -44,7 +44,13 @@ enum IslandMediaRules {
         if p.keys.contains(.artist) { state.artist=p.artist ?? "" }
         if p.keys.contains(.album) { state.album=p.album ?? "" }
         let changedTrack=state.title != previous.title || state.artist != previous.artist || !sameSource
-        if changedTrack { state.artwork=nil;state.isFavorite=false }
+        let confirmedSameAlbum=sameSource && p.keys.contains(.album) && !state.album.isEmpty && state.album==previous.album && state.artist==previous.artist
+        if changedTrack {
+            if !confirmedSameAlbum { state.artwork=nil }
+            state.isFavorite=false
+            if !p.keys.contains(.duration) { state.duration=0 }
+        }
+        if state.album != previous.album { state.artwork=nil }
         if p.keys.contains(.duration) { state.duration=max(0,finite(p.duration ?? 0)) }
         if p.keys.contains(.elapsedTime) { state.currentTime=max(0,finite(p.elapsedTime ?? 0)) }
         else if changedTrack { state.currentTime=0 }

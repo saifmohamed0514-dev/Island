@@ -9,7 +9,7 @@ import sys
 s=Path('Island/Appearance.swift').read_text();s=s[:s.index('struct IslandAppearanceSettings:')]
 h=Path('Island/HUDCustomization.swift').read_text();h=h[h.index('enum IslandHUDRules'):h.index('@MainActor enum IslandHUDMotion')]
 g=Path('Island/ActivityInteractions.swift').read_text();g=g[g.index('struct IslandSwipeAccumulator'):g.index('// Monitors only')]
-l=Path('Island/LockWidgets.swift').read_text();l=l[:l.index('@MainActor final class IslandLockScreenController')]
+l=Path('Island/LockWidgets.swift').read_text();l=l[:l.index('@MainActor final class IslandLockScreenController')]+l[l.index('struct IslandLockWidgetRow:'):l.index('struct IslandLockWidgetsSettings:')]
 Path(sys.argv[1]).write_text(s+h+g+l)
 PY
 xcrun swiftc -module-cache-path "$STAGE/cache" "$STAGE/Models.swift" Tests/AppearanceSmoke.swift -o "$STAGE/test"
