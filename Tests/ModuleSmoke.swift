@@ -37,7 +37,7 @@ struct ModuleSmoke {
   precondition(IslandWindowLayout.maximize.rectangle(in:leftScreen) == leftScreen)
   precondition(IslandCompactLayout.width(camera:185,kind:.timer) < 400)
   precondition(IslandCompactLayout.width(camera:185,kind:.idle) == 185)
-  precondition(IslandCompactLayout.width(camera:185,kind:.hud) == IslandCompactLayout.width(camera:185,kind:.timer))
+  precondition(IslandCompactLayout.width(camera:185,kind:.hud)>=335 && IslandCompactLayout.width(camera:185,kind:.hud)<400)
   precondition(IslandWidget.slots("bad").count == 4)
   precondition(IslandWidget.slots("battery,day").prefix(2) == [.battery,.day])
   precondition(IslandScheduleRules.profile(minute:540,start:540,end:1020) == "Work")

@@ -16,9 +16,9 @@ enum RepeatMode: Int, Codable {
 struct PlaybackState {
     var bundleIdentifier: String
     var isPlaying: Bool = false
-    var title: String = "I'm Handsome"
-    var artist: String = "Me"
-    var album: String = "Self Love"
+    var title: String = "Not Playing"
+    var artist: String = ""
+    var album: String = ""
     var currentTime: Double = 0
     var duration: Double = 0
     var playbackRate: Double = 1
@@ -28,6 +28,13 @@ struct PlaybackState {
     var artwork: Data?
     var volume: Double = 0.5
     var isFavorite: Bool = false
+    var supportsForward15=false
+    var supportsBackward15=false
+    var prohibitsSkip=false
+    var shuffleAvailable=false
+    var repeatAvailable=false
+    var isExplicit:Bool?
+    var trackURL:URL?
 }
 
 extension PlaybackState: Equatable {
@@ -39,6 +46,16 @@ extension PlaybackState: Equatable {
             && lhs.album == rhs.album
             && lhs.currentTime == rhs.currentTime
             && lhs.duration == rhs.duration
+            && lhs.playbackRate == rhs.playbackRate
+            && lhs.volume == rhs.volume
+            && lhs.lastUpdated == rhs.lastUpdated
+            && lhs.supportsForward15 == rhs.supportsForward15
+            && lhs.supportsBackward15 == rhs.supportsBackward15
+            && lhs.prohibitsSkip == rhs.prohibitsSkip
+            && lhs.shuffleAvailable == rhs.shuffleAvailable
+            && lhs.repeatAvailable == rhs.repeatAvailable
+            && lhs.isExplicit == rhs.isExplicit
+            && lhs.trackURL == rhs.trackURL
             && lhs.isShuffled == rhs.isShuffled
             && lhs.repeatMode == rhs.repeatMode
             && lhs.artwork == rhs.artwork

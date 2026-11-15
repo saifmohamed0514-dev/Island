@@ -1,4 +1,4 @@
-# Island 2.11.1
+# Island 2.12.0
 
 An independent, open-source macOS notch utility, based on [Boring Notch](https://github.com/TheBoredTeam/boring.notch). GPL-3.0; original copyright notices and third-party licenses are retained.
 
@@ -20,6 +20,14 @@ An independent, open-source macOS notch utility, based on [Boring Notch](https:/
 - Island-specific signed Sparkle updates from this repository’s latest release. Checks/downloads are opt-in; the signed release assets must be published first.
 
 Apple silicon, macOS 15+. Build with Xcode 26 or later. The supplied preview is locally signed and **not notarized**. A physical external monitor and all optional integrations still require live testing.
+
+## New in 2.12
+
+Rounded, system-styled Settings now includes Appearance, Gestures, HUDs, Calendar, Lock Screen, System Sounds and Settings Sync. Duo shows two activities with independent actions. Choose an idle activity, dismiss/restore activities, and save those choices with a layout.
+
+The calendar adds a month grid, larger search/details view, meeting/maps links, filters, lunar date and optional lead-time reminders. Media adds capability-based controls, elapsed/total time, verified Spotify links and optional live audio capture. Six opt-in lock widgets keep personal details hidden by default. Native device connection events, sound choices, Mission Control/game visibility and reviewed iCloud Drive settings sharing are included.
+
+See [ALCOVE-COMPARISON.md](ALCOVE-COMPARISON.md) for the audited feature list and exact limits. Full Alcove parity, universal metadata/Focus identity, direct AirPlay/HomePod routing and all hardware checks are not claimed.
 
 ## New in 2.11.1
 

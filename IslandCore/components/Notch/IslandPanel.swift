@@ -33,6 +33,13 @@ extension SkyLightOperator {
 
 class IslandPanel: NSPanel {
     private var isSkyLightEnabled: Bool = false
+    private var hideForFullscreen=false
+    func bindVisibility(to model:IslandViewModel) {
+        Publishers.CombineLatest(model.$hideOnClosed,model.$notchState).receive(on:DispatchQueue.main).sink { [weak self] fullscreen,state in
+            self?.hideForFullscreen=fullscreen && state == .closed;self?.updateFullscreenVisibility()
+        }.store(in:&observers)
+    }
+    private func updateFullscreenVisibility() { let hidden=hideForFullscreen && !isSkyLightEnabled;ignoresMouseEvents=hidden;alphaValue=hidden ? 0 : 1 }
     // AppKit otherwise reserves a one-point strip above floating panels.
     // Island is positioned explicitly against the physical display edge.
     override func constrainFrameRect(_ frameRect:NSRect,to screen:NSScreen?)->NSRect { frameRect }
@@ -68,18 +75,17 @@ class IslandPanel: NSPanel {
         // Inherit system appearance; only the black Island surface uses dark content.
         appearance = nil
         
-        collectionBehavior = [
-            .fullScreenAuxiliary,
-            .stationary,
-            .canJoinAllSpaces,
-            .ignoresCycle,
-        ]
+        updateCollectionBehavior()
         
         // Apply initial sharing type setting
         updateSharingType()
     }
     
+    private func updateCollectionBehavior() {
+        collectionBehavior=[.fullScreenAuxiliary,.canJoinAllSpaces,.ignoresCycle,UserDefaults.standard.bool(forKey:"island.visibility.missionControl") ? .transient : .stationary]
+    }
     private func setupObservers() {
+        NotificationCenter.default.publisher(for:UserDefaults.didChangeNotification).receive(on:DispatchQueue.main).sink { [weak self] _ in self?.updateCollectionBehavior() }.store(in:&observers)
         // Listen for changes to the hideFromScreenRecording setting
         Defaults.publisher(.hideFromScreenRecording)
             .sink { [weak self] _ in
@@ -100,6 +106,7 @@ class IslandPanel: NSPanel {
         if !isSkyLightEnabled {
             SkyLightOperator.shared.delegateWindow(self)
             isSkyLightEnabled = true
+            updateFullscreenVisibility()
         }
     }
     
@@ -107,6 +114,7 @@ class IslandPanel: NSPanel {
         if isSkyLightEnabled {
             SkyLightOperator.shared.undelegateWindow(self)
             isSkyLightEnabled = false
+            updateFullscreenVisibility()
         }
     }
     

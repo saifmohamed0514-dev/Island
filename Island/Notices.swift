@@ -7,10 +7,10 @@ import UserNotifications
     struct Notice:Codable,Identifiable { var id:String;var title:String;var body:String;var source:String;var date:Date;var read:Bool }
     @Published private(set) var items:[Notice]=[]
     init() { items=UserDefaults.standard.data(forKey:"island.notices").flatMap { try? JSONDecoder().decode([Notice].self,from:$0) } ?? [] }
-    func post(title:String,body:String,source:String) {
+    func post(title:String,body:String,source:String,sound:Bool=true) {
         let item=Notice(id:UUID().uuidString,title:title,body:body,source:source,date:Date(),read:false)
         items.insert(item,at:0);items=Array(items.prefix(100));save()
-        let content=UNMutableNotificationContent();content.title=title;content.body=body;content.sound = .default
+        let content=UNMutableNotificationContent();content.title=title;content.body=body;content.sound = sound ? .default : nil
         UNUserNotificationCenter.current().getNotificationSettings { settings in
             guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
             UNUserNotificationCenter.current().add(UNNotificationRequest(identifier:item.id,content:content,trigger:nil))

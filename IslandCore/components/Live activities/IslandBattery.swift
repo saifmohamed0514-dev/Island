@@ -1,4 +1,5 @@
 import SwiftUI
+import IOKit.ps
 import Defaults
 
 /// A view that displays the battery status with an icon and charging indicator.
@@ -115,13 +116,14 @@ struct BatteryMenuView: View {
                         .font(.subheadline)
                         .fontWeight(.regular)
                 }
-                if timeToFullCharge > 0 {
+                if !isPluggedIn,let remaining=IslandLockPreferences.batteryTime(IOPSGetTimeRemainingEstimate()) { Label(remaining,systemImage:"clock").font(.subheadline) }
+                if isCharging && timeToFullCharge > 0 {
                     Label("Time to Full Charge: \(timeToFullCharge) min", systemImage: "clock")
                         .font(.subheadline)
                         .fontWeight(.regular)
                 }
                 if !isCharging && isPluggedIn && levelBattery >= 80 {
-                    Label("Charging on Hold: Desktop Mode", systemImage: "desktopcomputer")
+                    Label("Not Charging", systemImage: "pause.circle")
                         .font(.subheadline)
                         .fontWeight(.regular)
                 }

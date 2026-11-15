@@ -113,6 +113,12 @@ class IslandViewModel: NSObject, ObservableObject {
         if notchState == .closed { notchSize=size }
     }
 
+    var compactCameraWidth:CGFloat {
+        let screen=screenUUID.flatMap { NSScreen.screen(withUUID:$0) } ?? NSScreen.main
+        if let screen,screen.safeAreaInsets.top==0,IslandAppearanceStore.shared.preferences.notchlessStyle == "pill" { return 0 }
+        return closedNotchSize.width
+    }
+
     // Computed property for effective notch height
     var effectiveClosedNotchHeight: CGFloat {
         let currentScreen = screenUUID.flatMap { NSScreen.screen(withUUID: $0) }

@@ -5,24 +5,39 @@ import IOKit
 import IOBluetooth
 import CoreBluetooth
 
-@MainActor final class IslandDevices:ObservableObject {
+@MainActor final class IslandDevices:NSObject,ObservableObject {
     static let shared=IslandDevices()
     struct Device:Identifiable { var id:String;var name:String;var battery:Int?;var parts:[String:Int]=[:];var connected:Bool }
     @Published var devices:[Device]=[]
     @Published var status="Refresh to read connected devices and available battery levels."
     private var clock:Task<Void,Never>?
     private var previous:[String:Int]=[:]
+    private var connectNotification:IOBluetoothUserNotification?
+    private var disconnectNotifications:[String:IOBluetoothUserNotification]=[:]
+    private var connectionBaseline=Set<String>()
+    private var hasBaseline=false
+    private var enabled=false
     func configure(_ enabled:Bool) {
+        self.enabled=enabled
         clock?.cancel();clock=nil
-        guard enabled,UserDefaults.standard.bool(forKey:"island.devices.alerts") else { return }
+        connectNotification?.unregister();connectNotification=nil
+        disconnectNotifications.values.forEach { $0.unregister() };disconnectNotifications=[:]
+        guard enabled,CBManager.authorization == .allowedAlways else { hasBaseline=false;return }
+        connectNotification=IOBluetoothDevice.register(forConnectNotifications:self,selector:#selector(connected(_:device:)))
+        refresh()
         clock=Task { [weak self] in while !Task.isCancelled { self?.refresh();try? await Task.sleep(for:.seconds(60)) } }
     }
+    @objc private func connected(_ notification:IOBluetoothUserNotification,device:IOBluetoothDevice) { Task { @MainActor in self.refresh() } }
+    @objc private func disconnected(_ notification:IOBluetoothUserNotification,device:IOBluetoothDevice) { Task { @MainActor in self.refresh() } }
     func refresh() {
         guard CBManager.authorization == .allowedAlways else { devices=[];status="Set up Bluetooth access in Permissions to see your devices.";return }
         var result:[String:Device]=[:]
+        var connectionIDs=Set<String>()
         for device in IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice] ?? [] where device.isConnected() {
             let name=device.name ?? "Bluetooth Device",id=device.addressString ?? name
             result[id]=Device(id:id,name:name,battery:nil,connected:true)
+            connectionIDs.insert(id)
+            if enabled,disconnectNotifications[id]==nil { disconnectNotifications[id]=device.register(forDisconnectNotification:self,selector:#selector(disconnected(_:device:))) }
         }
         for className in ["AppleDeviceManagementHIDEventService","IOBluetoothDevice"] {
             var iterator:io_iterator_t=0
@@ -46,6 +61,12 @@ import CoreBluetooth
                 IOObjectRelease(service);service=IOIteratorNext(iterator)
             }
         }
+        if hasBaseline,enabled {
+            if !connectionIDs.subtracting(connectionBaseline).isEmpty { IslandSystemSounds.shared.play(.deviceConnected) }
+            if !connectionBaseline.subtracting(connectionIDs).isEmpty { IslandSystemSounds.shared.play(.deviceDisconnected) }
+        }
+        for id in Array(disconnectNotifications.keys) where !connectionIDs.contains(id) { disconnectNotifications.removeValue(forKey:id)?.unregister() }
+        connectionBaseline=connectionIDs;hasBaseline=true
         devices=result.values.sorted { $0.name < $1.name }
         if UserDefaults.standard.bool(forKey:"island.devices.alerts") {
             let threshold=UserDefaults.standard.object(forKey:"island.devices.threshold") as? Int ?? 20
@@ -54,7 +75,7 @@ import CoreBluetooth
                 if IslandDeviceAlertRules.shouldWarn(level:level,threshold:threshold,previous:previous[device.id]) {
                     let key="island.device.warned."+Data(device.id.utf8).base64EncodedString()
                     let last=UserDefaults.standard.double(forKey:key)
-                    if Date().timeIntervalSince1970-last > 6*3600 { IslandNotices.shared.post(title:"\(device.name) battery is low",body:"\(level)% remaining. Connect it to power when convenient.",source:"Devices");UserDefaults.standard.set(Date().timeIntervalSince1970,forKey:key) }
+                    if Date().timeIntervalSince1970-last > 6*3600 { IslandSystemSounds.shared.play(.deviceLowBattery);IslandNotices.shared.post(title:"\(device.name) battery is low",body:"\(level)% remaining. Connect it to power when convenient.",source:"Devices",sound:!IslandSystemSounds.shared.configured(.deviceLowBattery));UserDefaults.standard.set(Date().timeIntervalSince1970,forKey:key) }
                 }
                 previous[device.id]=level
             }
@@ -69,7 +90,7 @@ struct IslandDevicesView:View {
             HStack { Text("Bluetooth & Devices").font(.headline);Spacer();Button("Refresh") { model.refresh() } }
             if CBManager.authorization != .allowedAlways { Button("Set up Bluetooth…") { IslandSettingsController.shared.showPermissions(.bluetooth) } }
             ForEach(model.devices) { device in
-                HStack { Image(systemName:"antenna.radiowaves.left.and.right");Text(device.name);Spacer();if !device.parts.isEmpty { Text(device.parts.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)%" }.joined(separator:" · ")).font(.caption).foregroundStyle((device.battery ?? 100) <= 20 ? .orange : .secondary) } else { Text("Connected").foregroundStyle(.secondary) } }
+                HStack { Image(systemName:IslandDevicePresentation.symbol(device.name));Text(device.name);Spacer();if !device.parts.isEmpty { Text(device.parts.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)%" }.joined(separator:" · ")).font(.caption).foregroundStyle((device.battery ?? 100) <= 20 ? .orange : .secondary) } else { Text("Connected").foregroundStyle(.secondary) } }
             }
             Text(model.status).font(.caption).foregroundStyle(.secondary)
         }.task { model.refresh() }
@@ -125,5 +146,20 @@ struct IslandWindowSnapView: View {
             let success = await XPCHelperClient.shared.tileWindow(target,x:rect.minX,y:rect.minY,width:rect.width,height:rect.height)
             status = success ? "Applied \(layout.rawValue)." : "Couldn’t resize this window. Check Accessibility access; some apps enforce a minimum size."
         }
+    }
+}
+
+enum IslandDevicePresentation {
+    static func symbol(_ name:String)->String {
+        let value=name.lowercased()
+        if value.contains("airpods max") { return "airpods.max" }
+        if value.contains("airpods pro") { return "airpods.pro" }
+        if value.contains("airpods") { return "airpods" }
+        if value.contains("keyboard") { return "keyboard" }
+        if value.contains("mouse") { return "computermouse" }
+        if value.contains("trackpad") { return "rectangle.and.hand.point.up.left" }
+        if value.contains("controller") { return "gamecontroller" }
+        if value.contains("beats") || value.contains("headphone") || value.contains("earpod") { return "headphones" }
+        return "antenna.radiowaves.left.and.right"
     }
 }

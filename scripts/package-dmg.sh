@@ -34,7 +34,7 @@ HELP="$STAGE/Installer/Source and Help"
 mkdir -p "$HELP"
 git archive --format=zip --prefix=Island-Source/ HEAD > "$HELP/Island-Source.zip"
 git rev-parse HEAD > "$HELP/SOURCE-COMMIT.txt"
-for DOCUMENT in LICENSE THIRD_PARTY_LICENSES UPSTREAM.md INSTALL.md FEATURE-STATUS.md VERIFICATION.md App-Read-Me.txt; do
+for DOCUMENT in LICENSE THIRD_PARTY_LICENSES UPSTREAM.md INSTALL.md ALCOVE-COMPARISON.md FEATURE-STATUS.md VERIFICATION.md App-Read-Me.txt; do
   cp "$DOCUMENT" "$HELP/$DOCUMENT"
 done
 python3 - "$APP" "$STAGE/Installer/Install Island.txt" <<'PY'

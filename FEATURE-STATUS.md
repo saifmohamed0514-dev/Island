@@ -1,6 +1,20 @@
-# Island 2.11.1 development status
+# Island 2.12.0 development status
 
-Updated November 14, 2026. This is an implementation inventory, not a claim of full MacNotch parity or zero bugs.
+Updated November 15, 2026. This is an implementation inventory, not a claim of full MacNotch parity or zero bugs.
+
+## New in 2.12
+
+- Rounded native Settings, configurable outline/pill/width/artwork/gradient and opt-in blur/spring choices, respecting Reduce Motion.
+- Duo, idle selection, scoped horizontal/middle/Option actions and temporary activity dismissal/restoration. Saved layouts retain new choices without changing old layouts.
+- Larger calendar, typed filters/multi-day rules, meeting/maps links, per-occurrence hide/restore, lunar date and optional notification-authorized lead-time reminders.
+- Capability-based shuffle/repeat/favorite/speed/explicit controls, elapsed/total, Spotify links, null-aware incremental playback state and safer asynchronous artwork updates.
+- Optional in-memory CoreAudio waveform, automatically paused for idle/lock/snooze; no microphone, audio file or upload. Real capture permission/sample delivery is a live-test boundary.
+- Six optional lock cards with native glass/material/solid styles and privacy defaults; secure desktop/screensaver behavior remains a live-test boundary.
+- Real output device picker; optional documented BetterDisplay DNC request/response/OSD with per-display routing. Actual hardware and direct AirPlay/HomePod routing remain distinct limits.
+- Optional system sounds, immediate Bluetooth connection observers, per-app/game hiding, native Mission Control collection behavior and fuller menu controls.
+- Typed settings backup/import and reviewed shared-folder sync with separate HUD appearance, strict allowlists, size limits, source-change checks and no imported permissions/credentials/private content/recording choices.
+
+[ALCOVE-COMPARISON.md](ALCOVE-COMPARISON.md) records every audited feature family and remaining gaps. This release does not claim complete Alcove parity.
 
 ## Island interface
 

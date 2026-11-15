@@ -14,6 +14,7 @@ struct OpenNotchHUD: View {
     @Binding var value: CGFloat
     @Binding var icon: String
     @Default(.showOpenNotchHUDPercentage) var showPercentage
+    @AppStorage("island.hud.relativeDB") private var relativeDB=false
     
     var body: some View {
         HStack(spacing: 8) {
@@ -61,7 +62,7 @@ struct OpenNotchHUD: View {
             
             // Percentage Text
             if type != .mic && showPercentage {
-                Text("\(Int(value * 100))%")
+                Text(IslandHUDRules.label(value:Double(value),relativeDB:relativeDB && type == .volume))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.gray)
                     .monospacedDigit()
@@ -87,11 +88,17 @@ struct OpenNotchHUD: View {
     }
     
     func updateSystemValue(_ newVal: CGFloat) {
+        let coordinator=IslandCoordinator.shared
+        guard !coordinator.hudControlLocked else { return }
+        if let display=coordinator.hudDisplayID,IslandBetterDisplay.shared.enabled,[SneakContentType.volume,.brightness].contains(type) {
+            Task { if let actual=await IslandBetterDisplay.shared.set(display:display,feature:type == .volume ? "volume" : "brightness",value:Double(newVal)) { value=CGFloat(actual) } };return
+        }
         switch type {
         case .volume:
             VolumeManager.shared.setAbsolute(Float32(newVal))
         case .brightness:
             BrightnessManager.shared.setAbsolute(value: Float32(newVal))
+        case .backlight:KeyboardBacklightManager.shared.setAbsolute(value:Float32(newVal))
         default:
             break
         }

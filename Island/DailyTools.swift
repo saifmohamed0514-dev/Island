@@ -61,6 +61,9 @@ struct IslandHealthView: View {
     static let shared = IslandAgenda()
     let store = EKEventStore()
     @Published var events: [EKEvent] = []
+    @Published var monthEvents:[EKEvent]=[]
+    private var lastMonth:Date?
+    private var observers:[NSObjectProtocol]=[]
     @Published var reminders: [EKReminder] = []
     @Published var error: String?
     @Published var loading = false
@@ -69,7 +72,25 @@ struct IslandHealthView: View {
     struct Trashed: Codable,Identifiable { var id: String; var title: String; var listID: String; var completed: Bool; var removed: Date; var due: DateComponents? }
     @Published var trash: [Trashed] = []
     private init() {
+        observers=[Notification.Name.EKEventStoreChanged,Notification.Name("IslandCalendarPreferencesChanged")].map { name in
+            NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main) { [weak self] _ in Task { @MainActor in
+                guard let self else { return }
+                if name == Notification.Name("IslandCalendarPreferencesChanged") { IslandCalendarAlerts.shared.configure(self.events.compactMap { IslandCalendarItem($0) },preferences:IslandCalendarStore.shared.preferences) }
+                await self.refresh()
+            } }
+        }
         if let data = UserDefaults.standard.data(forKey:"island.tasks.trash"), let saved = try? JSONDecoder().decode([Trashed].self,from:data) { trash = saved.filter { Date().timeIntervalSince($0.removed) < 30 * 86400 } }
+    }
+    func refreshMonth(containing date:Date,force:Bool=false) async {
+        calendarConnected=EKEventStore.authorizationStatus(for:.event) == .fullAccess
+        guard calendarConnected else { monthEvents=[];lastMonth=nil;return }
+        let key=Calendar.current.dateInterval(of:.month,for:date)?.start ?? date
+        guard force || key != lastMonth else { return }
+        let days=IslandCalendarRules.monthDays(date)
+        guard let start=days.first,let last=days.last,let end=Calendar.current.date(byAdding:.day,value:1,to:last) else { return }
+        let found=store.events(matching:store.predicateForEvents(withStart:start,end:end,calendars:nil))
+        guard EKEventStore.authorizationStatus(for:.event) == .fullAccess else { monthEvents=[];lastMonth=nil;return }
+        monthEvents=found.sorted { $0.startDate<$1.startDate };lastMonth=key
     }
     func connect(events:Bool) async {
         do {
@@ -83,11 +104,13 @@ struct IslandHealthView: View {
         loading = true; defer { loading = false }
         calendarConnected = EKEventStore.authorizationStatus(for:.event) == .fullAccess
         remindersConnected = EKEventStore.authorizationStatus(for:.reminder) == .fullAccess
-        if !calendarConnected { events=[] }
+        if !calendarConnected { events=[];monthEvents=[];lastMonth=nil }
         if !remindersConnected { reminders=[] }
         if calendarConnected {
             let now = Calendar.current.startOfDay(for:Date())
-            events = store.events(matching:store.predicateForEvents(withStart:now,end:now.addingTimeInterval(7*86400),calendars:nil)).sorted { $0.startDate < $1.startDate }
+            let end=Calendar.current.date(byAdding:.day,value:7,to:now) ?? now.addingTimeInterval(7*86400)
+            events = store.events(matching:store.predicateForEvents(withStart:now,end:end,calendars:nil)).sorted { $0.startDate < $1.startDate }
+            if EKEventStore.authorizationStatus(for:.event) != .fullAccess { events=[];calendarConnected=false;monthEvents=[];lastMonth=nil }
         }
         if remindersConnected {
             let predicate = store.predicateForReminders(in:nil)
@@ -96,6 +119,7 @@ struct IslandHealthView: View {
             if EKEventStore.authorizationStatus(for:.reminder) != .fullAccess { reminders=[];remindersConnected=false }
             reminders.sort { ($0.dueDateComponents?.date ?? .distantFuture) < ($1.dueDateComponents?.date ?? .distantFuture) }
         }
+        IslandCalendarAlerts.shared.configure(events.compactMap { IslandCalendarItem($0) },preferences:IslandCalendarStore.shared.preferences)
     }
     func add(_ text:String) async {
         let title = text.trimmingCharacters(in:.whitespacesAndNewlines)

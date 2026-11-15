@@ -53,13 +53,21 @@ class MusicManager: ObservableObject {
     @Published var syncedLyrics: [(time: Double, text: String)] = []
     @Published var canFavoriteTrack: Bool = false
     @Published var isFavoriteTrack: Bool = false
+    @Published var supportsForward15=false
+    @Published var supportsBackward15=false
+    @Published var prohibitsSkip=false
+    @Published var shuffleSupported=false
+    @Published var repeatSupported=false
+    @Published var playbackRateSupported=false
+    @Published var isExplicit:Bool?
+    @Published var trackURL:URL?
 
     private var artworkData: Data? = nil
 
     // Store last values at the time artwork was changed
     private var lastArtworkTitle: String = "Not Playing"
-    private var lastArtworkArtist: String = "Me"
-    private var lastArtworkAlbum: String = "Self Love"
+    private var lastArtworkArtist: String = ""
+    private var lastArtworkAlbum: String = ""
     private var lastArtworkBundleIdentifier: String? = nil
 
     @Published var isFlipping: Bool = false
@@ -183,6 +191,11 @@ class MusicManager: ObservableObject {
     // MARK: - Update Methods
     @MainActor
     private func updateFromPlaybackState(_ state: PlaybackState) {
+        canFavoriteTrack=activeController?.supportsFavorite ?? false
+        volumeControlSupported=activeController?.supportsVolumeControl ?? false
+        shuffleSupported=activeController?.supportsShuffle ?? false;repeatSupported=activeController?.supportsRepeat ?? false
+        playbackRateSupported=activeController?.supportsPlaybackRate ?? false;isExplicit=state.isExplicit;trackURL=state.trackURL
+        supportsForward15=state.supportsForward15;supportsBackward15=state.supportsBackward15;prohibitsSkip=state.prohibitsSkip
         // Check for playback state changes (playing/paused)
         if state.isPlaying != self.isPlaying {
             NSLog("Playback state changed: \(state.isPlaying ? "Playing" : "Paused")")
@@ -291,6 +304,7 @@ class MusicManager: ObservableObject {
         }
         
         self.timestampDate = state.lastUpdated
+        Task { @MainActor in IslandAudioWaveform.shared.configure() }
     }
 
     func toggleFavoriteTrack() {
@@ -567,11 +581,7 @@ class MusicManager: ObservableObject {
 
     // MARK: - Playback Position Estimation
     public func estimatedPlaybackPosition(at date: Date = Date()) -> TimeInterval {
-        guard isPlaying else { return min(elapsedTime, songDuration) }
-
-        let timeDifference = date.timeIntervalSince(timestampDate)
-        let estimated = elapsedTime + (timeDifference * playbackRate)
-        return min(max(0, estimated), songDuration)
+        IslandMediaRules.position(PlaybackState(bundleIdentifier:bundleIdentifier ?? "",isPlaying:isPlaying,currentTime:elapsedTime,duration:songDuration,playbackRate:playbackRate,lastUpdated:timestampDate),at:date)
     }
 
     func calculateAverageColor() {
@@ -649,7 +659,7 @@ class MusicManager: ObservableObject {
         }
     }
     func skip(seconds: TimeInterval) {
-        let newPos = min(max(0, elapsedTime + seconds), songDuration)
+        let newPos = IslandMediaRules.skip(position:estimatedPlaybackPosition(at:Date()),seconds:seconds,duration:songDuration)
         seek(to: newPos)
     }
     
@@ -660,6 +670,8 @@ class MusicManager: ObservableObject {
             }
         }
     }
+    func setPlaybackRate(_ value:Double) { guard playbackRateSupported,value.isFinite,(0.5...3).contains(value) else { return };Task { await activeController?.setPlaybackRate(value) } }
+    func openCurrentTrack() { if let trackURL { NSWorkspace.shared.open(trackURL) } else { openMusicApp() } }
     func openMusicApp() {
         guard let bundleID = bundleIdentifier else {
             print("Error: appBundleIdentifier is nil")

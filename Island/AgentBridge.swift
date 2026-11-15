@@ -54,7 +54,7 @@ enum IslandAgentHookRules {
             accessRoot=url;pluginPrepared=(try? String(contentsOf:url.appendingPathComponent("ISLAND-PLUGIN.txt"),encoding:.utf8))?.hasPrefix("Island plugin connection") == true
             root = pluginPrepared ? url.appendingPathComponent("Local data",isDirectory:true) : url; folderName = url.lastPathComponent
             if pluginPrepared,let executable=Bundle.main.url(forResource:"IslandPlugin",withExtension:nil) {
-                let version=Bundle.main.releaseVersionNumber ?? "2.11.1"
+                let version=Bundle.main.releaseVersionNumber ?? "2.12.0"
                 if UserDefaults.standard.string(forKey:"island.plugins.exportVersion") != version {
                     do { try IslandPluginPackage.write(to:url,executable:executable,version:version);UserDefaults.standard.set(version,forKey:"island.plugins.exportVersion");info="Plugin files refreshed for Island "+version+". Reinstall the updated client package and start a new chat to load the new instructions." }
                     catch { self.error="The app updated, but its plugin files couldn’t refresh. Use Update plugin files or choose the folder again." }
@@ -70,7 +70,7 @@ enum IslandAgentHookRules {
         do {
             guard let executable=Bundle.main.url(forResource:"IslandPlugin",withExtension:nil) else { error="Plugin transport is missing from this build.";return }
             let folder=parent.appendingPathComponent("Island Plugins",isDirectory:true)
-            try IslandPluginPackage.write(to:folder,executable:executable,version:Bundle.main.releaseVersionNumber ?? "2.11.1")
+            try IslandPluginPackage.write(to:folder,executable:executable,version:Bundle.main.releaseVersionNumber ?? "2.12.0")
             let bookmark=try folder.bookmarkData(options:.withSecurityScope,includingResourceValuesForKeys:nil,relativeTo:nil)
             UserDefaults.standard.set(bookmark,forKey:"island.bridge.bookmark");UserDefaults.standard.set(folder.lastPathComponent,forKey:"island.bridge.folderName");folderName=folder.lastPathComponent
             IslandModuleStore.shared.setEnabled(.agents,true);start(true)
@@ -163,8 +163,8 @@ enum IslandAgentHookRules {
     func updatePluginPackages() {
         guard pluginPrepared,let accessRoot,let executable=Bundle.main.url(forResource:"IslandPlugin",withExtension:nil) else { error="Get the plugins first to connect a private folder.";return }
         do {
-            try IslandPluginPackage.write(to:accessRoot,executable:executable,version:Bundle.main.releaseVersionNumber ?? "2.11.1")
-            UserDefaults.standard.set(Bundle.main.releaseVersionNumber ?? "2.11.1",forKey:"island.plugins.exportVersion")
+            try IslandPluginPackage.write(to:accessRoot,executable:executable,version:Bundle.main.releaseVersionNumber ?? "2.12.0")
+            UserDefaults.standard.set(Bundle.main.releaseVersionNumber ?? "2.12.0",forKey:"island.plugins.exportVersion")
             error=nil;info="Plugin files updated. Reinstall the updated package in your client and start a new chat; an existing chat can keep its previous tools. Your connection data is kept."
         } catch { self.error="Couldn’t update the plugin files. Get the plugins again in a writable private folder." }
     }

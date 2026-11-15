@@ -2,6 +2,11 @@ import SwiftUI
 import AppKit
 
 enum IslandActivityRules {
+    static func secondary(primary:IslandCompactKind,available:[IslandCompactKind],enabled:Bool)->IslandCompactKind? {
+        guard enabled,!([IslandCompactKind.idle,.hud,.battery].contains(primary)) else { return nil }
+        return available.first { $0 != primary && ![IslandCompactKind.idle,.hud,.battery].contains($0) }
+    }
+
     static func prioritizeAgent(enabled:Bool,moduleEnabled:Bool,pending:Bool,working:Bool,preferWork:Bool,hovering:Bool)->Bool {
         enabled && moduleEnabled && (pending || working && preferWork && !hovering)
     }
@@ -19,17 +24,23 @@ enum IslandActivityRules {
     static let shared=IslandLiveActivityClock()
     @Published private(set) var phase=0
     private var task:Task<Void,Never>?
+    private var observers:[NSObjectProtocol]=[]
+    private init() {
+        observers=[Notification.Name("IslandCalendarPreferencesChanged"),Notification.Name("IslandLockWidgetsChanged")].map { name in
+            NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main) { [weak self] _ in Task { @MainActor in self?.configure() } }
+        }
+    }
     func configure() {
         task?.cancel();task=nil;phase=(phase+1)%100000
         let defaults=UserDefaults.standard
-        guard defaults.bool(forKey:"island.live.rotate") || IslandActivityTrayStore.shared.preferences.enabled.contains(.event) || IslandActivityTrayStore.shared.preferences.enabled.contains(.device) else { return }
+        let calendarWork=IslandCalendarStore.shared.preferences.leaveReminders || (IslandLockStore.shared.preferences.enabled && IslandLockStore.shared.preferences.widgets.contains("calendar"))
+        guard defaults.bool(forKey:"island.live.rotate") || IslandActivityTrayStore.shared.preferences.enabled.contains(.event) || IslandActivityTrayStore.shared.preferences.enabled.contains(.device) || calendarWork else { return }
         task=Task {
             var poll=10
             while !Task.isCancelled {
                 if poll>=10 {
                     poll=0;let modules=IslandModuleStore.shared.enabled
-                    if IslandActivityTrayStore.shared.preferences.enabled.contains(.event),(modules.contains(.calendar) || modules.contains(.day)) { await IslandAgenda.shared.refresh() }
-                    if IslandActivityTrayStore.shared.preferences.enabled.contains(.device),modules.contains(.devices) { IslandDevices.shared.refresh() }
+                    if calendarWork || (IslandActivityTrayStore.shared.preferences.enabled.contains(.event) && (modules.contains(.calendar) || modules.contains(.day))) { await IslandAgenda.shared.refresh() }
                 }
                 try? await Task.sleep(for:.seconds(6));guard !Task.isCancelled else { return };poll+=1;phase=(phase+1)%100000
             }

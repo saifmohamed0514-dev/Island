@@ -22,9 +22,11 @@ struct ContentView: View {
 
     @ObservedObject var coordinator = IslandCoordinator.shared
     @ObservedObject var canvas = IslandCanvasStore.shared
+    @ObservedObject var appearance=IslandAppearanceStore.shared
     @ObservedObject var snooze=IslandSnooze.shared
     @ObservedObject var activityClock=IslandLiveActivityClock.shared
     @ObservedObject var liveAgenda=IslandAgenda.shared
+    @ObservedObject var calendars=IslandCalendarStore.shared
     @ObservedObject var liveDevices=IslandDevices.shared
     @ObservedObject var liveNotices=IslandNotices.shared
     @ObservedObject var focusTimer = IslandFocusTimer.shared
@@ -38,6 +40,17 @@ struct ContentView: View {
     @State private var hoverTask: Task<Void, Never>?
     @State private var isHovering: Bool = false
     @State private var hoveredActivity:IslandCompactKind?
+    @State private var manualActivity:IslandCompactKind?
+    @State private var dismissedActivities:[IslandCompactKind:String]=[:]
+    @State private var handledUpGesture=false
+    @State private var handledDownGesture=false
+    @AppStorage("island.live.duo") private var duo=false
+    @AppStorage("island.live.idle") private var idleActivity="none"
+    @AppStorage("island.gesture.middleCycle") private var middleCycle=true
+    @AppStorage("island.gesture.skip") private var swipeSkip=true
+    @AppStorage("island.gesture.dismiss") private var swipeDismiss=true
+    @AppStorage("island.gesture.downCycle") private var downCycle=true
+    @AppStorage("island.live.hidePaused") private var hidePaused=false
     @AppStorage("island.live.musicQuickControls") private var musicQuickControls=true
     @AppStorage("island.live.aiPriority") private var aiPriority=true
     @State private var anyDropDebounceTask: Task<Void, Never>?
@@ -56,29 +69,69 @@ struct ContentView: View {
     private let animationSpring = Animation.interactiveSpring(response: 0.38, dampingFraction: 0.8, blendDuration: 0)
 
     private var surfaceAnimation: Animation {
-        reduceMotion ? .easeOut(duration:0.12) : .spring(response:0.36,dampingFraction:1,blendDuration:0)
+        reduceMotion ? .easeOut(duration:0.12) : .spring(response:0.36,dampingFraction:appearance.preferences.elasticSurface == true ? 0.86 : 1,blendDuration:0)
     }
 
+    private var contentTransition:AnyTransition {
+        guard !reduceMotion,appearance.preferences.progressiveBlur == true else { return .opacity }
+        return .modifier(active:IslandContentReveal(radius:6,opacity:0),identity:IslandContentReveal(radius:0,opacity:1))
+    }
     private var compactKind: IslandCompactKind {
-        if coordinator.sneakPeek.show && [.volume,.brightness,.backlight,.mic].contains(coordinator.sneakPeek.type) { return .hud }
+        if coordinator.sneakPeek.show && [.volume,.brightness,.backlight,.mic].contains(coordinator.sneakPeek.type) && (coordinator.hudDisplayID==nil || NSScreen.screen(withUUID:vm.screenUUID ?? "")?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber == coordinator.hudDisplayID.map { NSNumber(value:$0) }) { return .hud }
         if coordinator.expandingView.show && coordinator.expandingView.type == .battery && Defaults[.showPowerStatusNotifications] { return .battery }
-        if IslandActivityRules.prioritizeAgent(enabled:activityTrays.preferences.enabled.contains(.agent),moduleEnabled:moduleStore.enabled.contains(.agents),pending:!agentBridge.pending.isEmpty,working:agentBridge.activePluginProgress != nil,preferWork:aiPriority,hovering:isHovering) { return .agent }
+        let available=availableCompactKinds
+        if !agentBridge.pending.isEmpty && available.contains(.agent) { return .agent }
+        if let manualActivity,available.contains(manualActivity) { return manualActivity }
+        if available.contains(.agent),IslandActivityRules.prioritizeAgent(enabled:activityTrays.preferences.enabled.contains(.agent),moduleEnabled:moduleStore.enabled.contains(.agents),pending:false,working:agentBridge.activePluginProgress != nil,preferWork:aiPriority,hovering:isHovering) { return .agent }
+        if available.isEmpty {
+            if idleActivity == "calendar" && (moduleStore.enabled.contains(.calendar) || moduleStore.enabled.contains(.day)) { return .event }
+            if idleActivity == "wellbeing" && moduleStore.enabled.contains(.health) { return .wellbeing }
+        }
+        return IslandActivityRules.choose(available,rotate:UserDefaults.standard.bool(forKey:"island.live.rotate"),phase:activityClock.phase,hovered:isHovering ? hoveredActivity : nil)
+    }
+    private var availableCompactKinds:[IslandCompactKind] {
+
         let defaults=UserDefaults.standard,modules=moduleStore.enabled
         let timerActive=(focusTimer.state.deadline != nil || focusTimer.showCompletion) && modules.contains(.focus) && activityTrays.preferences.enabled.contains(.timer)
         var available:[IslandCompactKind]=[]
         if timerActive { available.append(.timer) }
-        if !musicManager.isPlayerIdle && coordinator.musicLiveActivityEnabled && modules.contains(.home) && !IslandActivityRules.excluded(musicManager.bundleIdentifier,from:defaults.string(forKey:"island.live.excludedPlayers") ?? "") { available.append(.music) }
-        if activityTrays.preferences.enabled.contains(.event),(modules.contains(.calendar) || modules.contains(.day)),liveAgenda.events.contains(where:{ $0.endDate>Date() && $0.startDate.timeIntervalSinceNow<1800 }) { available.append(.event) }
+        if !musicManager.isPlayerIdle && (!hidePaused || musicManager.isPlaying) && coordinator.musicLiveActivityEnabled && modules.contains(.home) && !IslandActivityRules.excluded(musicManager.bundleIdentifier,from:defaults.string(forKey:"island.live.excludedPlayers") ?? "") { available.append(.music) }
+        if activityTrays.preferences.enabled.contains(.event),(modules.contains(.calendar) || modules.contains(.day)),!calendars.activity(liveAgenda.events).isEmpty { available.append(.event) }
         if activityTrays.preferences.enabled.contains(.device),modules.contains(.devices),!liveDevices.devices.isEmpty { available.append(.device) }
         if activityTrays.preferences.enabled.contains(.notice),modules.contains(.inbox),liveNotices.items.contains(where:{ !$0.read }) { available.append(.notice) }
         if modules.contains(.health) { available.append(.wellbeing) }
-        if modules.contains(.agents),agentBridge.activePluginProgress != nil { available.append(.agent) }
-        return IslandActivityRules.choose(activityTrays.preferences.arrange(available),rotate:defaults.bool(forKey:"island.live.rotate"),phase:activityClock.phase,hovered:isHovering ? hoveredActivity : nil)
+        if modules.contains(.agents),agentBridge.activePluginProgress != nil || !agentBridge.pending.isEmpty { available.append(.agent) }
+        return activityTrays.preferences.arrange(available).filter { dismissedActivities[$0] != activityToken($0) }
+    }
+    private func activityToken(_ kind:IslandCompactKind)->String {
+        switch kind {
+        case .music:return (musicManager.bundleIdentifier ?? "")+musicManager.songTitle+musicManager.album
+        case .timer:return String(focusTimer.state.deadline?.timeIntervalSince1970 ?? 0)+String(focusTimer.showCompletion)
+        case .event:return calendars.activity(liveAgenda.events).first.map { $0.calendarItemIdentifier+":"+String($0.startDate.timeIntervalSince1970) } ?? "calendar"
+        case .device:return liveDevices.devices.map(\.id).joined(separator:",")
+        case .notice:return liveNotices.items.filter { !$0.read }.map(\.id).joined(separator:",")
+        case .agent:return agentBridge.pending.first?.id ?? agentBridge.activePluginProgress?.id ?? "agent"
+        case .wellbeing:return String(UserDefaults.standard.integer(forKey:"island.health.water"))
+        default:return kind.rawValue
+        }
+    }
+    private var secondaryCompactKind:IslandCompactKind? { IslandActivityRules.secondary(primary:compactKind,available:availableCompactKinds,enabled:duo) }
+    private func cycleActivity() {
+        let available=availableCompactKinds
+        guard !available.isEmpty else { return }
+        let next=available[((available.firstIndex(of:compactKind) ?? -1)+1)%available.count]
+        manualActivity=next;hoveredActivity=next
+        if vm.notchState == .open { IslandCompactActivity.route(next) }
+        IslandHaptics.play(.selection)
     }
     private var topCornerRadius: CGFloat { 0 }
-    private var currentNotchShape: IslandSurface { IslandSurface(radius:vm.notchState == .open ? 30 : 14) }
-    private var showsMusicControls:Bool { IslandCompactLayout.showsMusicControls(kind:compactKind,hovering:isHovering,closed:vm.notchState == .closed,enabled:musicQuickControls) }
-    private var computedChinWidth: CGFloat { IslandCompactLayout.width(camera:vm.closedNotchSize.width,kind:compactKind,musicControls:showsMusicControls) }
+    private var currentNotchShape: IslandSurface {
+        let screen=vm.screenUUID.flatMap { NSScreen.screen(withUUID:$0) } ?? NSScreen.main
+        let pill=vm.notchState == .closed && (screen?.safeAreaInsets.top ?? 0)==0 && appearance.preferences.notchlessStyle == "pill"
+        return IslandSurface(radius:vm.notchState == .open ? 30 : 14,pill:pill)
+    }
+    private var showsMusicControls:Bool { IslandCompactLayout.showsMusicControls(kind:compactKind,hovering:isHovering,closed:vm.notchState == .closed,enabled:musicQuickControls && secondaryCompactKind == nil) }
+    private var computedChinWidth: CGFloat { max(compactKind == .idle ? 60 : 0,IslandCompactLayout.width(camera:vm.compactCameraWidth,kind:compactKind,musicControls:showsMusicControls,secondary:secondaryCompactKind)) }
 
     var body: some View {
         // Calculate scale based on gesture progress only
@@ -97,9 +150,9 @@ struct ContentView: View {
                             .padding(.horizontal,20)
                             .padding(.bottom,12)
                             .frame(width:openNotchSize.width,height:openNotchSize.height,alignment:.top)
-                            .transition(.asymmetric(insertion:.opacity.animation(.easeOut(duration:0.16)),removal:.opacity.animation(.easeOut(duration:0.10))))
+                            .transition(.asymmetric(insertion:contentTransition.animation(.easeOut(duration:0.16)),removal:contentTransition.animation(.easeOut(duration:0.10))))
                     } else {
-                        IslandCompactActivity(kind:compactKind,showsMusicControls:showsMusicControls)
+                        IslandCompactActivity(kind:compactKind,showsMusicControls:showsMusicControls,secondary:secondaryCompactKind)
                             .transition(.opacity.animation(.easeOut(duration:0.12)))
                     }
                 }
@@ -107,9 +160,16 @@ struct ContentView: View {
                            height:vm.notchState == .open ? openNotchSize.height : vm.effectiveClosedNotchHeight,alignment:.top)
                     .background(.black)
                     .clipShape(currentNotchShape)
+                    .overlay {
+                        if appearance.preferences.outline != "off" && (vm.notchState == .open || appearance.preferences.compactOutline) {
+                            currentNotchShape.stroke(appearance.preferences.outline == "color" ? appearance.color.opacity(0.8) : .white.opacity(0.18),lineWidth:1).padding(0.5).allowsHitTesting(false)
+                        }
+                    }
                     .shadow(color:vm.notchState == .open ? .black.opacity(0.25) : .clear,radius:12,y:6)
 
-                mainLayout.opacity(snooze.active ? 0 : 1).allowsHitTesting(!snooze.active)
+                mainLayout
+                    .background(IslandActivityInput(middleClick:middleCycle,horizontal:vm.notchState == .closed && swipeSkip && compactKind == .music,onCycle:cycleActivity,onSkip:{ forward in if forward { musicManager.nextTrack() } else { musicManager.previousTrack() };IslandHaptics.play(.selection) }))
+                    .opacity(snooze.active ? 0 : 1).allowsHitTesting(!snooze.active)
                     .environment(\.colorScheme, .dark)
                     .animation(surfaceAnimation,value:vm.notchState)
                     .animation(surfaceAnimation,value:computedChinWidth)
@@ -200,6 +260,10 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in
             if !isHovering && !vm.isBatteryPopoverActive && !SharingStateManager.shared.preventNotchClose { vm.close() }
         }
+        .onReceive(NotificationCenter.default.publisher(for:Notification.Name("IslandCycleActivity"))) { notification in
+            if let target=notification.object as? IslandViewModel,target === vm { cycleActivity() }
+        }
+        .onChange(of:availableCompactKinds) { _,available in if let manualActivity,!available.contains(manualActivity) { self.manualActivity=nil } }
         .onExitCommand { NSApp.keyWindow?.makeFirstResponder(nil); vm.close() }
         .onChange(of: vm.anyDropZoneTargeting) { _, isTargeted in
             anyDropDebounceTask?.cancel()
@@ -321,11 +385,14 @@ struct ContentView: View {
     // MARK: - Gesture Handling
 
     private func handleDownGesture(translation: CGFloat, phase: NSEvent.Phase) {
-        guard vm.notchState == .closed else { return }
-
-        if phase == .ended {
-            withAnimation(animationSpring) { gestureProgress = .zero }
+        if phase == .ended { handledDownGesture=false;withAnimation(animationSpring) { gestureProgress = .zero };return }
+        guard !handledDownGesture else { return }
+        if vm.notchState == .open {
+            if downCycle,translation>Defaults[.gestureSensitivity] { handledDownGesture=true;cycleActivity() }
             return
+        }
+        if !dismissedActivities.isEmpty && translation>Defaults[.gestureSensitivity] {
+            handledDownGesture=true;dismissedActivities=[:];IslandHaptics.play(.selection);return
         }
 
         withAnimation(animationSpring) {
@@ -333,6 +400,7 @@ struct ContentView: View {
         }
 
         if translation > Defaults[.gestureSensitivity] {
+            handledDownGesture=true
             if Defaults[.enableHaptics] {
                 haptics.toggle()
             }
@@ -344,8 +412,14 @@ struct ContentView: View {
     }
 
     private func handleUpGesture(translation: CGFloat, phase: NSEvent.Phase) {
-        guard vm.notchState == .open && !vm.isHoveringCalendar else { return }
-
+        if phase == .ended { handledUpGesture=false;withAnimation(animationSpring) { gestureProgress = .zero };return }
+        guard !handledUpGesture && !vm.isHoveringCalendar else { return }
+        if vm.notchState == .closed {
+            if swipeDismiss,translation>Defaults[.gestureSensitivity],![IslandCompactKind.idle,.hud,.battery].contains(compactKind) {
+                handledUpGesture=true;dismissedActivities[compactKind]=activityToken(compactKind);manualActivity=nil;hoveredActivity=nil;IslandHaptics.play(.selection)
+            }
+            return
+        }
         withAnimation(animationSpring) {
             gestureProgress = (translation / Defaults[.gestureSensitivity]) * -20
         }
@@ -357,6 +431,7 @@ struct ContentView: View {
         }
 
         if translation > Defaults[.gestureSensitivity] {
+            handledUpGesture=true
             isHovering = false
             if !SharingStateManager.shared.preventNotchClose { 
                 gestureProgress = .zero

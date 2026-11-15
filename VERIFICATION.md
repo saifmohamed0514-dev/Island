@@ -1,4 +1,14 @@
-# Island 2.11.1 verification — November 14, 2026
+# Island 2.12.0 verification — November 15, 2026
+
+## 2.12.0 (21200)
+
+The local release build passes **608 Swift checks**, **17 compiled MCP transport scenarios**, **11 legacy bridge scenarios** and release/configuration fixtures, including real ephemeral Sparkle signature/tamper checks. A clean full build and final incremental build compile the new features; no permission, account or hardware actions run in fixtures. The intentional negative-signature case prints a mismatch before the test succeeds.
+
+New checks exercise null-aware playback diffs/artwork/pause-resume/rate/volume, native scripting capability parsing and safe track links; camera-safe appearance, one-action swipe behavior, HUD gain formatting, lock defaults and screen geometry; DST/month/multiday/recurrence/calendar filters and serialized notification disable/replace behavior; portable-setting allowlists/version/limits and older layout migration; waveform amplitude bounds; game/app visibility; sound quieting; BetterDisplay JSON/null parameters and OSD range guards.
+
+Production light/dark views are rendered with isolated sample state and inert actions: compact/expanded calendar, player active/idle, appearance, calendar settings, lock settings/widgets, Duo, compact HUD and tray/plugin pages. These checks found and corrected native-glass text contrast in dark mode. Offscreen renders do not validate the composited glass shader, secure desktop, drag input, real audio capture or optional account/device integrations.
+
+The live Mac was locked at the first 2.12 interface attempt. Permission approval/capture sample delivery, actual lock/screensaver panels, BetterDisplay hardware and physical external displays remain unverified. No new native permission was approved automatically, no Focus/security database was read or modified, and private recording/account choices are excluded from shared settings. See ALCOVE-COMPARISON.md for the remaining feature differences; complete Alcove parity and zero bugs are not claimed.
 
 ## 2.11.1 (21101)
 

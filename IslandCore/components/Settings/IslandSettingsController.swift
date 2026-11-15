@@ -42,9 +42,12 @@ class IslandSettingsController: NSWindowController {
         
         window.title = "Island Settings"
         window.contentMinSize=NSSize(width:800,height:650)
-        window.titlebarAppearsTransparent = false
-        window.titleVisibility = .visible
-        window.toolbarStyle = .unified
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.toolbarStyle = .unifiedCompact
+        window.isOpaque=false
+        window.backgroundColor = .clear
+        window.hasShadow=true
         // Keep mouse input available to the canvas and controls; drag the title bar to move Settings.
         window.isMovableByWindowBackground = false
         
@@ -61,7 +64,12 @@ class IslandSettingsController: NSWindowController {
         
         // Create the SwiftUI content
         let settingsView = IslandSettingsView(updaterController: updaterController)
+            .background(.regularMaterial,in:RoundedRectangle(cornerRadius:26,style:.continuous))
+            .clipShape(RoundedRectangle(cornerRadius:26,style:.continuous))
         let hostingView = NSHostingView(rootView: settingsView)
+        hostingView.wantsLayer=true
+        hostingView.layer?.cornerRadius=26
+        hostingView.layer?.masksToBounds=true
         window.contentView = hostingView
         
         // Handle window closing

@@ -314,7 +314,7 @@ extension IslandPermissionClient {
         lastStatuses=result
         if changed.contains(.camera) { WebcamManager.shared.refreshAuthorization() }
         if changed.contains(.calendar) || changed.contains(.reminders) { Task { await IslandAgenda.shared.refresh() } }
-        if changed.contains(.bluetooth) { IslandDevices.shared.refresh() }
+        if changed.contains(.bluetooth) { IslandDevices.shared.configure(IslandModuleStore.shared.enabled.contains(.devices));IslandDevices.shared.refresh() }
         return result
     }
     func controlsSnapshot() async -> [IslandPermission:IslandPermissionStatus] {
@@ -469,8 +469,9 @@ struct IslandPermissionsView:View {
                 ForEach(visiblePermissions) { key in permissionRow(key) }
                 if guidedSetup { Button(showAll ? "Show recommended permissions" : "Show other permissions") { showAll.toggle() }.disabled(setup.running || setup.prompting) }
             }
+            Section("Optional live waveform") { IslandWaveformSettings() }
             Section("Files and app connections") {
-                Text("Files and folders are approved when you choose them. Island doesn’t need access to your whole disk, microphone or screen recording to use these features.").font(.caption).foregroundStyle(.secondary)
+                Text("Files and folders are approved when you choose them. Files, timers and playback controls don’t need whole-disk, microphone or screen-recording access. The optional live waveform has its own system-audio approval.").font(.caption).foregroundStyle(.secondary)
                 LabeledContent("ChatGPT, Claude and Cursor",value:bridge.events.isEmpty ? (bridge.folderName == nil ? "Not connected" : "Folder connected") : "Activity received")
                 Text("Plugin review stays in the connected app. A prepared folder does not mean the plugin is installed or reporting.").font(.caption).foregroundStyle(.secondary)
                 Button("Manage app connections") { IslandSettingsNavigation.shared.selected="Agents & Inbox" }

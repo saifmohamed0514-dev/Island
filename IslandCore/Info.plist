@@ -9,6 +9,8 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>React to system audio with a live waveform when you enable it. Audio is never saved or uploaded.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Show connected Bluetooth devices you choose to inspect in Island.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>

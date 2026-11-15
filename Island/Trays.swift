@@ -58,6 +58,8 @@ struct IslandTraysSettings:View {
     @AppStorage("island.live.rotate") private var rotate=false
     @AppStorage("island.live.musicQuickControls") private var musicQuickControls=true
     @AppStorage("island.live.aiPriority") private var aiPriority=true
+    @AppStorage("island.live.duo") private var duo=false
+    @AppStorage("island.live.idle") private var idleActivity="none"
     @State private var mode=0
     @State private var query=""
     init(initialTab:Int=0) { _mode=State(initialValue:initialTab) }
@@ -87,6 +89,9 @@ struct IslandTraysSettings:View {
             } else { Section("While Island is closed") {
                 IslandCompactTrayEditor(preferences:activities.preferences,onPlace:{ tray,index in changeActivities { activities.place(tray,at:index) } },onRemove:{ tray in changeActivities { activities.set(tray,enabled:false) } })
                 Toggle("Rotate available trays every 6 seconds",isOn:$rotate).onChange(of:rotate) { IslandLiveActivityClock.shared.configure() }
+                Toggle("Duo · show two activities",isOn:$duo)
+                Text("Each side of the camera opens its own activity. Temporary system controls keep the full width.").font(.caption).foregroundStyle(.secondary)
+                Picker("When nothing is active",selection:$idleActivity) { Text("Quiet Island").tag("none");Text("Calendar date").tag("calendar");Text("Wellbeing").tag("wellbeing") }
                 Toggle("Prefer active AI work",isOn:$aiPriority)
                 Text("Show reported AI progress before music and timers. Questions take priority while they need an answer. Your current hovered controls stay in place until you leave.").font(.caption).foregroundStyle(.secondary)
                 Toggle("Music controls on hover",isOn:$musicQuickControls)

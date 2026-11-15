@@ -187,7 +187,7 @@ struct IslandModuleContent: View {
                 case .health: IslandHealthView()
                 case .system: IslandSystemView()
                 case .usage: IslandUsageView()
-                case .calendar: IslandAgendaView()
+                case .calendar: IslandCalendarView()
                 case .tasks: IslandTasksView()
                 case .day: IslandDayView()
                 case .launcher: IslandLauncherView()

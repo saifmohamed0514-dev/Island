@@ -1,0 +1,42 @@
+import Foundation
+@main struct MediaStateSmoke {
+ static func main() throws {
+  var count=0
+  func check(_ ok:Bool) { precondition(ok,"Media state check \(count+1)");count+=1 }
+  let now=Date(timeIntervalSince1970:10000)
+  func reduce(_ raw:String,_ old:PlaybackState,at:Date?=nil) throws ->PlaybackState { IslandMediaRules.reduce(try JSONDecoder().decode(NowPlayingUpdate.self,from:Data(raw.utf8)),previous:old,now:at ?? now) }
+  var old=PlaybackState(bundleIdentifier:"test.player",isPlaying:true,title:"Song",artist:"Artist",album:"Album",currentTime:20,duration:300,lastUpdated:now.addingTimeInterval(-5),artwork:Data([1,2]),volume:0.6,isFavorite:true)
+  let diff=try reduce(#"{"diff":true,"payload":{"volume":0.7}}"#,old)
+  check(diff.artwork==old.artwork && diff.title=="Song" && diff.isFavorite)
+  check(diff.currentTime==25 && diff.volume==0.7 && diff.lastUpdated==now)
+  let cleared=try reduce(#"{"diff":true,"payload":{"artworkData":null,"artist":null,"volume":null}}"#,old)
+  check(cleared.artwork==nil && cleared.artist=="" && cleared.volume==0.5)
+  let paused=try reduce(#"{"diff":true,"payload":{"playing":false}}"#,old)
+  check(paused.currentTime==25 && !paused.isPlaying)
+  let resumed=try reduce(#"{"diff":true,"payload":{"playing":true}}"#,paused,at:now.addingTimeInterval(100))
+  check(resumed.currentTime==25 && resumed.isPlaying)
+  check(IslandMediaRules.position(resumed,at:now.addingTimeInterval(103))==28)
+  let rate=try reduce(#"{"diff":true,"payload":{"playbackRate":1.5}}"#,old)
+  check(rate.currentTime==25 && IslandMediaRules.position(rate,at:now.addingTimeInterval(2))==28)
+  let newSource=try reduce(#"{"diff":true,"payload":{"bundleIdentifier":"other.player","title":"Other"}}"#,old)
+  check(newSource.artwork==nil && newSource.duration==0 && newSource.currentTime==0 && !newSource.isFavorite && newSource.artist=="")
+  let newTrack=try reduce(#"{"diff":true,"payload":{"title":"Next"}}"#,old)
+  check(newTrack.artwork==nil && newTrack.currentTime==0 && !newTrack.isFavorite)
+  let art=try reduce(#"{"diff":true,"payload":{"title":"Next","artworkData":"AQID"}}"#,old)
+  check(art.artwork==Data([1,2,3]))
+  let full=try reduce(#"{"payload":{"title":"New","playing":true,"elapsedTime":8}}"#,old)
+  check(full.artist=="" && full.album=="" && full.duration==0 && full.artwork==nil && full.currentTime==8)
+  let clamp=try reduce(#"{"payload":{"duration":3,"elapsedTime":200,"volume":2,"playbackRate":-1,"repeatMode":99}}"#,old)
+  check(clamp.currentTime==3 && clamp.volume==1 && clamp.playbackRate==0 && clamp.repeatMode == .off)
+  let empty=try reduce(#"{"payload":{}}"#,old);check(empty.title.isEmpty && !empty.isPlaying && empty.currentTime==0)
+  let flags=try reduce(#"{"diff":true,"payload":{"supportsFastForward15Seconds":true,"prohibitsSkip":true,"isLiked":false}}"#,old)
+  check(flags.supportsForward15 && flags.prohibitsSkip && !flags.isFavorite)
+  check(try reduce(#"{"diff":true,"payload":{"supportsFastForward15Seconds":null}}"#,flags).supportsForward15==false)
+  var changed=old;changed.playbackRate=1.2;check(changed != old);changed=old;changed.volume=0.3;check(changed != old);changed=old;changed.lastUpdated=now;check(changed != old)
+  check(IslandMediaRules.time(3661)=="1:01:01" && IslandMediaRules.time(.nan)=="0:00" && IslandMediaRules.time(-1)=="0:00")
+  check(IslandMediaRules.skip(position:100,seconds:15,duration:110)==110 && IslandMediaRules.skip(position:10,seconds:-15,duration:0)==0)
+  old.currentTime = .infinity;check(IslandMediaRules.position(old,at:now).isFinite)
+  check(IslandMediaRules.parseDate("2026-11-15T10:20:30.123Z") != nil && IslandMediaRules.parseDate("2026-11-15T10:20:30Z") != nil)
+  print("PASS: \(count) production media-state checks; incremental/null metadata, artwork, source changes, pause/resume, rate, volume and bounded playback position")
+ }
+}

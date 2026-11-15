@@ -28,6 +28,8 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
         return bundleID == "com.apple.Music" || bundleID == "com.spotify.client"
     }
 
+    var supportsShuffle:Bool { playbackState.shuffleAvailable }
+    var supportsRepeat:Bool { playbackState.repeatAvailable }
     var supportsFavorite: Bool {
         let bundleID = playbackState.bundleIdentifier
         return bundleID == "com.apple.Music"
@@ -142,13 +144,13 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
     func toggleShuffle() async {
         // MRMediaRemoteSendCommandFunction(6, nil)
         MRMediaRemoteSetShuffleModeFunction(playbackState.isShuffled ? 1 : 3)
-        playbackState.isShuffled.toggle()
+
     }
     
     func toggleRepeat() async {
         // MRMediaRemoteSendCommandFunction(7, nil)
         let newRepeatMode = (playbackState.repeatMode == .off) ? 3 : (playbackState.repeatMode.rawValue - 1)
-        playbackState.repeatMode = RepeatMode(rawValue: newRepeatMode) ?? .off
+
         MRMediaRemoteSetRepeatModeFunction(newRepeatMode)
     }
     
@@ -220,76 +222,7 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
 
     // MARK: - Update Methods
     private func handleAdapterUpdate(_ update: NowPlayingUpdate) async {
-        let payload = update.payload
-        let diff = update.diff ?? false
-
-        var newPlaybackState = PlaybackState(bundleIdentifier: playbackState.bundleIdentifier)
-        
-        newPlaybackState.title = payload.title ?? (diff ? self.playbackState.title : "")
-        newPlaybackState.artist = payload.artist ?? (diff ? self.playbackState.artist : "")
-        newPlaybackState.album = payload.album ?? (diff ? self.playbackState.album : "")
-        newPlaybackState.duration = payload.duration ?? (diff ? self.playbackState.duration : 0)
-        
-        if let elapsedTime = payload.elapsedTime {
-            newPlaybackState.currentTime = elapsedTime
-        } else if diff {
-            if payload.playing == false {
-                let timeSinceLastUpdate = Date().timeIntervalSince(self.playbackState.lastUpdated)
-                newPlaybackState.currentTime = self.playbackState.currentTime + (self.playbackState.playbackRate * timeSinceLastUpdate)
-            } else {
-                newPlaybackState.currentTime = self.playbackState.currentTime
-            }
-        } else {
-            newPlaybackState.currentTime = 0
-        }
-
-        
-        if let shuffleMode = payload.shuffleMode {
-            newPlaybackState.isShuffled = shuffleMode != 1
-        } else if !diff {
-            newPlaybackState.isShuffled = false
-        } else {
-            newPlaybackState.isShuffled = self.playbackState.isShuffled
-        }
-        if let repeatModeValue = payload.repeatMode {
-            newPlaybackState.repeatMode = RepeatMode(rawValue: repeatModeValue) ?? .off
-        } else if !diff {
-            newPlaybackState.repeatMode = .off
-        } else {
-            newPlaybackState.repeatMode = self.playbackState.repeatMode
-        }
-
-        if let artworkDataString = payload.artworkData {
-            newPlaybackState.artwork = Data(
-                base64Encoded: artworkDataString.trimmingCharacters(in: .whitespacesAndNewlines)
-            )
-        } else if !diff {
-            newPlaybackState.artwork = nil
-        }
-
-        if let dateString = payload.timestamp,
-           let date = ISO8601DateFormatter().date(from: dateString) {
-            newPlaybackState.lastUpdated = date
-        } else if !diff {
-            newPlaybackState.lastUpdated = Date()
-        } else {
-            newPlaybackState.lastUpdated = self.playbackState.lastUpdated
-        }
-
-        newPlaybackState.playbackRate = payload.playbackRate ?? (diff ? self.playbackState.playbackRate : 1.0)
-        newPlaybackState.isPlaying = payload.playing ?? (diff ? self.playbackState.isPlaying : false)
-        newPlaybackState.bundleIdentifier = (
-            payload.parentApplicationBundleIdentifier ??
-            payload.bundleIdentifier ??
-            (diff ? self.playbackState.bundleIdentifier : "")
-        )
-        
-        newPlaybackState.volume = payload.volume ?? (diff ? self.playbackState.volume : 0.5)
-        
-        self.playbackState = newPlaybackState
-        
-        // Fetch favorite state for supported apps asynchronously
-        // await fetchFavoriteStateIfSupported()
+        playbackState=IslandMediaRules.reduce(update,previous:playbackState,now:Date())
     }
     
      private func fetchFavoriteStateIfSupported() async {
@@ -308,7 +241,8 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
                  end try
              end tell
              """
-             if let result = try? await AppleScriptHelper.execute(script,permissionTarget:bundleID) {
+             let title=playbackState.title,artist=playbackState.artist
+             if let result = try? await AppleScriptHelper.execute(script,permissionTarget:bundleID),playbackState.bundleIdentifier == bundleID,playbackState.title == title,playbackState.artist == artist {
                  var updated = self.playbackState
                  updated.isFavorite = result.booleanValue
                  self.playbackState = updated
@@ -316,28 +250,6 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
          }
      }
     
-}
-
-struct NowPlayingUpdate: Codable {
-    let payload: NowPlayingPayload
-    let diff: Bool?
-}
-
-struct NowPlayingPayload: Codable {
-    let title: String?
-    let artist: String?
-    let album: String?
-    let duration: Double?
-    let elapsedTime: Double?
-    let shuffleMode: Int?
-    let repeatMode: Int?
-    let artworkData: String?
-    let timestamp: String?
-    let playbackRate: Double?
-    let playing: Bool?
-    let parentApplicationBundleIdentifier: String?
-    let bundleIdentifier: String?
-    let volume: Double?
 }
 
 actor JSONLinesPipeHandler {

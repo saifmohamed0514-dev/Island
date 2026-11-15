@@ -94,5 +94,8 @@ enum IslandDisplayGeometry {
     }
 
     notchHeight=IslandDisplayGeometry.height(requested:notchHeight,physical:selectedScreen?.safeAreaInsets.top ?? 0,scale:selectedScreen?.backingScaleFactor ?? 1)
+    let appearance=IslandAppearanceStore.shared.preferences
+    if (selectedScreen?.safeAreaInsets.top ?? 0)==0,appearance.notchlessStyle == "pill" { notchWidth=60 }
+    notchWidth=appearance.width(base:notchWidth,physical:(selectedScreen?.safeAreaInsets.top ?? 0)>0 ? max(0,notchWidth-4) : 0)
     return .init(width: notchWidth, height: notchHeight)
 }

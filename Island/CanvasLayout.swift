@@ -34,7 +34,10 @@ struct IslandDesignerSnapshot:Codable,Equatable {
     // Optional fields keep layouts saved before 2.11 compatible without changing their trays.
     var activities:IslandActivityTrayPreferences? = nil
     var rotateActivities:Bool? = nil
-    mutating func normalize() { modules.normalize();canvas.normalize();activities?.normalize() }
+    var duoActivities:Bool? = nil
+    var idleActivity:String? = nil
+    var hidePausedMusic:Bool? = nil
+    mutating func normalize() { modules.normalize();canvas.normalize();activities?.normalize();if let idleActivity,!["none","calendar","wellbeing"].contains(idleActivity) { self.idleActivity="none" } }
 }
 @MainActor final class IslandCanvasStore:ObservableObject {
     static let shared=IslandCanvasStore()
@@ -154,13 +157,16 @@ struct IslandCanvasLiveView:View {
 
 @MainActor extension IslandDesignerSnapshot {
     static func current()->Self {
-        .init(modules:IslandModuleStore.shared.preferences,canvas:IslandCanvasStore.shared.preferences,activities:IslandActivityTrayStore.shared.preferences,rotateActivities:UserDefaults.standard.bool(forKey:"island.live.rotate"))
+        .init(modules:IslandModuleStore.shared.preferences,canvas:IslandCanvasStore.shared.preferences,activities:IslandActivityTrayStore.shared.preferences,rotateActivities:UserDefaults.standard.bool(forKey:"island.live.rotate"),duoActivities:UserDefaults.standard.bool(forKey:"island.live.duo"),idleActivity:UserDefaults.standard.string(forKey:"island.live.idle") ?? "none",hidePausedMusic:UserDefaults.standard.bool(forKey:"island.live.hidePaused"))
     }
     func apply() {
         IslandModuleStore.shared.restore(modules)
         IslandCanvasStore.shared.restore(canvas)
         if let activities { IslandActivityTrayStore.shared.restore(activities) }
         if let rotateActivities { UserDefaults.standard.set(rotateActivities,forKey:"island.live.rotate") }
+        if let duoActivities { UserDefaults.standard.set(duoActivities,forKey:"island.live.duo") }
+        if let idleActivity { UserDefaults.standard.set(["none","calendar","wellbeing"].contains(idleActivity) ? idleActivity : "none",forKey:"island.live.idle") }
+        if let hidePausedMusic { UserDefaults.standard.set(hidePausedMusic,forKey:"island.live.hidePaused") }
         IslandLiveActivityClock.shared.configure()
         IslandCoordinator.shared.currentView=modules.start
     }

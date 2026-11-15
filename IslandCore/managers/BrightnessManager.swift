@@ -28,6 +28,13 @@ final class BrightnessManager: ObservableObject {
 	}
 
 	@MainActor func setRelative(delta: Float) {
+        guard delta.isFinite else { return }
+        if let display=IslandBetterDisplay.shared.target {
+            Task { @MainActor in
+                guard let current=await IslandBetterDisplay.shared.read(display:display,feature:"brightness"),let actual=await IslandBetterDisplay.shared.set(display:display,feature:"brightness",value:min(1,max(0,current+Double(delta)))) else { return }
+                IslandCoordinator.shared.toggleSneakPeek(status:true,type:.brightness,value:CGFloat(actual),display:display)
+            };return
+        }
 		Task { @MainActor in
 			let starting = await client.currentScreenBrightness() ?? rawBrightness
 			let target = max(0, min(1, starting + delta))

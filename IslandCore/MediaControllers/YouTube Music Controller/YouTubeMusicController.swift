@@ -392,7 +392,9 @@ final class YouTubeMusicController: MediaControllerProtocol {
     
     private func updatePlaybackState(with response: PlaybackResponse) async {
         var newState = playbackState
-        
+        let changedTrack=response.title.map { $0 != playbackState.title } ?? false
+        if response.elapsedSeconds==nil { newState.currentTime=changedTrack ? 0 : IslandMediaRules.position(playbackState,at:Date()) }
+        if changedTrack { newState.artwork=nil }
         newState.isPlaying = !response.isPaused
 
         if let title = response.title {
@@ -446,7 +448,8 @@ final class YouTubeMusicController: MediaControllerProtocol {
                     do {
                         let data = try await ImageService.shared.fetchImageData(from: url)
                         await MainActor.run { [weak self] in
-                            self?.playbackState.artwork = data
+                            guard !Task.isCancelled,let self,self.playbackState.title==newState.title,self.playbackState.artist==newState.artist else { return }
+                            self.playbackState.artwork = data
 
                         }
                     } catch { /* ignore */ }

@@ -13,6 +13,8 @@ import SwiftUI
   for scheme in [ColorScheme.light,.dark] {
    let suffix=scheme == .light ? "light" : "dark"
    try render(IslandCompactActivity(kind:.music,showsMusicControls:true).environmentObject(IslandViewModel()).padding(16).background(.black),name:"music-quick-controls-"+suffix,width:360,height:64,scheme:scheme,to:folder,defaults:defaults)
+   try render(IslandCompactActivity(kind:.music,secondary:.timer).environmentObject(IslandViewModel()).padding(16).background(.black),name:"duo-music-timer-"+suffix,width:420,height:64,scheme:scheme,to:folder,defaults:defaults)
+   try render(IslandCompactActivity(kind:.hud).environmentObject(IslandViewModel()).padding(16).background(.black),name:"compact-hud-"+suffix,width:410,height:64,scheme:scheme,to:folder,defaults:defaults)
    try render(IslandTraysSettings(),name:"trays-open-"+suffix,width:570,height:650,scheme:scheme,to:folder,defaults:defaults)
    try render(IslandTraysSettings(initialTab:1),name:"trays-closed-"+suffix,width:570,height:650,scheme:scheme,to:folder,defaults:defaults)
    for question in [true,false] {

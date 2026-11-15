@@ -7,7 +7,12 @@ python3 - "$STAGE/Models.swift" <<'PY'
 from pathlib import Path
 import sys
 s=Path('IslandCore/sizing/matters.swift').read_text();s=s[s.index('struct IslandDisplayMetrics:'):s.index('@MainActor func getScreenFrame')]
-v=Path('IslandCore/models/IslandViewModel.swift').read_text();v=v[v.index('    func refreshClosedGeometry()'):v.index('    // Computed property for effective notch height')]
+v=Path('IslandCore/models/IslandViewModel.swift').read_text();start=v.index('    func refreshClosedGeometry()');opening=v.index('{',start);depth=1;end=opening+1
+while depth:
+ if v[end]=='{':depth+=1
+ elif v[end]=='}':depth-=1
+ end+=1
+v=v[start:end]+'\n'
 fixture='''
 enum State { case closed,open }
 @MainActor var fixtureSize=CGSize(width:185,height:33.5)

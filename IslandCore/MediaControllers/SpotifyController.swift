@@ -10,8 +10,12 @@ import Combine
 import SwiftUI
 
 class SpotifyController: MediaControllerProtocol {
+    private let capabilities=IslandPlayerCapabilities.spotify()
+    var supportsPlaybackRate:Bool { capabilities.speedProperty != nil }
+    func setPlaybackRate(_ value:Double) async { guard let property=capabilities.speedProperty,value.isFinite,(0.5...3).contains(value) else { return };await executeAndRefresh("set "+property+" to "+String(value)) }
     func setFavorite(_ favorite: Bool) async {
-        //Placeholder
+        guard let property=capabilities.favoriteProperty else { return }
+        await executeAndRefresh("set "+property+" of current track to "+(favorite ? "true" : "false"))
     }
     
     // MARK: - Properties
@@ -27,7 +31,7 @@ class SpotifyController: MediaControllerProtocol {
         return true
     }
 
-    var supportsFavorite: Bool { false }
+    var supportsFavorite: Bool { capabilities.favoriteProperty != nil }
 
     private var notificationTask: Task<Void, Never>?
     
@@ -127,6 +131,12 @@ class SpotifyController: MediaControllerProtocol {
             volume: Double(volumePercentage) / 100.0
         )
 
+        if descriptor.numberOfItems>=14 {
+            state.trackURL=IslandTrackLink.safe(descriptor.atIndex(11)?.stringValue)
+            state.isFavorite=descriptor.atIndex(12)?.booleanValue ?? false
+            state.isExplicit=capabilities.explicitProperty == nil ? nil : descriptor.atIndex(13)?.booleanValue
+            let rate=descriptor.atIndex(14)?.doubleValue ?? 1;state.playbackRate=rate.isFinite && (0.5...3).contains(rate) ? rate : 1
+        }
         if artworkURL == lastArtworkURL, let existingArtwork = self.playbackState.artwork {
             state.artwork = existingArtwork
         }
@@ -145,7 +155,8 @@ class SpotifyController: MediaControllerProtocol {
 
                     await MainActor.run { [weak self] in
                         guard let self = self else { return }
-                        var updatedState = currentState
+                        guard !Task.isCancelled,self.playbackState.title == currentState.title,self.playbackState.artist == currentState.artist,self.playbackState.album == currentState.album else { return }
+                        var updatedState = self.playbackState
                         updatedState.artwork = data
                         self.playbackState = updatedState
                         self.lastArtworkURL = artworkURL
@@ -174,6 +185,9 @@ class SpotifyController: MediaControllerProtocol {
     }
     
     private func fetchPlaybackInfoAsync() async throws -> NSAppleEventDescriptor? {
+        let favoriteRead=capabilities.favoriteProperty.map { "try\nset favoriteValue to "+$0+" of current track\nend try" } ?? ""
+        let explicitRead=capabilities.explicitProperty.map { "try\nset explicitValue to "+$0+" of current track\nend try" } ?? ""
+        let speedRead=capabilities.speedProperty.map { "try\nset speedValue to "+$0+"\nend try" } ?? ""
         let script = """
         tell application "Spotify"
             set isRunning to true
@@ -188,7 +202,17 @@ class SpotifyController: MediaControllerProtocol {
                 set repeatState to repeating
                 set currentVolume to sound volume
                 set artworkURL to artwork url of current track
-                return {playerState, currentTrackName, currentTrackArtist, currentTrackAlbum, trackPosition, trackDuration, shuffleState, repeatState, currentVolume, artworkURL}
+                set linkValue to ""
+                set favoriteValue to false
+                set explicitValue to false
+                set speedValue to 1
+                try
+                    set linkValue to spotify url of current track
+                end try
+                \(favoriteRead)
+                \(explicitRead)
+                \(speedRead)
+                return {playerState, currentTrackName, currentTrackArtist, currentTrackAlbum, trackPosition, trackDuration, shuffleState, repeatState, currentVolume, artworkURL, linkValue, favoriteValue, explicitValue, speedValue}
             on error
                 return {false, "Unknown", "Unknown", "Unknown", 0, 0, false, false, 50, ""}
             end try

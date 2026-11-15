@@ -8,9 +8,13 @@ trap 'rm -rf "$STAGE"' EXIT
 python3 -m unittest discover -s Tests -p 'test_*.py'
 scripts/test-timer.sh
 scripts/test-display-geometry.sh
+scripts/test-appearance.sh
+scripts/test-calendar.sh
+scripts/test-portable.sh
 scripts/test-completion.sh
 scripts/test-transition.sh
 scripts/test-permissions.sh
+scripts/test-media-state.sh
 scripts/test-media-keys.sh
 scripts/test-media-xpc.sh
 scripts/test-designer.sh

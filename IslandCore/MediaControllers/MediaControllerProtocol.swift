@@ -13,6 +13,10 @@ protocol MediaControllerProtocol: ObservableObject {
     var playbackStatePublisher: AnyPublisher<PlaybackState, Never> { get }
     var supportsVolumeControl: Bool { get }
     var supportsFavorite: Bool { get }
+    var supportsShuffle:Bool { get }
+    var supportsRepeat:Bool { get }
+    var supportsPlaybackRate:Bool { get }
+    func setPlaybackRate(_ value:Double) async
     
     func setFavorite(_ favorite: Bool) async
     func play() async
@@ -29,4 +33,4 @@ protocol MediaControllerProtocol: ObservableObject {
     func updatePlaybackInfo() async
 }
 
-extension MediaControllerProtocol { func shutdown() {} }
+extension MediaControllerProtocol { func shutdown() {};var supportsShuffle:Bool { true };var supportsRepeat:Bool { true };var supportsPlaybackRate:Bool { false };func setPlaybackRate(_ value:Double) async {} }

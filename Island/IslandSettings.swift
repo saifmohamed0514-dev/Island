@@ -20,10 +20,10 @@ struct IslandSettingsGroup:Identifiable {
 enum IslandSettingsCatalog {
     static let groups:[IslandSettingsGroup]=[
         .init(title:"Get started",pages:[.init(route:"Overview",icon:"capsule",keywords:"welcome setup help start"),.init(route:"Permissions",icon:"checkmark.shield",keywords:"privacy access allow approval camera bluetooth calendar reminders touch id"),.init(route:"Help & Tips",icon:"questionmark.circle",keywords:"guide instructions tutorial what how glossary help")]),
-        .init(title:"Make it yours",pages:[.init(route:"Trays",icon:"rectangle.stack",keywords:"remove timer wellbeing add reorder tools tabs activity compact closed"),.init(route:"Modules",icon:"square.grid.2x2",keywords:"layout notch preview drag arrange sections"),.init(route:"Dashboard",icon:"rectangle.grid.2x2",keywords:"widgets profiles schedule focus"),.init(route:"Live Activities",icon:"waveform",keywords:"compact collapsed rotate calendar bluetooth timer source"),.init(route:"Displays",icon:"display.2",keywords:"screen external monitor location"),.init(route:"Behavior",icon:"cursorarrow.rays",keywords:"login startup shortcuts haptics hover snooze")]),
-        .init(title:"Daily tools",pages:[.init(route:"Focus & Sounds",icon:"timer",keywords:"timer pomodoro ringtone preset"),.init(route:"Media",icon:"music.note",keywords:"music spotify apple player artwork"),.init(route:"Window Snapping",icon:"macwindow",keywords:"windows tile resize halves corners"),.init(route:"Wellbeing & Alerts",icon:"heart",keywords:"health water breaks breathing notifications")]),
+        .init(title:"Make it yours",pages:[.init(route:"Appearance",icon:"paintbrush.pointed",keywords:"outline color pill shape notch width artwork grayscale glare gradient"),.init(route:"Gestures",icon:"hand.draw",keywords:"swipe middle click dismiss restore natural trackpad cycle"),.init(route:"Lock Screen",icon:"lock.rectangle",keywords:"widgets weather battery focus music private details glass keep awake"),.init(route:"Trays",icon:"rectangle.stack",keywords:"remove timer wellbeing add reorder tools tabs activity compact closed"),.init(route:"Modules",icon:"square.grid.2x2",keywords:"layout notch preview drag arrange sections"),.init(route:"Dashboard",icon:"rectangle.grid.2x2",keywords:"widgets profiles schedule focus"),.init(route:"Live Activities",icon:"waveform",keywords:"compact collapsed rotate calendar bluetooth timer source"),.init(route:"Displays",icon:"display.2",keywords:"screen external monitor location"),.init(route:"Behavior",icon:"cursorarrow.rays",keywords:"login startup shortcuts haptics hover snooze")]),
+        .init(title:"Daily tools",pages:[.init(route:"Calendar",icon:"calendar",keywords:"month events meeting join time leave subscribed declined lunar colors"),.init(route:"HUDs",icon:"slider.horizontal.3",keywords:"volume brightness sound decibel labels percentage glow gradient speed overshoot"),.init(route:"Focus & Sounds",icon:"timer",keywords:"timer pomodoro ringtone preset"),.init(route:"System Sounds",icon:"speaker.wave.2",keywords:"lock unlock battery charging bluetooth connect disconnect focus sound quiet"),.init(route:"Media",icon:"music.note",keywords:"music spotify apple player artwork"),.init(route:"Window Snapping",icon:"macwindow",keywords:"windows tile resize halves corners"),.init(route:"Wellbeing & Alerts",icon:"heart",keywords:"health water breaks breathing notifications")]),
         .init(title:"Connected tools",pages:[.init(route:"System Controls",icon:"switch.2",keywords:"battery power hud volume brightness"),.init(route:"Connections",icon:"network",keywords:"api token key account github jira openai ollama"),.init(route:"Agents & Inbox",icon:"terminal",keywords:"chatgpt codex claude cursor hooks coding messages")]),
-        .init(title:"Island",pages:[.init(route:"Updates",icon:"arrow.down.circle",keywords:"automatic update version release install schedule"),.init(route:"Language",icon:"globe",keywords:"arabic english translation"),.init(route:"About Island",icon:"info.circle",keywords:"help guide license credits version")])
+        .init(title:"Island",pages:[.init(route:"Updates",icon:"arrow.down.circle",keywords:"automatic update version release install schedule"),.init(route:"Settings Sync",icon:"arrow.triangle.2.circlepath",keywords:"backup import export icloud drive share appearance layouts"),.init(route:"Language",icon:"globe",keywords:"arabic english translation"),.init(route:"About Island",icon:"info.circle",keywords:"help guide license credits version")])
     ]
     static func matches(_ page:IslandSettingsPage,query:String)->Bool { query.split(whereSeparator:{ $0.isWhitespace }).allSatisfy { (page.route+" "+page.keywords).localizedCaseInsensitiveContains(String($0)) } }
 }
@@ -54,12 +54,18 @@ struct IslandSettingsView:View {
                 case "Permissions":IslandPermissionsView()
                 case "Help & Tips":IslandGuidanceSettings()
                 case "Trays":IslandTraysSettings()
+                case "Appearance":IslandAppearanceSettings()
+                case "HUDs":IslandHUDSettings()
+                case "Calendar":IslandCalendarSettings()
+                case "Gestures":IslandGestureSettings()
+                case "Lock Screen":IslandLockWidgetsSettings()
                 case "Modules":IslandModulesSettings()
                 case "Dashboard":IslandDashboardSettings()
                 case "Live Activities":IslandLiveActivitySettings()
                 case "Focus & Sounds":IslandFocusSettings()
                 case "Displays":IslandDisplaySettings()
                 case "Window Snapping":IslandWindowSettings()
+                case "System Sounds":IslandSystemSoundsSettings()
                 case "Media":IslandMediaSettings()
                 case "Behavior":IslandBehaviorSettings()
                 case "System Controls":IslandSystemSettings()
@@ -67,6 +73,7 @@ struct IslandSettingsView:View {
                 case "Connections":IslandConnectionsSettings()
                 case "Agents & Inbox":IslandBridgeSettings()
                 case "Updates":IslandUpdatesSettings()
+                case "Settings Sync":IslandSettingsSharingView()
                 case "Language":IslandLanguageSettings()
                 case "About Island":IslandAboutSettings(updater:updaterController)
                 default:IslandOverviewSettings { navigation.selected=$0 }
@@ -135,6 +142,7 @@ struct IslandDisplaySettings:View {
 }
 struct IslandMediaSettings:View {
     @Default(.mediaController) var source
+    @AppStorage("island.media.focusSymbol") private var focusSymbol=false
     @ObservedObject var coordinator = IslandCoordinator.shared
     var body:some View {
         Form {
@@ -144,7 +152,9 @@ struct IslandMediaSettings:View {
                 Button("Manage player permissions…") { IslandSettingsController.shared.showPermissions(source == .spotify ? .spotify : .music) }
                 Text("Now Playing works with supported apps and browsers. Playback and seeking depend on the chosen player.").foregroundStyle(.secondary)
             }
-            Section("Artwork") { Text("Island uses the player's real artwork and metadata. When music is idle, it shows Not Playing once.").foregroundStyle(.secondary) }
+            Section("Live waveform") { IslandWaveformSettings();Toggle("Replace the waveform while shared Focus is on",isOn:$focusSymbol);if focusSymbol { Button("Set up Focus sharing…") { IslandSettingsController.shared.showPermissions(.focus) };Text("Uses the on/off status macOS shares with Island. Custom Focus names and icons aren’t exposed by that public status.").font(.caption).foregroundStyle(.secondary) } }
+            Section("Audio output") { IslandAudioOutputView() }
+            Section("Artwork") { Text("Island uses the player's real artwork and metadata. When music is idle, it shows Not Playing once.").foregroundStyle(.secondary);Button("Artwork & progress style…") { IslandSettingsNavigation.shared.selected="Appearance" } }
         }.formStyle(.grouped)
     }
 }
@@ -169,6 +179,7 @@ struct IslandBehaviorSettings:View {
                 Toggle("Remember the last module",isOn:$coordinator.openLastTabByDefault)
                 Picker("Hide in full screen",selection:$hideInFullscreen) { Text("Never").tag(HideNotchOption.never); Text("Media apps").tag(HideNotchOption.nowPlayingOnly); Text("Always").tag(HideNotchOption.always) }
             }
+            IslandVisibilitySettings()
             Section("Keyboard shortcuts") {
                 KeyboardShortcuts.Recorder("Open Island",name:.toggleNotchOpen)
                 KeyboardShortcuts.Recorder("Quick peek",name:.toggleSneakPeek)

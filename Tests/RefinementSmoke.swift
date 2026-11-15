@@ -32,6 +32,15 @@ import Foundation
         precondition(!IslandActivityRules.prioritizeAgent(enabled:true,moduleEnabled:false,pending:true,working:true,preferWork:true,hovering:false))
         precondition(!IslandActivityRules.prioritizeAgent(enabled:true,moduleEnabled:true,pending:false,working:true,preferWork:false,hovering:false))
         precondition(!IslandActivityRules.prioritizeAgent(enabled:true,moduleEnabled:true,pending:false,working:true,preferWork:true,hovering:true))
-        print("PASS: 34 production update-consent scheduling, release URL, haptic throttling, live-activity and settings-search checks; no network, installs or hardware feedback")
+        precondition(IslandActivityRules.secondary(primary:.music,available:[.music,.timer],enabled:true) == .timer)
+        precondition(IslandActivityRules.secondary(primary:.agent,available:[.music,.agent,.timer],enabled:true) == .music)
+        precondition(IslandActivityRules.secondary(primary:.music,available:[.music,.timer],enabled:false) == nil)
+        precondition(IslandActivityRules.secondary(primary:.hud,available:[.music,.timer],enabled:true) == nil)
+        precondition(IslandActivityRules.secondary(primary:.music,available:[.music,.idle,.battery,.hud],enabled:true) == nil)
+        precondition(IslandActivityRules.secondary(primary:.music,available:[.music],enabled:true) == nil)
+        precondition(IslandCompactLayout.width(camera:185,kind:.music,secondary:.timer)==377)
+        precondition(IslandCompactLayout.width(camera:0,kind:.music)==68)
+        precondition(IslandCompactLayout.width(camera:0,kind:.music,secondary:.timer)==192)
+        print("PASS: 43 production update-consent scheduling, release URL, haptic throttling, live-activity and settings-search checks; no network, installs or hardware feedback")
     }
 }

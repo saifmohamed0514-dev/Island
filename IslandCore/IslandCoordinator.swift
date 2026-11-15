@@ -208,9 +208,9 @@ class IslandCoordinator: ObservableObject {
 
     func toggleSneakPeek(
         status: Bool, type: SneakContentType, duration: TimeInterval = 1.5, value: CGFloat = 0,
-        icon: String = ""
+        icon: String = "",display:UInt32?=nil,locked:Bool=false
     ) {
-        sneakPeekDuration = duration
+        sneakPeekDuration = type != .music && duration == 1.5 ? IslandHUDRules.duration(UserDefaults.standard.object(forKey:"island.hud.duration") as? Double ?? 1.5) : duration
         if type != .music {
             // close()
             if !Defaults[.hudReplacement] {
@@ -218,7 +218,8 @@ class IslandCoordinator: ObservableObject {
             }
         }
         Task { @MainActor in
-            withAnimation(.smooth) {
+            withAnimation(type == .music ? .smooth : IslandHUDMotion.animation) {
+                self.hudDisplayID=display;self.hudControlLocked=locked
                 self.sneakPeek.show = status
                 self.sneakPeek.type = type
                 self.sneakPeek.value = value
@@ -231,6 +232,8 @@ class IslandCoordinator: ObservableObject {
         }
     }
 
+    @Published var hudDisplayID:UInt32?
+    @Published var hudControlLocked=false
     private var sneakPeekDuration: TimeInterval = 1.5
     private var sneakPeekTask: Task<Void, Never>?
 

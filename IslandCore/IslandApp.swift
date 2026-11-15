@@ -36,6 +36,9 @@ struct IslandApp: App {
                 }
             }
             .keyboardShortcut(KeyEquivalent(","), modifiers: .command)
+            Button("Open Island") { appDelegate.openIslandFromMenu() }
+            Menu("Open Tool") { ForEach(IslandModuleStore.shared.enabled) { module in Button(module.title,systemImage:module.icon) { IslandCoordinator.shared.currentView=module;IslandCoordinator.shared.showingCanvasDetail=true;appDelegate.openIslandFromMenu() } } }
+            Button("Play / Pause") { MusicManager.shared.togglePlay() }
             Button(snooze.active ? "Resume Island" : "Snooze Island") { snooze.toggle() }
             Button("Set up Island…") { appDelegate.showOnboardingWindow() }
             CheckForUpdatesView(updater: updaterController.updater)
@@ -72,6 +75,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var previousDisplayMetrics:[IslandDisplayMetrics]=[]
     private var onboardingWindowController: NSWindowController?
     private var snoozeObserver:AnyCancellable?
+    private var visibilityObserver:AnyCancellable?
     private var setupObserver:NSObjectProtocol?
     private var screenLockedObserver: Any?
     private var screenUnlockedObserver: Any?
@@ -105,12 +109,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         MusicManager.shared.destroy()
         cleanupDragDetectors()
         cleanupWindows()
+        IslandLockScreenController.shared.dismiss()
+        IslandAudioWaveform.shared.stop()
         XPCHelperClient.shared.stopMonitoringAccessibilityAuthorization()
     }
 
     @MainActor
     func onScreenLocked(_ notification: Notification) {
         isScreenLocked = true
+        IslandAudioWaveform.shared.setLocked(true)
+        IslandSystemSounds.shared.setLocked(true)
+        IslandLockScreenController.shared.present()
         if !Defaults[.showOnLockScreen] {
             cleanupWindows()
         } else {
@@ -121,6 +130,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor
     func onScreenUnlocked(_ notification: Notification) {
         isScreenLocked = false
+        IslandAudioWaveform.shared.setLocked(false)
+        IslandSystemSounds.shared.setLocked(false)
+        IslandLockScreenController.shared.dismiss()
         if !Defaults[.showOnLockScreen] {
             adjustWindowPosition(changeAlpha: true)
         } else {
@@ -266,6 +278,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             window.disableSkyLight()
         }
 
+        (window as? IslandPanel)?.bindVisibility(to:viewModel)
         let hosting = NSHostingView(rootView: ContentView().environmentObject(viewModel))
         hosting.safeAreaRegions = []
         window.contentView = hosting
@@ -306,8 +319,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         setupObserver=NotificationCenter.default.addObserver(forName:.islandShowSetup,object:nil,queue:.main) { [weak self] _ in Task { @MainActor in self?.showOnboardingWindow() } }
         _ = IslandFocusTimer.shared
+        IslandBetterDisplay.shared.configure()
+        IslandSystemSounds.shared.start()
         IslandProfileSchedule.shared.start()
         IslandLiveActivityClock.shared.configure()
+        if !IslandCalendarStore.shared.preferences.leaveReminders { IslandCalendarAlerts.shared.configure([],preferences:IslandCalendarStore.shared.preferences) }
         if UserDefaults.standard.bool(forKey:"island.awake.restore") { IslandQuickActions.shared.setAwake(true) }
         IslandPermissionMonitor.shared.start()
         IslandWindowSnapping.shared.configure()
@@ -459,12 +475,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             adjustWindowPosition(changeAlpha: true)
         }
 
+        _ = IslandSettingsSharing.shared
+        visibilityObserver=IslandVisibility.shared.$hidden.receive(on:DispatchQueue.main).sink { [weak self] hidden in self?.updateGameVisibility(hidden) }
         setupDragDetectors()
         snoozeObserver=IslandSnooze.shared.$active.dropFirst().receive(on:DispatchQueue.main).sink { [weak self] active in
             guard let self else { return }
+            IslandAudioWaveform.shared.configure()
             if active {
                 self.window?.orderOut(nil);self.windows.values.forEach { $0.orderOut(nil) };self.cleanupDragDetectors()
-            } else { self.adjustWindowPosition(changeAlpha:true);self.window?.orderFrontRegardless();self.windows.values.forEach { $0.orderFrontRegardless() };self.setupDragDetectors() }
+            } else { self.adjustWindowPosition(changeAlpha:true);self.window?.orderFrontRegardless();self.windows.values.forEach { $0.orderFrontRegardless() };self.setupDragDetectors();self.updateGameVisibility(IslandVisibility.shared.hidden) }
         }
 
         if CommandLine.arguments.contains("--show-permissions") {
@@ -522,12 +541,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.cleanupWindows()
                 self?.adjustWindowPosition()
                 self?.setupDragDetectors()
+                if self?.isScreenLocked == true { IslandLockScreenController.shared.present() }
             }
         }
     }
 
+    private func updateGameVisibility(_ hidden:Bool) {
+        guard !isScreenLocked,!IslandSnooze.shared.active else { return }
+        if hidden { window?.orderOut(nil);windows.values.forEach { $0.orderOut(nil) };cleanupDragDetectors() }
+        else { window?.orderFrontRegardless();windows.values.forEach { $0.orderFrontRegardless() };setupDragDetectors() }
+    }
     @objc func adjustWindowPosition(changeAlpha: Bool = false) {
-        guard !IslandSnooze.shared.active else { return }
+        guard !IslandSnooze.shared.active, !isScreenLocked || Defaults[.showOnLockScreen] else { return }
         if Defaults[.showOnAllDisplays] {
             let currentScreenUUIDs = Set(NSScreen.screens.compactMap { $0.displayUUID })
 
@@ -590,6 +615,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         }
+        if !isScreenLocked { updateGameVisibility(IslandVisibility.shared.hidden) }
     }
 
     @objc func togglePopover(_ sender: Any?) {
