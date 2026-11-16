@@ -48,6 +48,13 @@ final class ShelfStateViewModel: ObservableObject {
         items.removeAll { $0.id == item.id }
     }
 
+    func removeAfterDrag(_ ids: Set<UUID>) {
+        guard !ids.isEmpty else { return }
+        // Remove references only. A receiving app may still be reading an
+        // exported temporary file after accepting its drop.
+        items.removeAll { ids.contains($0.id) }
+    }
+
     func updateBookmark(for item: ShelfItem, bookmark: Data) {
         guard let idx = items.firstIndex(where: { $0.id == item.id }) else { return }
         if case .file = items[idx].kind {

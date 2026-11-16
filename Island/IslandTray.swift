@@ -52,21 +52,55 @@ struct IslandTrayTile:View {
     let preview:QuickLookService
     @EnvironmentObject var vm:IslandViewModel
     @StateObject private var model:ShelfItemViewModel
+    @State private var dragPreviewImage:NSImage?
     init(item:ShelfItem,preview:QuickLookService) { self.item = item; self.preview = preview; _model = StateObject(wrappedValue:ShelfItemViewModel(item:item)) }
     var body:some View {
-        Button { IslandHaptics.play(.selection);ShelfActionService.open(item) } label: {
-            VStack(spacing:7) {
-                Image(nsImage:model.thumbnail ?? item.icon).resizable().scaledToFit().frame(width:40,height:40)
-                Text(item.displayName.isEmpty ? "Item" : item.displayName).font(.system(size:10,weight:.medium)).lineLimit(1).truncationMode(.middle)
-            }.padding(10).frame(width:90,height:84).background(.white.opacity(0.04),in:RoundedRectangle(cornerRadius:16))
-        }.buttonStyle(.plain).onDrag { model.dragItemProvider() }
+        Button(action:open) { tileContent }.buttonStyle(.plain)
+        .overlay {
+            DraggableClickHandler(item:item,viewModel:model,cachedPreviewImage:$dragPreviewImage,dragPreviewContent:{ tileContent },onRightClick:showContextMenu,onClick:{ _,_ in ShelfSelectionModel.shared.selectSingle(item) },onActivate:open)
+                .accessibilityHidden(true)
+        }
+        .onAppear { cacheDragPreview() }
+        .onChange(of:model.thumbnail) { _,_ in cacheDragPreview() }
         .contextMenu {
-            Button("Open") { ShelfActionService.open(item) }
-            if let url = item.URL { Button("Quick Look") { vm.isBatteryPopoverActive = true; preview.show(urls:[url]) } }
+            Button("Open",action:open)
+            if let url = item.URL { Button("Quick Look") { quickLook(url) } }
             Button("Show in Finder") { ShelfActionService.reveal(item) }
-            if let url=item.URL,url.isFileURL { Button("File actions…") { IslandFileSelection.shared.set([url]);IslandModuleStore.shared.setEnabled(.files,true);IslandCoordinator.shared.currentView = .files } }
+            if let url=item.URL,url.isFileURL { Button("File actions…") { fileActions(url) } }
             Divider(); Button("Remove from tray",role:.destructive) { trayRemove() }
         }
     }
+    private var tileContent:some View {
+        VStack(spacing:7) {
+            Image(nsImage:model.thumbnail ?? item.icon).resizable().scaledToFit().frame(width:40,height:40)
+            Text(item.displayName.isEmpty ? "Item" : item.displayName).font(.system(size:10,weight:.medium)).lineLimit(1).truncationMode(.middle)
+        }.padding(10).frame(width:90,height:84).background(.white.opacity(0.04),in:RoundedRectangle(cornerRadius:16))
+    }
+    private func open() { IslandHaptics.play(.selection);ShelfActionService.open(item) }
+    private func cacheDragPreview() {
+        let renderer=ImageRenderer(content:tileContent)
+        renderer.scale=NSScreen.main?.backingScaleFactor ?? 2
+        dragPreviewImage=renderer.nsImage ?? item.icon
+    }
+    private func quickLook(_ url:URL) { vm.isBatteryPopoverActive=true;preview.show(urls:[url]) }
+    private func fileActions(_ url:URL) { IslandFileSelection.shared.set([url]);IslandModuleStore.shared.setEnabled(.files,true);IslandCoordinator.shared.currentView = .files }
+    private func showContextMenu(_ event:NSEvent,_ view:NSView) {
+        let menu=NSMenu()
+        func add(_ title:String,_ action:@escaping()->Void) {
+            let target=IslandTrayMenuAction(action),entry=NSMenuItem(title:title,action:#selector(IslandTrayMenuAction.invokeTrayAction),keyEquivalent:"")
+            entry.target=target;entry.representedObject=target;menu.addItem(entry)
+        }
+        add("Open",open)
+        if let url=item.URL { add("Quick Look") { quickLook(url) } }
+        add("Show in Finder") { ShelfActionService.reveal(item) }
+        if let url=item.URL,url.isFileURL { add("File actions…") { fileActions(url) } }
+        menu.addItem(.separator());add("Remove from tray",trayRemove)
+        NSMenu.popUpContextMenu(menu,with:event,for:view)
+    }
     func trayRemove() { IslandHaptics.play(.selection);ShelfActionService.remove(item) }
+}
+@MainActor private final class IslandTrayMenuAction:NSObject {
+    let action:()->Void
+    init(_ action:@escaping()->Void) { self.action=action }
+    @objc func invokeTrayAction() { action() }
 }

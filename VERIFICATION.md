@@ -1,4 +1,16 @@
-# Island 2.12.0 verification — November 15, 2026
+# Island 2.12.1 verification — November 16, 2026
+
+## 2.12.1 (21201)
+
+The full local release build passes 634 Swift checks, including 21 new tray-drag checks, plus the existing compiled MCP, bridge and release/configuration checks. The current File Tray now uses the native drag-source completion callback rather than treating item-provider loading as a completed drop. The same off-by-default preference appears in Settings → Modules → File Tray as Remove items after dragging out.
+
+Regression checks execute the production completion state and entry-removal method. They cover accepted external operations, cancellation/rejection, internal or unknown destinations, setting off, one-shot cleanup, stale IDs and a new entry referencing the same file. Both original and temporary exported files remain intact; removal changes only captured tray references. Native security scopes are kept through the drag, and unresolved file entries are not exported as misleading filename text. The current tray keeps its click, keyboard and context-menu actions, with cached drag previews.
+
+The first live interface attempt was blocked by a locked Mac. Native mouse drag/drop and setting-persistence verification remain separate from the automated tests. No preferences, original files, credentials or macOS grants were reset. This build remains locally ad-hoc signed and not Apple-notarized.
+
+The owner separately confirmed that both physical media overlays and window snapping work in the installed 2.12.0 update after its permissions were refreshed.
+
+## Earlier 2.12.0 verification — November 15, 2026
 
 ## 2.12.0 (21200)
 

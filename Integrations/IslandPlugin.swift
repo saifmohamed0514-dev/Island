@@ -74,7 +74,7 @@ func handle(_ object:[String:Any]) {
     switch method {
     case "initialize":
         let version=params["protocolVersion"] as? String ?? "2025-06-18"
-        reply(id,["protocolVersion":["2024-11-05","2025-03-26","2025-06-18","2025-11-25"].contains(version) ? version : "2025-06-18","capabilities":["tools":["listChanged":false]],"serverInfo":["name":"island","version":"2.12.0"],"instructions":"For tasks using Island, call report_progress at the start, on meaningful milestones and at completion. Route clarification and preference questions through ask_question and await the actual answer. Never request passwords or native security approvals here. Do not invent percentages or claim access to other chats."])
+        reply(id,["protocolVersion":["2024-11-05","2025-03-26","2025-06-18","2025-11-25"].contains(version) ? version : "2025-06-18","capabilities":["tools":["listChanged":false]],"serverInfo":["name":"island","version":"2.12.1"],"instructions":"For tasks using Island, call report_progress at the start, on meaningful milestones and at completion. Route clarification and preference questions through ask_question and await the actual answer. Never request passwords or native security approvals here. Do not invent percentages or claim access to other chats."])
         connection("connected")
     case "ping":reply(id,[:])
     case "tools/list":reply(id,["tools":tools])

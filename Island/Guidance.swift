@@ -50,7 +50,7 @@ enum IslandGuideCatalog {
         switch module {
         case .dashboard:steps=["Pick widgets in Dashboard settings, or build your four-position layout in Modules.","Click a real block to open the tool. Use the grid button to return."]
         case .home:steps=["Start playback in a supported app, then open Now Playing in Island.","Use playback buttons and the progress bar when your player supports them. Choose a source in Media settings."]
-        case .shelf:steps=["Drop files into File Tray or onto the closed Island when drops are enabled.","Select an item to preview, share or drag it into another app. Removing it from the tray keeps the original file."]
+        case .shelf:steps=["Drop files into File Tray or onto the closed Island when drops are enabled.","Select an item to preview, share or drag it into another app. Removing it from the tray keeps the original file.","Turn on Remove items after dragging out to clear tray entries after another app accepts them. Cancelled drops leave them in the tray."]
         case .focus:steps=["Pause, then drag the ring or use its arrow-key controls to choose a duration.","Start the timer. Save presets and choose sounds in Focus & Sounds."]
         case .notes:steps=["Create or choose a note, then type; changes save automatically.","Deleted notes can be restored from note trash for 30 days."]
         case .weather:steps=["Enter your city and choose Get forecast.","Choose units and explore the hourly and seven-day forecasts. Background choices are in Weather settings."]

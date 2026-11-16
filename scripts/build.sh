@@ -27,6 +27,7 @@ scripts/test-guidance.sh
 scripts/test-services.sh
 scripts/test-plugin.sh
 scripts/test-trays.sh
+scripts/test-tray-drag.sh
 BUILD_ARGS=(-project Island.xcodeproj -scheme Island -configuration Release -derivedDataPath "$BUILD")
 if [[ -n "${ISLAND_PACKAGES_DIR:-}" ]]; then BUILD_ARGS+=(-clonedSourcePackagesDirPath "$ISLAND_PACKAGES_DIR"); fi
 BUILD_ACTIONS=(clean build)

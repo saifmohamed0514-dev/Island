@@ -169,13 +169,14 @@ struct ShelfItemView: View {
 }
 
 // MARK: - Draggable Click Handler with NSDraggingSource
-private struct DraggableClickHandler<Content: View>: NSViewRepresentable {
+struct DraggableClickHandler<Content: View>: NSViewRepresentable {
     let item: ShelfItem
     let viewModel: ShelfItemViewModel
     @Binding var cachedPreviewImage: NSImage?
     @ViewBuilder let dragPreviewContent: () -> Content
     let onRightClick: (NSEvent, NSView) -> Void
     let onClick: (NSEvent, NSView) -> Void
+    var onActivate: (() -> Void)? = nil
     
     func makeNSView(context: Context) -> DraggableClickView {
         let view = DraggableClickView()
@@ -184,18 +185,18 @@ private struct DraggableClickHandler<Content: View>: NSViewRepresentable {
         view.dragPreviewImage = cachedPreviewImage ?? renderDragPreview()
         view.onRightClick = onRightClick
         view.onClick = onClick
+        view.onActivate = onActivate
         return view
     }
     
     func updateNSView(_ nsView: DraggableClickView, context: Context) {
         nsView.item = item
         nsView.viewModel = viewModel
-        // Only update preview if cached version is available
-        if let cached = cachedPreviewImage {
-            nsView.dragPreviewImage = cached
-        }
+        // Reuse the cached thumbnail; render only if the caller has none yet.
+        nsView.dragPreviewImage = cachedPreviewImage ?? renderDragPreview()
         nsView.onRightClick = onRightClick
         nsView.onClick = onClick
+        nsView.onActivate = onActivate
     }
     
     private func renderDragPreview() -> NSImage {
@@ -217,19 +218,29 @@ private struct DraggableClickHandler<Content: View>: NSViewRepresentable {
         var dragPreviewImage: NSImage?
         var onRightClick: ((NSEvent, NSView) -> Void)?
         var onClick: ((NSEvent, NSView) -> Void)?
+        var onActivate: (() -> Void)?
 
         private var mouseDownEvent: NSEvent?
         private let dragThreshold: CGFloat = 3.0
         private var draggedURLs: [URL] = []
-        private var draggedItems: [ShelfItem] = []
+        private var completion = IslandTrayDragCompletion()
         
         override func rightMouseDown(with event: NSEvent) {
             onRightClick?(event, self)
         }
         
         override func mouseDown(with event: NSEvent) {
+            if onActivate != nil,event.modifierFlags.contains(.control) {
+                onRightClick?(event,self);return
+            }
             mouseDownEvent = event
             onClick?(event, self)
+        }
+
+        override func mouseUp(with event: NSEvent) {
+            let wasClick=mouseDownEvent != nil
+            mouseDownEvent=nil
+            if wasClick,bounds.contains(convert(event.locationInWindow,from:nil)) { onActivate?() }
         }
         
         override func mouseDragged(with event: NSEvent) {
@@ -262,8 +273,7 @@ private struct DraggableClickHandler<Content: View>: NSViewRepresentable {
                 itemsToDrag = [item]
             }
 
-            // Store items being dragged for auto-remove feature
-            draggedItems = itemsToDrag
+            completion = IslandTrayDragCompletion()
 
             // Create dragging items for AppKit
             var draggingItems: [NSDraggingItem] = []
@@ -283,6 +293,7 @@ private struct DraggableClickHandler<Content: View>: NSViewRepresentable {
                     draggingItem.setDraggingFrame(imageFrame, contents: image)
 
                     draggingItems.append(draggingItem)
+                    completion.itemIDs.insert(dragItem.id)
                 }
             }
 
@@ -297,14 +308,12 @@ private struct DraggableClickHandler<Content: View>: NSViewRepresentable {
             switch item.kind {
             case .file:
                 guard let url = ShelfStateViewModel.shared.resolveAndUpdateBookmark(for: item) else {
-                    pasteboardItem.setString(item.displayName, forType: .string)
-                    return pasteboardItem
+                    return nil
                 }
                 
                 // Start accessing security-scoped resource and keep it active during drag
                 if url.startAccessingSecurityScopedResource() {
                     draggedURLs.append(url)
-                    NSLog("🔐 Started security-scoped access for drag: \(url.path)")
                 }
                 
                 pasteboardItem.setString(url.absoluteString, forType: .fileURL)
@@ -325,6 +334,7 @@ private struct DraggableClickHandler<Content: View>: NSViewRepresentable {
         // MARK: - NSDraggingSource
         
         func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
+            completion.context = context
             // When copyOnDrag is enabled, only allow copy operations
             if Defaults[.copyOnDrag] {
                 return [.copy]
@@ -351,17 +361,11 @@ private struct DraggableClickHandler<Content: View>: NSViewRepresentable {
             // Stop accessing security-scoped resources after drag completes
             for url in draggedURLs {
                 url.stopAccessingSecurityScopedResource()
-                NSLog("🔐 Stopped security-scoped access after drag: \(url.path)")
             }
             draggedURLs.removeAll()
 
-            // Auto-remove items from shelf if enabled and drag succeeded
-            if Defaults[.autoRemoveShelfItems] && !operation.isEmpty {
-                for item in draggedItems {
-                    ShelfStateViewModel.shared.remove(item)
-                }
-            }
-            draggedItems.removeAll()
+            let ids=completion.finish(operation:operation,removeEnabled:Defaults[.autoRemoveShelfItems])
+            ShelfStateViewModel.shared.removeAfterDrag(ids)
         }
         
         func ignoreModifierKeys(for session: NSDraggingSession) -> Bool {

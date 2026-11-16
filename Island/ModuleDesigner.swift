@@ -152,6 +152,7 @@ struct IslandModuleInspector:View {
     @AppStorage("island.translate.language") private var language="English"
     @Default(.boringShelf) private var trayDrop
     @Default(.openShelfByDefault) private var openTray
+    @Default(.autoRemoveShelfItems) private var removeDraggedItems
     @State private var sheet:Sheet?
     @State private var showInstructions=false
     enum Sheet:String,Identifiable { case weather,connections;var id:String { rawValue } }
@@ -181,7 +182,12 @@ struct IslandModuleInspector:View {
         Form {
             switch module {
             case .shelf:
-                Section("File Tray") { Toggle("Accept drops over the closed Island",isOn:$trayDrop);Toggle("Open File Tray when it contains files",isOn:$openTray);Text("Your files stay in their original locations. Hiding the tray keeps its saved items.").font(.caption).foregroundStyle(.secondary) }
+                Section("File Tray") {
+                    Toggle("Accept drops over the closed Island",isOn:$trayDrop)
+                    Toggle("Open File Tray when it contains files",isOn:$openTray)
+                    Toggle("Remove items after dragging out",isOn:$removeDraggedItems)
+                    Text("After another app accepts a drop, its items disappear from the tray. Cancelled drops keep them here. Only the tray entries are removed; this does not delete your files.").font(.caption).foregroundStyle(.secondary)
+                }
             case .weather:
                 Section("Your forecast") { TextField("City",text:$city);Toggle("Use Fahrenheit",isOn:$fahrenheit);Button("Background and forecast…") { sheet = .weather };Text("Changing these settings doesn’t send a search. Choose Get forecast when you’re ready.").font(.caption).foregroundStyle(.secondary) }
             case .devices:

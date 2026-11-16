@@ -1,4 +1,4 @@
-# Island 2.12.0
+# Island 2.12.1
 
 An independent, open-source macOS notch utility, based on [Boring Notch](https://github.com/TheBoredTeam/boring.notch). GPL-3.0; original copyright notices and third-party licenses are retained.
 
@@ -20,6 +20,10 @@ An independent, open-source macOS notch utility, based on [Boring Notch](https:/
 - Island-specific signed Sparkle updates from this repository’s latest release. Checks/downloads are opt-in; the signed release assets must be published first.
 
 Apple silicon, macOS 15+. Build with Xcode 26 or later. The supplied preview is locally signed and **not notarized**. A physical external monitor and all optional integrations still require live testing.
+
+## New in 2.12.1
+
+File Tray settings now include **Remove items after dragging out**. Only a successful drop into another app clears the exported entries. Cancelled, rejected and internal drops keep them; original and temporary export files are not deleted by this cleanup. The option starts off.
 
 ## New in 2.12
 

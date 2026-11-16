@@ -1,6 +1,10 @@
-# Island 2.12.0 development status
+# Island 2.12.1 development status
 
 Updated November 15, 2026. This is an implementation inventory, not a claim of full MacNotch parity or zero bugs.
+
+## New in 2.12.1
+
+- Optional removal of File Tray entries after an accepted external drop; cancelled/rejected/internal drops preserve entries. Native completion tracking is used by the current tray as well as the inherited shelf. Only entries are removed; export backing files remain available to the receiving app.
 
 ## New in 2.12
 
