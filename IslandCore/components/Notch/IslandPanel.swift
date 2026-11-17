@@ -31,7 +31,7 @@ extension SkyLightOperator {
     }
 }
 
-class IslandPanel: NSPanel {
+class IslandPanel: IslandTopEdgePanel {
     private var isSkyLightEnabled: Bool = false
     private var hideForFullscreen=false
     func bindVisibility(to model:IslandViewModel) {
@@ -40,9 +40,6 @@ class IslandPanel: NSPanel {
         }.store(in:&observers)
     }
     func updateFullscreenVisibility() { let hidden=hideForFullscreen && !isSkyLightEnabled;ignoresMouseEvents=hidden;alphaValue=hidden ? 0 : 1 }
-    // AppKit otherwise reserves a one-point strip above floating panels.
-    // Island is positioned explicitly against the physical display edge.
-    override func constrainFrameRect(_ frameRect:NSRect,to screen:NSScreen?)->NSRect { frameRect }
     
     override init(
         contentRect: NSRect,

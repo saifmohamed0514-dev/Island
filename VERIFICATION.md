@@ -1,4 +1,14 @@
-# Island 2.12.1 verification — November 16, 2026
+# Island 2.12.2 verification — November 17, 2026
+
+## 2.12.2 (21202)
+
+The reported screenshot has four rows of wallpaper above the black surface on the owner’s 2× display. A live pre-fix snapshot currently placed the existing 680×236 panel at Quartz Y=0; its own surface image also starts at its top edge. The intermittent shift was not reproduced live, so no single OS trigger is claimed. Offscreen native AppKit comparisons showed zero content insets with both the shipped HUD style and a plain borderless style.
+
+The notch now inherits a dedicated top-edge panel. It pins the fixed canvas before first presentation, canonicalizes native frame constraints and all public frame/origin/top-left setters, prevents outer-frame animation, and repairs its anchor after move/resize/screen/backing-scale notifications and before display. Display selection is explicit, refreshed against live screen metrics and released when the window closes; other windows and pop-ups keep their normal behavior. The existing SwiftUI open/close/gesture animations remain inside that fixed canvas.
+
+Eighteen new checks execute the actual native panel offscreen, including the screenshot’s two-point shifted proposal, frame/origin/top-left APIs, resize/animation proposals, zero content inset, above/left displays, scaling, disconnect/reconnect and close. No desktop input is posted and no test window is shown. The full local release build passed 652 Swift checks plus the existing compiled MCP, legacy bridge and release/configuration checks. Live installation checks are recorded separately. Existing settings, files and macOS privacy records are retained.
+
+## Earlier 2.12.1 verification — November 16, 2026
 
 ## 2.12.1 (21201)
 

@@ -1,4 +1,4 @@
-# Island 2.12.1
+# Island 2.12.2
 
 An independent, open-source macOS notch utility, based on [Boring Notch](https://github.com/TheBoredTeam/boring.notch). GPL-3.0; original copyright notices and third-party licenses are retained.
 
@@ -20,6 +20,10 @@ An independent, open-source macOS notch utility, based on [Boring Notch](https:/
 - Island-specific signed Sparkle updates from this repository’s latest release. Checks/downloads are opt-in; the signed release assets must be published first.
 
 Apple silicon, macOS 15+. Build with Xcode 26 or later. The supplied preview is locally signed and **not notarized**. A physical external monitor and all optional integrations still require live testing.
+
+## New in 2.12.2
+
+Island’s fixed panel is pinned before it first appears and stays attached to the selected display’s top edge across native frame/origin updates, resize proposals and display changes. The existing surface animations stay inside that fixed canvas.
 
 ## New in 2.12.1
 

@@ -1,6 +1,10 @@
-# Island 2.12.1 development status
+# Island 2.12.2 development status
 
 Updated November 15, 2026. This is an implementation inventory, not a claim of full MacNotch parity or zero bugs.
+
+## New in 2.12.2
+
+- Persistent native top-edge pinning for the notch panel: initial presentation, constraints, frame/origin/top-left setters, resize proposals and display changes share the same selected-screen anchor. Eighteen native offscreen regression checks cover the panel behavior.
 
 ## New in 2.12.1
 

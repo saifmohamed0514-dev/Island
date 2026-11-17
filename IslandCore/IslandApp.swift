@@ -282,7 +282,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let hosting = NSHostingView(rootView: ContentView().environmentObject(viewModel))
         hosting.safeAreaRegions = []
         window.contentView = hosting
-
+        window.pin(to:screen,canvasSize:windowSize)
         window.orderFrontRegardless()
         NotchSpaceManager.shared.notchSpace.windows.insert(window)
 
@@ -304,9 +304,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             window.alphaValue = 0
         }
 
-        let screenFrame = screen.frame
-        let frame=IslandDisplayGeometry.frame(screen:screenFrame,size:window.frame.size,scale:screen.backingScaleFactor)
-        window.setFrame(frame,display:true)
+        if let panel=window as? IslandPanel {
+            panel.pin(to:screen,canvasSize:windowSize)
+        } else {
+            window.setFrame(IslandDisplayGeometry.frame(screen:screen.frame,size:windowSize,scale:screen.backingScaleFactor),display:true)
+        }
         window.alphaValue = 1
         (window as? IslandPanel)?.updateFullscreenVisibility()
     }
